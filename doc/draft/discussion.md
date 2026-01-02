@@ -4,6 +4,57 @@ This document captures open questions about the event sourcing architecture befo
 
 ---
 
+## 0. Architecture Philosophy
+
+### 0.1 Usage Modes
+- Should Continuum support use cases beyond full event sourcing?
+- How do we handle frontend-only, backend-authoritative, and no-persistence scenarios?
+
+> **Decision:** Continuum supports three usage modes via a two-layer architecture.
+>
+> **Supported Modes:**
+> 1. **Event-Driven Aggregate Mutation (No Persistence):** Events as typed state transitions, only final state persisted via CRUD.
+> 2. **Frontend-Only Event Sourcing:** Full ES where frontend is source of truth.
+> 3. **Hybrid Mode:** Backend is source of truth, frontend uses optimistic event application.
+>
+> **Two-Layer Architecture:**
+>
+> | Layer | What it provides | Persistence? |
+> |-------|------------------|--------------|
+> | **Core** | Annotations, DomainEvent base, strong types | No |
+> | **Persistence** | Session, EventStore, Serialization, version tracking | Yes |
+>
+> **Generated Code (into user's project):**
+> - `_$<Aggregate>EventHandlers` mixin
+> - `applyEvent()` dispatcher
+> - `replayEvents()` helper
+> - `createFromEvent()` factory
+> - `EventRegistry` (for persistence)
+>
+> **Package Structure:**
+> - `continuum` – Core package (includes annotations + persistence interfaces)
+> - `continuum_generator` – Code generator (separate package)
+> - `continuum_store_memory` – In-memory EventStore (v1)
+> - `continuum_store_hive` – Hive EventStore (v1)
+> - Future: additional store implementations
+>
+> **Key Principles:**
+> - Core package has no persistence implementation dependencies
+> - Annotations live in core (always needed together)
+> - Generator is a dev dependency that produces `*.g.dart` files in user's project
+> - `@Event(type: '...')` is optional in core, required for persistence
+> - `toJson`/`fromJson` only required when using persistence
+> - Session provides `discardStream()` and `discardAll()` for hybrid mode
+> - How users sync with backend (API calls) is not Continuum's concern
+>
+> **Rationale:**
+> - Keeps core lightweight and reusable
+> - Users only pay for what they use
+> - Same domain model works across all modes
+> - Clean separation of concerns
+
+---
+
 ## 1. DomainEvent
 
 ### 1.1 Event ID Generation

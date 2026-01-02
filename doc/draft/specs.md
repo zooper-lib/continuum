@@ -1,26 +1,107 @@
-# Dart Event Sourcing – Design Specification
+# Continuum – Design Specification
 
-This document describes the architecture for a **Marten‑style event sourcing system** in Dart, following these key principles:
-
-- Aggregates are **passive**: they only have state and `apply`/`create` methods for events.
-- Commands or application services create **DomainEvent** instances.
-- A **Session** object is responsible for:
-  - starting streams
-  - appending events
-  - tracking pending events
-  - applying events to aggregates
-  - persisting changes on `saveChanges()`
-- Aggregates do **not** hold lists of pending events.
-- Aggregates do **not** have a version field – version is infrastructure metadata.
-- All persistence is done through the Session and an `EventStore` abstraction.
-
-The target is to mirror Marten's conceptual model as closely as possible in Dart, within language constraints.
+This document describes the architecture for **Continuum**, a domain event modeling and event sourcing framework for Dart.
 
 ---
 
-## 1. Core Concepts
+## Philosophy
 
-### 1.1 DomainEvent
+Continuum is not designed around a single interpretation of "event sourcing". Instead, it is built around **domain events as a modeling tool** that can be applied in different contexts, depending on where the source of truth lives.
+
+The central idea is that **domain events describe meaningful state transitions**, and **aggregates define how those transitions affect domain state**. Whether events are persisted, transmitted, or discarded depends on the usage mode.
+
+### Supported Usage Modes
+
+**1. Event-Driven Aggregate Mutation (No Persistence)**
+
+Events are used as typed, explicit state transitions. Aggregates apply events and enforce invariants. Only the final aggregate state is stored (CRUD persistence). Events are not persisted or replayed.
+
+Suitable for:
+- Clean Architecture domain layers
+- Applications that want strong domain modeling
+- Systems that benefit from explicit mutations but do not require event sourcing
+
+**2. Frontend-Only Event Sourcing**
+
+The frontend is the sole source of truth. Domain events are persisted locally (e.g., SQLite, Hive, file). Aggregates are reconstructed by replaying events.
+
+Suitable for:
+- Offline-first applications
+- Single-user tools
+- Desktop applications
+- Scenarios where no backend exists
+
+**3. Hybrid Mode (Backend Source of Truth, Frontend Optimistic)**
+
+The backend is the authoritative source of truth, while the frontend uses Continuum for optimistic state modeling. Frontend events are transient. The frontend eventually sends a command to the backend, which validates and persists its own events.
+
+Suitable for:
+- Optimistic UI patterns
+- Undo/cancel before commit
+- Conflict-aware UX
+
+### Key Conceptual Distinctions
+
+- **Events are not APIs.** Domain events are internal modeling constructs, not public contracts.
+- **Frontend and backend events have different roles.** Frontend events are optimistic and disposable; backend events are authoritative and durable.
+- **Aggregates are disposable on the frontend.** In hybrid mode, frontend aggregates are temporary and may be replaced by backend state after successful command execution.
+
+---
+
+## Architecture Overview
+
+Continuum is organized into two conceptual layers and multiple packages.
+
+### Layer 1: Core (Event Application)
+
+The foundation. Provides domain event modeling and aggregate state transitions without any persistence concerns.
+
+**The `continuum` package provides:**
+- `@Aggregate()` annotation
+- `@Event()` annotation (with optional `type` for serialization)
+- `DomainEvent` base class
+- `EventId`, `StreamId` strong types
+- Exception types
+
+**The `continuum_generator` package generates (into user's project):**
+- `_$<Aggregate>EventHandlers` mixin (apply method contracts)
+- `applyEvent()` dispatcher extension
+- `replayEvents()` helper extension
+- `createFromEvent()` factory for aggregate construction
+- `EventRegistry` for deserialization (when using persistence)
+
+**Layer 1 does NOT include:**
+- Session
+- EventStore
+- Version tracking
+- Pending event lists
+
+### Layer 2: Persistence (Event Sourcing)
+
+Builds on Layer 1. Adds event stream persistence, version tracking, and session management.
+
+**The `continuum` package also provides (for persistence):**
+- `Session` interface (pending events, version tracking, atomic save)
+- `EventStore` interface
+- `EventSourcingStore` (configured root)
+- `EventSerializer` interface
+- `StoredEvent`, `ExpectedVersion`, concurrency types
+- `@Event(type: '...')` becomes **required** for serialization
+
+**EventStore implementations (separate packages):**
+- `continuum_store_memory` – In-memory EventStore (for testing)
+- `continuum_store_hive` – Hive persistence
+- Future: additional storage backends
+
+Users may also implement the `EventStore` interface for custom persistence.
+
+---
+
+## Part I: Core Layer
+
+---
+
+## 1. DomainEvent
 
 All events extend a common abstract base class.
 
@@ -31,7 +112,7 @@ Required fields:
 - `metadata` – `Map<String, dynamic>`, optional (may return empty map)
 
 ```dart
-/// Strong type for event identifiers using ULID (conceptual). 
+/// Strong type for event identifiers using ULID.
 class EventId {
   final String value;
   const EventId(this.value);
@@ -41,20 +122,15 @@ abstract class DomainEvent {
   EventId get eventId;
   DateTime get occurredOn;
   Map<String, dynamic> get metadata;
-  
-  Map<String, dynamic> toJson();
 }
 ```
 
-Events themselves are plain immutable value objects.
+Events are plain immutable value objects.
 
-Each event declares its aggregate and a stable type discriminator via annotation:
+Each event declares its aggregate via annotation. The `type` discriminator is **optional in the core layer** (only required when using persistence):
 
 ```dart
-@Event(
-  ofAggregate: UserAggregate,
-  type: 'user.created.v1',  // stable, explicit, globally unique
-)
+@Event(ofAggregate: UserAggregate)
 class UserCreatedEvent extends DomainEvent {
   @override
   final EventId eventId;
@@ -75,31 +151,14 @@ class UserCreatedEvent extends DomainEvent {
     DateTime? occurredOn,
   })  : eventId = eventId ?? EventId(Ulid().toString()),
         occurredOn = occurredOn ?? DateTime.now().toUtc();
-
-  @override
-  Map<String, dynamic> toJson() => {
-    'eventId': eventId.value,
-    'occurredOn': occurredOn.toIso8601String(),
-    'name': name,
-    'email': email,
-  };
-  
-  factory UserCreatedEvent.fromJson(Map<String, dynamic> json) => UserCreatedEvent(
-    eventId: EventId(json['eventId'] as String),
-    occurredOn: DateTime.parse(json['occurredOn'] as String),
-    name: json['name'] as String,
-    email: json['email'] as String,
-  );
 }
 ```
 
-The generator uses `@Event(ofAggregate: ..., type: ...)` to:
-- Know which events to wire into which aggregate
-- Build the event type registry for serialization
+The generator uses `@Event(ofAggregate: ...)` to know which events to wire into which aggregate.
 
 ---
 
-### 1.2 Aggregate
+## 2. Aggregate
 
 Aggregates are passive plain Dart classes:
 
@@ -107,7 +166,7 @@ Aggregates are passive plain Dart classes:
 - They define how to apply non-creation events via `apply<EventName>` methods.
 - They define static `create*` methods that construct new instances from creation events.
 - They do **not** extend a base class.
-- They do **not** have a version field (version is managed by Session/EventStore).
+- They do **not** have a version field (version is infrastructure metadata in the persistence layer).
 - They do **not** know anything about persistence, sessions, or event stores.
 - They do **not** contain a list of pending or uncommitted events.
 
@@ -147,15 +206,15 @@ Important:
 - The aggregate only knows how to apply events and how to construct itself from creation events.
 - **Creation events** are handled by `create*` methods – no `apply` method exists for them.
 - **Non-creation events** are handled by `apply<EventName>` methods.
-- The stream ID is external to the aggregate (passed to Session methods, not stored in aggregate).
+- The stream ID is external to the aggregate (used by the persistence layer, not stored in aggregate).
 
 ---
 
-## 2. Code Generation for Apply and Create
+## 3. Code Generation (Core)
 
 Because Dart does not have reflection suitable for this use case, a generator is used to enforce type safety and reduce boilerplate.
 
-### 2.1 Aggregate and Event Discovery
+### 3.1 Aggregate and Event Discovery
 
 Aggregates are discovered via `@Aggregate()` annotation:
 
@@ -164,10 +223,10 @@ Aggregates are discovered via `@Aggregate()` annotation:
 class UserAggregate { ... }
 ```
 
-Events declare their aggregate and type discriminator:
+Events declare their aggregate:
 
 ```dart
-@Event(ofAggregate: UserAggregate, type: 'user.name_changed')
+@Event(ofAggregate: UserAggregate)
 class NameChangedEvent extends DomainEvent { ... }
 ```
 
@@ -180,12 +239,12 @@ UserAggregate => {
 }
 ```
 
-### 2.2 Generated Contracts
+### 3.2 Generated Contracts
 
 For each aggregate, the generator produces:
 
 - A mixin that defines required `apply` method signatures for **non-creation events only**.
-- A dispatcher for applying events during replay.
+- A dispatcher for applying events.
 - A creation dispatcher for constructing aggregates from creation events.
 
 Example mixin (**excludes creation events**):
@@ -208,7 +267,7 @@ class UserAggregate with _$UserAggregateEventHandlers {
 }
 ```
 
-### 2.3 Generated Dispatchers
+### 3.3 Generated Dispatchers
 
 The generator creates an apply dispatcher for non-creation events:
 
@@ -228,7 +287,6 @@ extension _$UserAggregateApply on UserAggregate {
   void replayEvents(Iterable<DomainEvent> events) {
     for (final event in events) {
       applyEvent(event);
-      // Note: NO version increment – aggregates don't track version
     }
   }
 }
@@ -247,7 +305,7 @@ extension _$UserAggregateFactory on Never {
 }
 ```
 
-### 2.4 Creation Event Convention
+### 3.4 Creation Event Convention
 
 - Creation events are identified via static `create*` method signatures on the aggregate.
 - Each `create*` method takes exactly one parameter: the creation event type.
@@ -277,7 +335,44 @@ class UserAggregate {
 
 ---
 
-## 3. Session
+## 4. Core Layer Usage Example
+
+Using the core layer without persistence (Mode 1: Event-Driven Mutation):
+
+```dart
+// Create an aggregate from a creation event
+final user = UserAggregate.create(UserCreatedEvent(
+  name: 'Daniel',
+  email: 'test@example.com',
+));
+
+// Apply subsequent events
+user.applyEvent(NameChangedEvent(newName: 'Dan'));
+user.applyEvent(EmailChangedEvent(newEmail: 'new@example.com'));
+
+// User now has current state
+expect(user.name, equals('Dan'));
+expect(user.email, equals('new@example.com'));
+
+// Save aggregate state via your own CRUD mechanism
+await repository.save(user);
+// Events are discarded – only final state persists
+```
+
+This pattern provides:
+- Strong domain modeling with explicit state transitions
+- Type-safe event handling
+- Testable aggregates without infrastructure
+
+---
+
+## Part II: Persistence Layer
+
+The persistence layer builds on top of the core layer to provide full event sourcing capabilities.
+
+---
+
+## 5. Session
 
 The `Session` is the unit of work. It is responsible for:
 
@@ -287,7 +382,7 @@ The `Session` is the unit of work. It is responsible for:
 - **Tracking stream versions internally** (aggregates don't have version).
 - Persisting all pending events atomically on `saveChanges()`.
 
-### 3.1 Session Interface
+### 5.1 Session Interface
 
 ```dart
 /// Strong type for stream identifiers.
@@ -308,10 +403,17 @@ abstract class Session {
 
   /// Persist all pending events in a single atomic operation.
   Future<void> saveChanges();
+
+  /// Discard all pending events for a stream without persisting.
+  /// Useful for hybrid mode when backend returns authoritative state.
+  void discardStream(StreamId streamId);
+
+  /// Discard all pending events across all streams.
+  void discardAll();
 }
 ```
 
-### 3.2 Session Behavior
+### 5.2 Session Behavior
 
 **`load<TAggregate>(streamId)`:**
 1. Load all events for the stream from `EventStore`, ordered by version.
@@ -341,6 +443,16 @@ abstract class Session {
 3. On failure: throw `ConcurrencyException` (or other typed exception), session remains usable.
 4. All streams are saved atomically.
 
+**`discardStream(streamId)`:**
+1. Remove all pending events for the given stream.
+2. Remove the cached aggregate for the stream (if any).
+3. Does not affect persisted data.
+
+**`discardAll()`:**
+1. Remove all pending events for all streams.
+2. Clear all cached aggregates.
+3. Session becomes empty but remains usable.
+
 **Version tracking:**
 - Version lives only inside Session and EventStore.
 - Aggregates never see or store version.
@@ -350,9 +462,9 @@ Pending events are stored **inside the session**, not in the aggregate.
 
 ---
 
-## 4. Event Store
+## 6. Event Store
 
-The `EventStore` is the infrastructure abstraction used by the `Session` to persist events.
+The `EventStore` is the infrastructure abstraction used by the `Session` to persist events. This is defined in the core package as an **interface only**. Implementations are provided by separate packages.
 
 ```dart
 abstract class EventStore {
@@ -405,11 +517,16 @@ class StoredEvent {
 - If `expectedVersion` doesn't match current stream version, throw `ConcurrencyException`.
 - Event versions are strictly sequential (0, 1, 2, ...) with no gaps.
 
-Different implementations:
+**Implementation packages (separate from core):**
 
-- In memory (for tests)
-- SQLite (for offline or local persistence)
-- Hive/Sembast for local non-sql persistence
+| Package | Description | Status |
+|---------|-------------|--------|
+| `continuum_store_memory` | In-memory store for testing | v1 |
+| `continuum_store_hive` | Hive persistence | v1 |
+| `continuum_store_sqlite` | SQLite persistence | Future |
+| `continuum_store_sembast` | Sembast persistence | Future |
+
+Users may also implement the `EventStore` interface for custom persistence backends.
 
 The `EventStore` is responsible for:
 
@@ -419,9 +536,9 @@ The `EventStore` is responsible for:
 
 ---
 
-## 5. Serialization
+## 7. Serialization
 
-Events must be serialized to and from JSON for storage and transport.
+Events must be serialized to and from JSON for storage. Serialization is **only required when using the persistence layer**.
 
 ```dart
 abstract class EventSerializer {
@@ -436,12 +553,15 @@ class SerializedEvent {
 }
 ```
 
-### 5.1 Type Discriminator
+### 7.1 Type Discriminator
 
-The event type discriminator comes from the `@Event` annotation:
+When using persistence, the `type` parameter in `@Event` becomes **required**:
 
 ```dart
-@Event(ofAggregate: UserAggregate, type: 'user.created.v1')
+@Event(
+  ofAggregate: UserAggregate,
+  type: 'user.created.v1',  // required for persistence
+)
 class UserCreatedEvent extends DomainEvent { ... }
 ```
 
@@ -450,9 +570,9 @@ Rules for type discriminator:
 - Must be globally unique across all events.
 - Must be stable forever (survives refactors, package renames).
 - Should be readable/debuggable.
-- Missing annotation = generator warning (event ignored).
+- Missing `type` when using persistence = generator error.
 
-### 5.2 Event Registry
+### 7.2 Event Registry
 
 The generator builds a registry for deserialization:
 
@@ -476,9 +596,9 @@ class EventRegistry {
 }
 ```
 
-### 5.3 JSON Contract
+### 7.3 JSON Contract
 
-Events must implement:
+Events using persistence must implement:
 - `Map<String, dynamic> toJson()` – for serialization
 - `static T fromJson(Map<String, dynamic> json)` – for deserialization
 
@@ -487,36 +607,38 @@ The framework does not mandate how these are implemented. Developers may use:
 - Manual mapping
 - Any other tool
 
+**Note:** Events used only with the core layer (no persistence) do not need `toJson`/`fromJson`.
+
 ---
 
-## 6. Aggregate Lifecycle Example
+## 8. Persistence Layer Usage Examples
 
-End to end example of typical usage.
-
-### 6.1 Creating a new aggregate
-
-Command handler decides that a `UserCreatedEvent` should be emitted:
+### 8.1 Mode 2: Full Event Sourcing (Frontend as Source of Truth)
 
 ```dart
-final session = store.openSession();
-
-final streamId = StreamId('user-123');
-final createdEvent = UserCreatedEvent(
-  name: 'Daniel',
-  email: 'test@example.com',
-  // eventId and occurredOn are auto-generated
+final store = EventSourcingStore(
+  eventStore: sqliteEventStore,  // from continuum_store_sqlite
+  serializer: jsonEventSerializer,
+  registry: eventRegistry,
 );
 
-// Start the stream with creation event
-session.startStream<UserAggregate>(streamId, createdEvent);
+final session = store.openSession();
 
-// More events can be appended before saving
+// Create a new aggregate
+final streamId = StreamId('user-123');
+session.startStream<UserAggregate>(streamId, UserCreatedEvent(
+  name: 'Daniel',
+  email: 'test@example.com',
+));
+
+// Append more events
 session.append(streamId, NameChangedEvent(newName: 'Dan'));
 
+// Persist all events atomically
 await session.saveChanges();
 ```
 
-### 6.2 Loading and using an aggregate
+Loading an existing aggregate:
 
 ```dart
 final session = store.openSession();
@@ -527,28 +649,50 @@ final user = await session.load<UserAggregate>(StreamId('user-123'));
 // - calls UserAggregate.create(firstEvent) to construct
 // - calls applyEvent for remaining events
 
-// After load, `user` has correct, current state.
+// User now has current state from replayed events
 ```
 
-If there is a new event to append later:
+### 8.2 Mode 3: Hybrid Mode (Backend Source of Truth)
 
 ```dart
-session.append(StreamId('user-123'), EmailChangedEvent(
-  newEmail: 'new@example.com',
-));
+final session = store.openSession();
 
-await session.saveChanges();
+// Optimistically apply events locally
+final streamId = StreamId('user-123');
+session.startStream<UserAggregate>(streamId, UserCreatedEvent(...));
+session.append(streamId, NameChangedEvent(newName: 'Dan'));
+
+// User sees optimistic UI state immediately...
+
+// Send command to backend (NOT Continuum's concern)
+final result = await api.createUser(CreateUserCommand(...));
+
+if (result.isSuccess) {
+  // Option A: Discard local, reload from backend events
+  session.discardStream(streamId);
+  // Reload if backend returns events...
+  
+  // Option B: Discard local, replace with backend state
+  session.discardAll();
+  // Use backend-returned state directly...
+  
+  // Option C: Just discard and start fresh next time
+  session.discardAll();
+} else {
+  // Handle error, session still has pending events for retry/undo
+}
 ```
 
-The session will:
-- Apply the new event immediately to cached aggregate via `applyEvent`.
-- Append the new event to the event store with correct `expectedVersion`.
+The user is responsible for:
+- Calling the backend
+- Deciding how to handle the response (reload, replace, discard)
+- Managing the transition from optimistic to authoritative state
 
 ---
 
-## 7. EventSourcingStore
+## 9. EventSourcingStore
 
-The `EventSourcingStore` is the configured root object (similar to Marten's `DocumentStore`):
+The `EventSourcingStore` is the configured root object for the persistence layer (similar to Marten's `DocumentStore`):
 
 ```dart
 class EventSourcingStore {
@@ -578,67 +722,192 @@ class EventSourcingStore {
 
 ---
 
-## 8. Testing
+## 10. Testing
 
-For testing, an `InMemoryEventStore` is provided:
-
-```dart
-class InMemoryEventStore implements EventStore {
-  final Map<StreamId, List<StoredEvent>> _streams = {};
-  
-  @override
-  Future<List<StoredEvent>> loadStream(StreamId streamId) async {
-    return _streams[streamId] ?? [];
-  }
-
-  @override
-  Future<void> appendEvents(
-    StreamId streamId,
-    int expectedVersion,
-    List<DomainEvent> events,
-  ) async {
-    // Implementation with version checking
-  }
-}
-```
+### 10.1 Core Layer Testing
 
 Aggregates can be tested in isolation without any infrastructure:
 
 ```dart
 test('UserAggregate applies name change', () {
   final user = UserAggregate.create(UserCreatedEvent(name: 'Dan', email: 'x@y.com'));
-  user.applyNameChangedEvent(NameChangedEvent(newName: 'Daniel'));
+  user.applyEvent(NameChangedEvent(newName: 'Daniel'));
   
   expect(user.name, equals('Daniel'));
 });
 ```
 
+This works for all usage modes and requires no persistence setup.
+
+### 10.2 Persistence Layer Testing
+
+For testing with the persistence layer, use `InMemoryEventStore` (from `continuum_store_memory`):
+
+```dart
+import 'package:continuum_store_memory/continuum_store_memory.dart';
+
+test('Session persists and reloads aggregate', () async {
+  final eventStore = InMemoryEventStore();
+  final store = EventSourcingStore(
+    eventStore: eventStore,
+    serializer: jsonEventSerializer,
+    registry: eventRegistry,
+  );
+
+  // Create and save
+  final session1 = store.openSession();
+  session1.startStream<UserAggregate>(StreamId('user-1'), UserCreatedEvent(...));
+  await session1.saveChanges();
+
+  // Reload in new session
+  final session2 = store.openSession();
+  final user = await session2.load<UserAggregate>(StreamId('user-1'));
+  
+  expect(user.name, equals('Dan'));
+});
+```
+
 ---
 
-## 9. Out of Scope for Initial Version
+## 11. Package Structure
+
+Continuum is organized as multiple packages to keep the core clean and allow users to pick only what they need.
+
+### Packages
+
+**`continuum`** – Core package (includes annotations)
+```
+continuum/
+├── lib/
+│   ├── continuum.dart              # Main export
+│   └── src/
+│       ├── annotations/
+│       │   ├── aggregate.dart      # @Aggregate annotation
+│       │   └── event.dart          # @Event annotation
+│       ├── core/
+│       │   ├── domain_event.dart   # DomainEvent base class
+│       │   ├── event_id.dart       # EventId strong type
+│       │   └── stream_id.dart      # StreamId strong type
+│       ├── persistence/
+│       │   ├── session.dart        # Session interface
+│       │   ├── event_store.dart    # EventStore interface
+│       │   ├── stored_event.dart   # StoredEvent, ExpectedVersion
+│       │   └── serialization.dart  # EventSerializer interface
+│       └── exceptions.dart         # Exception types
+```
+
+**`continuum_generator`** – Code generator
+```
+continuum_generator/
+├── lib/
+│   ├── builder.dart               # build_runner entry point
+│   └── src/
+│       ├── aggregate_generator.dart
+│       ├── registry_generator.dart
+│       └── ...
+```
+
+**`continuum_store_memory`** – In-memory EventStore (v1)
+```
+continuum_store_memory/
+├── lib/
+│   └── src/
+│       └── in_memory_event_store.dart
+```
+
+**`continuum_store_hive`** – Hive EventStore (v1)
+```
+continuum_store_hive/
+├── lib/
+│   └── src/
+│       └── hive_event_store.dart
+```
+
+### Generated Code (in user's project)
+
+The generator produces `*.g.dart` part files in the user's project:
+
+```
+user_project/
+├── lib/
+│   └── domain/
+│       ├── user_aggregate.dart     # User's aggregate
+│       ├── user_aggregate.g.dart   # Generated: mixin, dispatcher, factory
+│       ├── events/
+│       │   ├── user_created.dart
+│       │   └── ...
+│       └── event_registry.g.dart   # Generated: type → factory mapping
+```
+
+### Dependency Flow
+
+```
+continuum (core + annotations)
+    ↑
+    ├── continuum_generator (dev dependency)
+    │       depends on: build_runner, source_gen, analyzer
+    │
+    ├── continuum_store_memory
+    │       depends on: continuum
+    │
+    └── continuum_store_hive
+            depends on: continuum, hive
+```
+
+### User Dependencies by Usage Mode
+
+| Mode | `dependencies` | `dev_dependencies` |
+|------|----------------|--------------------|
+| Mode 1 (no persistence) | `continuum` | `continuum_generator`, `build_runner` |
+| Mode 2 (full ES) | `continuum`, `continuum_store_*` | `continuum_generator`, `build_runner` |
+| Mode 3 (hybrid) | `continuum`, `continuum_store_*` | `continuum_generator`, `build_runner` |
+
+---
+
+## 12. Out of Scope for Initial Version
 
 The following can be added later but are intentionally excluded from the first iteration:
 
 - Snapshots (design hooks exist in EventStore/Session)
 - Projections/read models (optional `globalSequence` included in StoredEvent)
 - Automatic event publication to message buses
-- Multi device synchronization logic
+- Multi-device synchronization logic
 - Command bus and pipeline behaviors
 - Aggregate caching in Session
 - Upcasters for schema evolution (v1 uses new event types strategy)
 
 ---
 
-## 10. Summary of Responsibilities
+## 13. Summary of Responsibilities
+
+### Core Package (`continuum`)
 
 | Component | Responsibilities |
 |-----------|------------------|
-| **DomainEvent** | Pure value object; declares aggregate and type via annotation; provides `toJson`/`fromJson` |
-| **Aggregate** | Domain state; `apply<Event>` methods for mutations; static `create*` methods for creation; no base class; no version |
-| **Code Generator** | Discovers aggregates/events via annotations; generates apply contracts (non-creation only); generates dispatchers and factories; generates event registry |
-| **Session** | Tracks pending events per stream; tracks version internally; applies events to cached aggregates; loads aggregates by replay; persists atomically on `saveChanges()` |
-| **EventStore** | Persists and loads event streams; enforces optimistic concurrency; guarantees sequential versions |
+| **Annotations** | `@Aggregate()`, `@Event()` – markers for code generation |
+| **DomainEvent** | Base class for events; provides `eventId`, `occurredOn`, `metadata` |
+| **Strong Types** | `EventId`, `StreamId` – type-safe identifiers |
+| **Persistence Interfaces** | `Session`, `EventStore`, `EventSerializer` – contracts for persistence layer |
+
+### Generator Package (`continuum_generator`)
+
+| Output | Responsibilities |
+|--------|------------------|
+| **`_$<Aggregate>EventHandlers` mixin** | Enforces apply method signatures for non-creation events |
+| **`applyEvent()` extension** | Dispatcher that routes events to correct apply methods |
+| **`replayEvents()` extension** | Convenience method for applying multiple events |
+| **`createFromEvent()` factory** | Constructs aggregate from creation event |
+| **`EventRegistry`** | Maps event type strings to `fromJson` factories (for persistence) |
+
+### Persistence Layer
+
+| Component | Responsibilities |
+|-----------|------------------|
+| **Session** | Tracks pending events per stream; tracks version internally; applies events to cached aggregates; loads aggregates by replay; persists atomically on `saveChanges()`; supports discard for hybrid mode |
+| **EventStore** | Interface for persistence; implementations in separate packages |
 | **EventSourcingStore** | Configured root object; creates sessions; holds dependencies |
 | **EventSerializer / Registry** | Converts between stored JSON and DomainEvent instances; uses stable type discriminators |
+
+---
 
 This specification is intended to be handed to an AI coding agent to implement the package skeleton, code generator, and initial infrastructure.
