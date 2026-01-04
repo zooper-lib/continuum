@@ -18,6 +18,12 @@ const _domainEventChecker = TypeChecker.fromUrl('package:continuum/src/events/do
 ///
 /// Scans a library for classes annotated with `@Aggregate()` and `@Event()`
 /// and builds the mapping between aggregates and their events.
+///
+/// Events can be defined in the same file OR in separate imported files.
+/// The generator discovers events by:
+/// 1. Looking at elements defined in this library (including part files)
+/// 2. Looking at imported elements that have `@Event(ofAggregate: X)`
+///    where X is an aggregate defined in this library
 final class AggregateDiscovery {
   /// Discovers all aggregates and events in the given library.
   ///
@@ -27,19 +33,41 @@ final class AggregateDiscovery {
     final aggregates = <String, AggregateInfo>{};
     final pendingEvents = <EventInfo>[];
 
-    // First pass: discover all aggregates
+    // First pass: discover all aggregates in THIS library
     for (final element in library.topLevelElements) {
       if (element is ClassElement && _aggregateChecker.hasAnnotationOf(element)) {
         aggregates[element.name] = AggregateInfo(element: element);
       }
     }
 
-    // Second pass: discover all events
+    // If no aggregates in this library, nothing to generate
+    if (aggregates.isEmpty) {
+      return [];
+    }
+
+    // Second pass: discover events defined in THIS library
     for (final element in library.topLevelElements) {
       if (element is ClassElement && _eventChecker.hasAnnotationOf(element)) {
         final eventInfo = _extractEventInfo(element);
         if (eventInfo != null) {
           pendingEvents.add(eventInfo);
+        }
+      }
+    }
+
+    // Third pass: discover events from IMPORTED libraries
+    // This allows events to be defined in separate files
+    for (final importedLibrary in library.importedLibraries) {
+      // Scan exported elements from the imported library
+      for (final element in importedLibrary.exportNamespace.definedNames.values) {
+        if (element is ClassElement && _eventChecker.hasAnnotationOf(element)) {
+          final eventInfo = _extractEventInfo(element);
+          if (eventInfo != null) {
+            // Only include if this event belongs to an aggregate in THIS library
+            if (aggregates.containsKey(eventInfo.aggregateTypeName)) {
+              pendingEvents.add(eventInfo);
+            }
+          }
         }
       }
     }

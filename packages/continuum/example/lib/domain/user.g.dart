@@ -1,38 +1,38 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'continuum_example.dart';
+part of 'user.dart';
 
 // **************************************************************************
 // ContinuumGenerator
 // **************************************************************************
 
-/// Generated mixin requiring apply methods for ShoppingCart mutation events.
+/// Generated mixin requiring apply methods for User mutation events.
 ///
 /// Implement this mixin and provide the required apply methods.
-mixin _$ShoppingCartEventHandlers {
-  /// Applies a ItemAdded event to this aggregate.
-  void applyItemAdded(ItemAdded event);
+mixin _$UserEventHandlers {
+  /// Applies a EmailChanged event to this aggregate.
+  void applyEmailChanged(EmailChanged event);
 
-  /// Applies a ItemRemoved event to this aggregate.
-  void applyItemRemoved(ItemRemoved event);
+  /// Applies a UserDeactivated event to this aggregate.
+  void applyUserDeactivated(UserDeactivated event);
 }
 
-/// Generated extension providing event dispatch for ShoppingCart.
-extension $ShoppingCartEventDispatch on ShoppingCart {
+/// Generated extension providing event dispatch for User.
+extension $UserEventDispatch on User {
   /// Applies a domain event to this aggregate.
   ///
   /// Routes supported mutation events to the corresponding apply method.
   /// Throws [UnsupportedEventException] for unknown event types.
   void applyEvent(DomainEvent event) {
     switch (event) {
-      case ItemAdded():
-        applyItemAdded(event);
-      case ItemRemoved():
-        applyItemRemoved(event);
+      case EmailChanged():
+        applyEmailChanged(event);
+      case UserDeactivated():
+        applyUserDeactivated(event);
       default:
         throw UnsupportedEventException(
           eventType: event.runtimeType,
-          aggregateType: ShoppingCart,
+          aggregateType: User,
         );
     }
   }
@@ -47,20 +47,20 @@ extension $ShoppingCartEventDispatch on ShoppingCart {
   }
 }
 
-/// Generated extension providing creation dispatch for ShoppingCart.
-extension $ShoppingCartCreation on Never {
-  /// Creates a ShoppingCart from a creation event.
+/// Generated extension providing creation dispatch for User.
+extension $UserCreation on Never {
+  /// Creates a User from a creation event.
   ///
   /// Routes to the appropriate static create method.
   /// Throws [InvalidCreationEventException] for unknown event types.
-  static ShoppingCart createFromEvent(DomainEvent event) {
+  static User createFromEvent(DomainEvent event) {
     switch (event) {
-      case CartCreated():
-        return ShoppingCart.createCartCreated(event);
+      case UserRegistered():
+        return User.createUserRegistered(event);
       default:
         throw InvalidCreationEventException(
           eventType: event.runtimeType,
-          aggregateType: ShoppingCart,
+          aggregateType: User,
         );
     }
   }
@@ -70,25 +70,25 @@ extension $ShoppingCartCreation on Never {
 ///
 /// Maps event type discriminators to fromJson factories.
 final $generatedEventRegistry = EventRegistry({
-  'cart.created': CartCreated.fromJson,
-  'item.added': ItemAdded.fromJson,
-  'item.removed': ItemRemoved.fromJson,
+  'user.registered': UserRegistered.fromJson,
+  'user.email_changed': EmailChanged.fromJson,
+  'user.deactivated': UserDeactivated.fromJson,
 });
 
 /// Generated aggregate factory registry for Session creation dispatch.
 final $generatedAggregateFactories = AggregateFactoryRegistry({
-  ShoppingCart: {
-    CartCreated: (event) =>
-        ShoppingCart.createCartCreated(event as CartCreated),
+  User: {
+    UserRegistered: (event) =>
+        User.createUserRegistered(event as UserRegistered),
   },
 });
 
 /// Generated event applier registry for Session mutation dispatch.
 final $generatedEventAppliers = EventApplierRegistry({
-  ShoppingCart: {
-    ItemAdded: (aggregate, event) =>
-        (aggregate as ShoppingCart).applyItemAdded(event as ItemAdded),
-    ItemRemoved: (aggregate, event) =>
-        (aggregate as ShoppingCart).applyItemRemoved(event as ItemRemoved),
+  User: {
+    EmailChanged: (aggregate, event) =>
+        (aggregate as User).applyEmailChanged(event as EmailChanged),
+    UserDeactivated: (aggregate, event) =>
+        (aggregate as User).applyUserDeactivated(event as UserDeactivated),
   },
 });

@@ -28,5 +28,6 @@ export 'src/persistence/event_serializer.dart';
 export 'src/persistence/event_sourcing_store.dart';
 export 'src/persistence/event_store.dart';
 export 'src/persistence/expected_version.dart';
+export 'src/persistence/json_event_serializer.dart';
 export 'src/persistence/session.dart';
 export 'src/persistence/stored_event.dart';

@@ -12,5 +12,8 @@ dependencies:
     path: ../continuum
 
 dev_dependencies:
+  build_runner: ^2.4.0
+  continuum_generator:
+    path: ../continuum_generator
   lints: ^6.0.0
   test: ^1.25.6
