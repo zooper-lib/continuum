@@ -3,7 +3,7 @@ import 'models/aggregate_info.dart';
 /// Generates code for aggregates and their events.
 ///
 /// Creates event handler mixins, apply dispatchers, replay helpers,
-/// and creation dispatchers.
+/// creation dispatchers, and a combined GeneratedAggregate bundle.
 final class CodeEmitter {
   /// Generates all code for the given aggregates.
   ///
@@ -18,18 +18,10 @@ final class CodeEmitter {
       buffer.writeln();
       buffer.writeln(_emitCreationExtension(aggregate));
       buffer.writeln();
+      // Emit the combined GeneratedAggregate bundle
+      buffer.writeln(_emitGeneratedAggregate(aggregate));
+      buffer.writeln();
     }
-
-    // Emit the combined event registry
-    buffer.writeln(_emitEventRegistry(aggregates));
-
-    // Emit the aggregate factory registry
-    buffer.writeln();
-    buffer.writeln(_emitAggregateFactoryRegistry(aggregates));
-
-    // Emit the event applier registry
-    buffer.writeln();
-    buffer.writeln(_emitEventApplierRegistry(aggregates));
 
     return buffer.toString();
   }
@@ -137,71 +129,57 @@ final class CodeEmitter {
     return buffer.toString();
   }
 
-  /// Generates the event registry for all aggregates.
-  String _emitEventRegistry(List<AggregateInfo> aggregates) {
+  /// Generates the combined GeneratedAggregate bundle for a single aggregate.
+  ///
+  /// This bundles the serializer registry, aggregate factories, and event
+  /// appliers into a single constant that can be passed to EventSourcingStore.
+  String _emitGeneratedAggregate(AggregateInfo aggregate) {
     final buffer = StringBuffer();
 
-    buffer.writeln('/// Generated event registry for persistence deserialization.');
+    buffer.writeln('/// Generated aggregate bundle for ${aggregate.name}.');
     buffer.writeln('///');
-    buffer.writeln('/// Maps event type discriminators to fromJson factories.');
-    buffer.writeln('final \$generatedEventRegistry = EventRegistry({');
+    buffer.writeln('/// Contains all serializers, factories, and appliers for this aggregate.');
+    buffer.writeln('/// Add to the `aggregates` list when creating an [EventSourcingStore].');
+    buffer.writeln('final \$${aggregate.name} = GeneratedAggregate(');
 
-    for (final aggregate in aggregates) {
-      for (final event in aggregate.allEvents) {
-        // Only include events with type discriminators
-        if (event.type != null) {
-          buffer.writeln("  '${event.typeDiscriminator}': ${event.name}.fromJson,");
-        }
+    // Emit serializer registry inline
+    buffer.writeln('  serializerRegistry: EventSerializerRegistry({');
+    for (final event in aggregate.allEvents) {
+      if (event.type != null) {
+        buffer.writeln('    ${event.name}: EventSerializerEntry(');
+        buffer.writeln("      eventType: '${event.typeDiscriminator}',");
+        buffer.writeln('      toJson: (event) => (event as ${event.name}).toJson(),');
+        buffer.writeln('      fromJson: ${event.name}.fromJson,');
+        buffer.writeln('    ),');
       }
     }
+    buffer.writeln('  }),');
 
-    buffer.writeln('});');
-
-    return buffer.toString();
-  }
-
-  /// Generates the aggregate factory registry for creation dispatch.
-  String _emitAggregateFactoryRegistry(List<AggregateInfo> aggregates) {
-    final buffer = StringBuffer();
-
-    buffer.writeln('/// Generated aggregate factory registry for Session creation dispatch.');
-    buffer.writeln('final \$generatedAggregateFactories = AggregateFactoryRegistry({');
-
-    for (final aggregate in aggregates) {
-      if (aggregate.creationEvents.isEmpty) continue;
-
-      buffer.writeln('  ${aggregate.name}: {');
+    // Emit aggregate factory registry inline
+    buffer.writeln('  aggregateFactories: AggregateFactoryRegistry({');
+    if (aggregate.creationEvents.isNotEmpty) {
+      buffer.writeln('    ${aggregate.name}: {');
       for (final event in aggregate.creationEvents) {
         final createMethodName = 'create${event.name}';
-        buffer.writeln('    ${event.name}: (event) => ${aggregate.name}.$createMethodName(event as ${event.name}),');
+        buffer.writeln('      ${event.name}: (event) => ${aggregate.name}.$createMethodName(event as ${event.name}),');
       }
-      buffer.writeln('  },');
+      buffer.writeln('    },');
     }
+    buffer.writeln('  }),');
 
-    buffer.writeln('});');
-
-    return buffer.toString();
-  }
-
-  /// Generates the event applier registry for mutation dispatch.
-  String _emitEventApplierRegistry(List<AggregateInfo> aggregates) {
-    final buffer = StringBuffer();
-
-    buffer.writeln('/// Generated event applier registry for Session mutation dispatch.');
-    buffer.writeln('final \$generatedEventAppliers = EventApplierRegistry({');
-
-    for (final aggregate in aggregates) {
-      if (aggregate.mutationEvents.isEmpty) continue;
-
-      buffer.writeln('  ${aggregate.name}: {');
+    // Emit event applier registry inline
+    buffer.writeln('  eventAppliers: EventApplierRegistry({');
+    if (aggregate.mutationEvents.isNotEmpty) {
+      buffer.writeln('    ${aggregate.name}: {');
       for (final event in aggregate.mutationEvents) {
-        buffer.writeln('    ${event.name}: (aggregate, event) => ');
-        buffer.writeln('        (aggregate as ${aggregate.name}).apply${event.name}(event as ${event.name}),');
+        buffer.writeln('      ${event.name}: (aggregate, event) =>');
+        buffer.writeln('          (aggregate as ${aggregate.name}).apply${event.name}(event as ${event.name}),');
       }
-      buffer.writeln('  },');
+      buffer.writeln('    },');
     }
+    buffer.writeln('  }),');
 
-    buffer.writeln('});');
+    buffer.writeln(');');
 
     return buffer.toString();
   }

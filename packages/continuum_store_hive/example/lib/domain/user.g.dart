@@ -66,29 +66,40 @@ extension $UserCreation on Never {
   }
 }
 
-/// Generated event registry for persistence deserialization.
+/// Generated aggregate bundle for User.
 ///
-/// Maps event type discriminators to fromJson factories.
-final $generatedEventRegistry = EventRegistry({
-  'user.registered': UserRegistered.fromJson,
-  'user.email_changed': EmailChanged.fromJson,
-  'user.deactivated': UserDeactivated.fromJson,
-});
-
-/// Generated aggregate factory registry for Session creation dispatch.
-final $generatedAggregateFactories = AggregateFactoryRegistry({
-  User: {
-    UserRegistered: (event) =>
-        User.createUserRegistered(event as UserRegistered),
-  },
-});
-
-/// Generated event applier registry for Session mutation dispatch.
-final $generatedEventAppliers = EventApplierRegistry({
-  User: {
-    EmailChanged: (aggregate, event) =>
-        (aggregate as User).applyEmailChanged(event as EmailChanged),
-    UserDeactivated: (aggregate, event) =>
-        (aggregate as User).applyUserDeactivated(event as UserDeactivated),
-  },
-});
+/// Contains all serializers, factories, and appliers for this aggregate.
+/// Add to the `aggregates` list when creating an [EventSourcingStore].
+final $User = GeneratedAggregate(
+  serializerRegistry: EventSerializerRegistry({
+    UserRegistered: EventSerializerEntry(
+      eventType: 'user.registered',
+      toJson: (event) => (event as UserRegistered).toJson(),
+      fromJson: UserRegistered.fromJson,
+    ),
+    EmailChanged: EventSerializerEntry(
+      eventType: 'user.email_changed',
+      toJson: (event) => (event as EmailChanged).toJson(),
+      fromJson: EmailChanged.fromJson,
+    ),
+    UserDeactivated: EventSerializerEntry(
+      eventType: 'user.deactivated',
+      toJson: (event) => (event as UserDeactivated).toJson(),
+      fromJson: UserDeactivated.fromJson,
+    ),
+  }),
+  aggregateFactories: AggregateFactoryRegistry({
+    User: {
+      UserRegistered: (event) =>
+          User.createUserRegistered(event as UserRegistered),
+    },
+  }),
+  eventAppliers: EventApplierRegistry({
+    User: {
+      EmailChanged: (aggregate, event) =>
+          (aggregate as User).applyEmailChanged(event as EmailChanged),
+      UserDeactivated: (aggregate, event) =>
+          (aggregate as User).applyUserDeactivated(event as UserDeactivated),
+    },
+  }),
+);

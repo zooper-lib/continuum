@@ -25,7 +25,14 @@ void main() {
   // Every aggregate starts with a creation event. The event captures the
   // initial state.
 
-  final user = User.createUserRegistered(UserRegistered(eventId: EventId('evt-1'), userId: 'user-123', email: 'alice@example.com', name: 'Alice Smith'));
+  final user = User.createUserRegistered(
+    UserRegistered(
+      eventId: const EventId('evt-1'),
+      userId: 'user-123',
+      email: 'alice@example.com',
+      name: 'Alice Smith',
+    ),
+  );
 
   print('User registered: ${user.name} <${user.email}>');
 
@@ -36,7 +43,12 @@ void main() {
   // State changes are represented as events. The aggregate's apply methods
   // update internal state based on each event.
 
-  user.applyEvent(EmailChanged(eventId: EventId('evt-2'), newEmail: 'alice.smith@company.com'));
+  user.applyEvent(
+    EmailChanged(
+      eventId: const EventId('evt-2'),
+      newEmail: 'alice.smith@company.com',
+    ),
+  );
 
   print('Email updated to: ${user.email}');
 
@@ -44,7 +56,13 @@ void main() {
   // Deactivating the User
   // ─────────────────────────────────────────────────────────────────────────
 
-  user.applyEvent(UserDeactivated(eventId: EventId('evt-3'), deactivatedAt: DateTime.now(), reason: 'Account closed by user request'));
+  user.applyEvent(
+    UserDeactivated(
+      eventId: const EventId('evt-3'),
+      deactivatedAt: DateTime.now(),
+      reason: 'Account closed by user request',
+    ),
+  );
 
   print('User active: ${user.isActive}');
 
@@ -56,11 +74,25 @@ void main() {
   // event stores load aggregates.
 
   final events = [
-    EmailChanged(eventId: EventId('evt-2'), newEmail: 'alice.smith@company.com'),
-    UserDeactivated(eventId: EventId('evt-3'), deactivatedAt: DateTime.now(), reason: 'Account closed by user request'),
+    EmailChanged(
+      eventId: const EventId('evt-2'),
+      newEmail: 'alice.smith@company.com',
+    ),
+    UserDeactivated(
+      eventId: const EventId('evt-3'),
+      deactivatedAt: DateTime.now(),
+      reason: 'Account closed by user request',
+    ),
   ];
 
-  final rebuiltUser = User.createUserRegistered(UserRegistered(eventId: EventId('evt-1'), userId: 'user-123', email: 'alice@example.com', name: 'Alice Smith'));
+  final rebuiltUser = User.createUserRegistered(
+    UserRegistered(
+      eventId: const EventId('evt-1'),
+      userId: 'user-123',
+      email: 'alice@example.com',
+      name: 'Alice Smith',
+    ),
+  );
 
   rebuiltUser.replayEvents(events);
 

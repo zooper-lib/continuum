@@ -3,7 +3,6 @@ import '../exceptions/invalid_creation_event_exception.dart';
 import '../exceptions/stream_not_found_exception.dart';
 import '../exceptions/unsupported_event_exception.dart';
 import '../identity/stream_id.dart';
-import 'event_registry.dart';
 import 'event_serializer.dart';
 import 'event_sourcing_store.dart';
 import 'event_store.dart';
@@ -48,7 +47,6 @@ final class _StreamState {
 final class SessionImpl implements Session {
   final EventStore _eventStore;
   final EventSerializer _serializer;
-  final EventRegistry _registry;
   final AggregateFactoryRegistry _aggregateFactories;
   final EventApplierRegistry _eventAppliers;
 
@@ -59,12 +57,10 @@ final class SessionImpl implements Session {
   SessionImpl({
     required EventStore eventStore,
     required EventSerializer serializer,
-    required EventRegistry registry,
     required AggregateFactoryRegistry aggregateFactories,
     required EventApplierRegistry eventAppliers,
   }) : _eventStore = eventStore,
        _serializer = serializer,
-       _registry = registry,
        _aggregateFactories = aggregateFactories,
        _eventAppliers = eventAppliers;
 
@@ -102,9 +98,10 @@ final class SessionImpl implements Session {
   TAggregate _reconstructAggregate<TAggregate>(List<StoredEvent> events) {
     // Deserialize and apply the creation event (first event)
     final creationStored = events.first;
-    final creationEvent = _registry.fromStored(
-      creationStored.eventType,
-      creationStored.data,
+    final creationEvent = _serializer.deserialize(
+      eventType: creationStored.eventType,
+      data: creationStored.data,
+      storedMetadata: creationStored.metadata,
     );
 
     // Get the factory for creating the aggregate from the creation event
@@ -126,9 +123,10 @@ final class SessionImpl implements Session {
     // Apply remaining mutation events
     for (var i = 1; i < events.length; i++) {
       final storedEvent = events[i];
-      final domainEvent = _registry.fromStored(
-        storedEvent.eventType,
-        storedEvent.data,
+      final domainEvent = _serializer.deserialize(
+        eventType: storedEvent.eventType,
+        data: storedEvent.data,
+        storedMetadata: storedEvent.metadata,
       );
       _applyEvent<TAggregate>(aggregate, domainEvent);
     }

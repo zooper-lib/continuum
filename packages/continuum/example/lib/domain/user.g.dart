@@ -66,13 +66,26 @@ extension $UserCreation on Never {
   }
 }
 
-/// Generated event registry for persistence deserialization.
+/// Generated serializer registry for automatic event serialization.
 ///
-/// Maps event type discriminators to fromJson factories.
-final $generatedEventRegistry = EventRegistry({
-  'user.registered': UserRegistered.fromJson,
-  'user.email_changed': EmailChanged.fromJson,
-  'user.deactivated': UserDeactivated.fromJson,
+/// Maps Dart types to their toJson/fromJson factories and type discriminators.
+/// Pass this to [JsonEventSerializer] for zero-configuration serialization.
+final $generatedSerializerRegistry = EventSerializerRegistry({
+  UserRegistered: EventSerializerEntry(
+    eventType: 'user.registered',
+    toJson: (event) => (event as UserRegistered).toJson(),
+    fromJson: UserRegistered.fromJson,
+  ),
+  EmailChanged: EventSerializerEntry(
+    eventType: 'user.email_changed',
+    toJson: (event) => (event as EmailChanged).toJson(),
+    fromJson: EmailChanged.fromJson,
+  ),
+  UserDeactivated: EventSerializerEntry(
+    eventType: 'user.deactivated',
+    toJson: (event) => (event as UserDeactivated).toJson(),
+    fromJson: UserDeactivated.fromJson,
+  ),
 });
 
 /// Generated aggregate factory registry for Session creation dispatch.

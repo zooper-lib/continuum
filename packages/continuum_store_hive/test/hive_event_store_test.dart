@@ -29,7 +29,7 @@ void main() {
     group('loadStreamAsync', () {
       test('should return empty list for non-existent stream', () async {
         // Arrange
-        final streamId = StreamId('non_existent');
+        final streamId = const StreamId('non_existent');
 
         // Act
         final events = await store.loadStreamAsync(streamId);
@@ -40,7 +40,7 @@ void main() {
 
       test('should return events in order after append', () async {
         // Arrange
-        final streamId = StreamId('test_stream');
+        final streamId = const StreamId('test_stream');
         final storedEvents = [_createStoredEvent(streamId, 0, 'event_1'), _createStoredEvent(streamId, 1, 'event_2')];
 
         await store.appendEventsAsync(streamId, ExpectedVersion.noStream, storedEvents);
@@ -58,7 +58,7 @@ void main() {
     group('appendEventsAsync', () {
       test('should append to new stream with noStream expected version', () async {
         // Arrange
-        final streamId = StreamId('new_stream');
+        final streamId = const StreamId('new_stream');
         final events = [_createStoredEvent(streamId, 0, 'created')];
 
         // Act
@@ -71,7 +71,7 @@ void main() {
 
       test('should assign sequential versions starting at 0', () async {
         // Arrange
-        final streamId = StreamId('versioned_stream');
+        final streamId = const StreamId('versioned_stream');
 
         // Act - append first event
         await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'first')]);
@@ -87,7 +87,7 @@ void main() {
 
       test('should throw ConcurrencyException when expected version mismatches', () async {
         // Arrange
-        final streamId = StreamId('concurrent_stream');
+        final streamId = const StreamId('concurrent_stream');
         await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'first')]);
 
         // Act & Assert - wrong expected version should throw
@@ -103,7 +103,7 @@ void main() {
 
       test('should throw ConcurrencyException when expecting noStream but stream exists', () async {
         // Arrange
-        final streamId = StreamId('existing_stream');
+        final streamId = const StreamId('existing_stream');
         await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'first')]);
 
         // Act & Assert - noStream on existing stream should throw
@@ -115,7 +115,7 @@ void main() {
 
       test('should handle multiple events in single append', () async {
         // Arrange
-        final streamId = StreamId('batch_stream');
+        final streamId = const StreamId('batch_stream');
         final events = [_createStoredEvent(streamId, 0, 'event_1'), _createStoredEvent(streamId, 1, 'event_2'), _createStoredEvent(streamId, 2, 'event_3')];
 
         // Act
@@ -131,7 +131,7 @@ void main() {
     group('persistence', () {
       test('should persist events across store reopening', () async {
         // Arrange
-        final streamId = StreamId('persisted_stream');
+        final streamId = const StreamId('persisted_stream');
         await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'persisted_event')]);
 
         // Act - close and reopen
@@ -146,10 +146,10 @@ void main() {
 
       test('should preserve event data after reopening', () async {
         // Arrange
-        final streamId = StreamId('data_stream');
+        final streamId = const StreamId('data_stream');
         final originalData = {'key': 'value', 'number': 42};
         final event = StoredEvent(
-          eventId: EventId('evt_1'),
+          eventId: const EventId('evt_1'),
           streamId: streamId,
           version: 0,
           eventType: 'data_event',

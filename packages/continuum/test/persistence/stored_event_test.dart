@@ -17,8 +17,8 @@ void main() {
   group('StoredEvent', () {
     test('should store all fields correctly', () {
       // Arrange
-      final eventId = EventId('evt_123');
-      final streamId = StreamId('stream_456');
+      final eventId = const EventId('evt_123');
+      final streamId = const StreamId('stream_456');
       final occurredOn = DateTime.utc(2025, 6, 15);
       final metadata = {'key': 'value'};
       final data = {'payload': 'test data'};
@@ -49,8 +49,8 @@ void main() {
     test('should allow null globalSequence', () {
       // Arrange & Act
       final stored = StoredEvent(
-        eventId: EventId('evt_1'),
-        streamId: StreamId('stream_1'),
+        eventId: const EventId('evt_1'),
+        streamId: const StreamId('stream_1'),
         version: 0,
         eventType: 'test.event',
         data: {},
@@ -66,7 +66,7 @@ void main() {
     group('fromDomainEvent', () {
       test('should create stored event from domain event', () {
         // Arrange
-        final eventId = EventId('evt_789');
+        final eventId = const EventId('evt_789');
         final occurredOn = DateTime.utc(2025, 3, 20);
         final metadata = {'correlationId': 'corr_123'};
 
@@ -77,7 +77,7 @@ void main() {
           metadata: metadata,
         );
 
-        final streamId = StreamId('stream_abc');
+        final streamId = const StreamId('stream_abc');
         final data = {'payload': 'test payload'};
 
         // Act
@@ -104,14 +104,14 @@ void main() {
       test('should work without globalSequence', () {
         // Arrange
         final domainEvent = TestStoredEvent(
-          eventId: EventId('evt_1'),
+          eventId: const EventId('evt_1'),
           payload: 'test',
         );
 
         // Act
         final stored = StoredEvent.fromDomainEvent(
           domainEvent: domainEvent,
-          streamId: StreamId('stream_1'),
+          streamId: const StreamId('stream_1'),
           version: 0,
           eventType: 'test.event',
           data: {'payload': 'test'},

@@ -25,9 +25,11 @@ export 'src/identity/stream_id.dart';
 // Persistence abstractions
 export 'src/persistence/event_registry.dart';
 export 'src/persistence/event_serializer.dart';
+export 'src/persistence/event_serializer_registry.dart';
 export 'src/persistence/event_sourcing_store.dart';
 export 'src/persistence/event_store.dart';
 export 'src/persistence/expected_version.dart';
+export 'src/persistence/generated_aggregate.dart';
 export 'src/persistence/json_event_serializer.dart';
 export 'src/persistence/session.dart';
 export 'src/persistence/stored_event.dart';

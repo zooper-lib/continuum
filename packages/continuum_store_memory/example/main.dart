@@ -14,33 +14,21 @@ library;
 
 import 'package:continuum/continuum.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
+import 'package:continuum_store_memory_example/continuum.g.dart';
+import 'package:continuum_store_memory_example/domain/account.dart';
 import 'package:continuum_store_memory_example/domain/user.dart';
 
 void main() async {
   // ─────────────────────────────────────────────────────────────────────────
-  // SETUP: Configure the Event Store
+  // SETUP: Configure the Event Store.
   // ─────────────────────────────────────────────────────────────────────────
-
-  final serializer = JsonEventSerializer(registry: $generatedEventRegistry)
-    ..registerSerializer<UserRegistered>(
-      eventType: 'user.registered',
-      toJson: (e) => e.toJson(),
-    )
-    ..registerSerializer<EmailChanged>(
-      eventType: 'user.email_changed',
-      toJson: (e) => e.toJson(),
-    )
-    ..registerSerializer<UserDeactivated>(
-      eventType: 'user.deactivated',
-      toJson: (e) => e.toJson(),
-    );
+  //
+  // The generator auto-discovers all @Aggregate classes and creates
+  // $aggregateList. Add new aggregates anywhere - no changes needed here!
 
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    serializer: serializer,
-    registry: $generatedEventRegistry,
-    aggregateFactories: $generatedAggregateFactories,
-    eventAppliers: $generatedEventAppliers,
+    aggregates: $aggregateList,
   );
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -49,13 +37,13 @@ void main() async {
   //
   // A typical registration flow: user signs up with their email and name.
 
-  final userId = StreamId('user-001');
+  final userId = const StreamId('user-001');
   var session = store.openSession();
 
   final user = session.startStream<User>(
     userId,
     UserRegistered(
-      eventId: EventId('evt-1'),
+      eventId: const EventId('evt-1'),
       userId: 'user-001',
       email: 'jane@example.com',
       name: 'Jane Doe',
@@ -78,7 +66,7 @@ void main() async {
 
   session.append(
     userId,
-    EmailChanged(eventId: EventId('evt-2'), newEmail: 'jane.doe@company.com'),
+    EmailChanged(eventId: const EventId('evt-2'), newEmail: 'jane.doe@company.com'),
   );
 
   await session.saveChangesAsync();
@@ -103,11 +91,11 @@ void main() async {
   // Both try to change the email
   adminSession.append(
     userId,
-    EmailChanged(eventId: EventId('evt-3'), newEmail: 'admin-set@example.com'),
+    EmailChanged(eventId: const EventId('evt-3'), newEmail: 'admin-set@example.com'),
   );
   userSession.append(
     userId,
-    EmailChanged(eventId: EventId('evt-4'), newEmail: 'user-set@example.com'),
+    EmailChanged(eventId: const EventId('evt-4'), newEmail: 'user-set@example.com'),
   );
 
   // Admin saves first - succeeds
@@ -135,7 +123,7 @@ void main() async {
   session.append(
     userId,
     UserDeactivated(
-      eventId: EventId('evt-5'),
+      eventId: const EventId('evt-5'),
       deactivatedAt: DateTime.now(),
       reason: 'User requested account deletion',
     ),
@@ -144,4 +132,50 @@ void main() async {
   await session.saveChangesAsync();
 
   print('User active: ${finalUser.isActive}');
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // USE CASE 5: Bank Account Operations (Second Aggregate)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // This demonstrates working with multiple aggregate types in the same
+  // event store. Each aggregate has its own stream of events.
+
+  final accountId = const StreamId('account-001');
+  session = store.openSession();
+
+  final account = session.startStream<Account>(
+    accountId,
+    AccountOpened(
+      eventId: const EventId('acct-evt-1'),
+      accountId: 'account-001',
+      ownerId: 'user-001',
+    ),
+  );
+
+  await session.saveChangesAsync();
+  print('Account "${account.id}" opened for owner: ${account.ownerId}');
+
+  // Deposit some funds
+  session = store.openSession();
+  final loadedAccount = await session.loadAsync<Account>(accountId);
+
+  session.append(
+    accountId,
+    FundsDeposited(eventId: const EventId('acct-evt-2'), amount: 250),
+  );
+
+  await session.saveChangesAsync();
+  print('Deposited \$250. New balance: \$${loadedAccount.balance}');
+
+  // Withdraw some funds
+  session = store.openSession();
+  final withdrawAccount = await session.loadAsync<Account>(accountId);
+
+  session.append(
+    accountId,
+    FundsWithdrawn(eventId: const EventId('acct-evt-3'), amount: 75),
+  );
+
+  await session.saveChangesAsync();
+  print('Withdrew \$75. Final balance: \$${withdrawAccount.balance}');
 }

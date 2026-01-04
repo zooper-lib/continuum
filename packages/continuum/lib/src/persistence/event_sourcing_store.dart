@@ -1,24 +1,25 @@
-import 'event_registry.dart';
 import 'event_serializer.dart';
+import 'event_serializer_registry.dart';
 import 'event_store.dart';
+import 'generated_aggregate.dart';
+import 'json_event_serializer.dart';
 import 'session.dart';
 import 'session_impl.dart';
 
 /// Root object for event sourcing infrastructure.
 ///
-/// Wires together the [EventStore], [EventSerializer], and [EventRegistry]
-/// to provide a complete event sourcing runtime. Sessions are created from
-/// this store to perform aggregate operations.
+/// Wires together the [EventStore] and generated aggregate registries
+/// to provide a complete event sourcing runtime. Sessions are created
+/// from this store to perform aggregate operations.
 ///
 /// ```dart
 /// final store = EventSourcingStore(
 ///   eventStore: InMemoryEventStore(),
-///   serializer: JsonEventSerializer(registry),
-///   registry: generatedEventRegistry,
+///   aggregates: [$User, $Account],
 /// );
 ///
 /// final session = store.openSession();
-/// final cart = await session.loadAsync<ShoppingCart>(cartId);
+/// final user = await session.loadAsync<User>(userId);
 /// ```
 final class EventSourcingStore {
   /// The underlying event store for persistence.
@@ -27,31 +28,58 @@ final class EventSourcingStore {
   /// Serializer for converting events to/from stored form.
   final EventSerializer _serializer;
 
-  /// Registry for deserializing events by type.
-  final EventRegistry _registry;
-
   /// Aggregate factory registry for creating instances from events.
   final AggregateFactoryRegistry _aggregateFactories;
 
   /// Event applier registry for applying events to aggregates.
   final EventApplierRegistry _eventAppliers;
 
-  /// Creates an event sourcing store with the required dependencies.
+  /// Creates an event sourcing store from generated aggregate bundles.
   ///
-  /// The [eventStore] provides persistence, [serializer] handles
-  /// serialization, and [registry] enables deserialization lookup.
+  /// This is the recommended constructor. Pass all your generated
+  /// aggregate bundles (e.g., `$User`, `$Account`) and the store
+  /// will automatically merge their registries.
   ///
-  /// The [aggregateFactories] and [eventAppliers] are typically generated
-  /// and provide the type-safe machinery for aggregate operations.
-  EventSourcingStore({
+  /// ```dart
+  /// final store = EventSourcingStore(
+  ///   eventStore: InMemoryEventStore(),
+  ///   aggregates: [$User, $Account],
+  /// );
+  /// ```
+  factory EventSourcingStore({
+    required EventStore eventStore,
+    required List<GeneratedAggregate> aggregates,
+  }) {
+    // Merge all registries from the provided aggregates
+    var serializerRegistry = const EventSerializerRegistry.empty();
+    var aggregateFactories = const AggregateFactoryRegistry.empty();
+    var eventAppliers = const EventApplierRegistry.empty();
+
+    for (final aggregate in aggregates) {
+      serializerRegistry = serializerRegistry.merge(aggregate.serializerRegistry);
+      aggregateFactories = aggregateFactories.merge(aggregate.aggregateFactories);
+      eventAppliers = eventAppliers.merge(aggregate.eventAppliers);
+    }
+
+    return EventSourcingStore._(
+      eventStore: eventStore,
+      serializer: JsonEventSerializer(registry: serializerRegistry),
+      aggregateFactories: aggregateFactories,
+      eventAppliers: eventAppliers,
+    );
+  }
+
+  /// Creates an event sourcing store with explicit dependencies.
+  ///
+  /// Use this constructor when you need custom serialization or
+  /// want to manually configure the registries.
+  EventSourcingStore._({
     required EventStore eventStore,
     required EventSerializer serializer,
-    required EventRegistry registry,
     required AggregateFactoryRegistry aggregateFactories,
     required EventApplierRegistry eventAppliers,
   }) : _eventStore = eventStore,
        _serializer = serializer,
-       _registry = registry,
        _aggregateFactories = aggregateFactories,
        _eventAppliers = eventAppliers;
 
@@ -63,7 +91,6 @@ final class EventSourcingStore {
     return SessionImpl(
       eventStore: _eventStore,
       serializer: _serializer,
-      registry: _registry,
       aggregateFactories: _aggregateFactories,
       eventAppliers: _eventAppliers,
     );
@@ -86,6 +113,31 @@ final class AggregateFactoryRegistry {
   /// Creates an empty aggregate factory registry.
   const AggregateFactoryRegistry.empty() : _factories = const {};
 
+  /// Merges this registry with another, returning a new registry.
+  ///
+  /// If both registries have factories for the same aggregate type,
+  /// the event factories are merged (with [other] taking precedence
+  /// for duplicate event types).
+  AggregateFactoryRegistry merge(AggregateFactoryRegistry other) {
+    final merged = <Type, Map<Type, AggregateFactory<Object>>>{};
+
+    // Copy all from this registry
+    for (final entry in _factories.entries) {
+      merged[entry.key] = {...entry.value};
+    }
+
+    // Merge from other registry
+    for (final entry in other._factories.entries) {
+      if (merged.containsKey(entry.key)) {
+        merged[entry.key]!.addAll(entry.value);
+      } else {
+        merged[entry.key] = {...entry.value};
+      }
+    }
+
+    return AggregateFactoryRegistry(merged);
+  }
+
   /// Gets the factory for creating [aggregateType] from [eventType].
   ///
   /// Returns null if no factory is registered for the combination.
@@ -105,8 +157,7 @@ final class AggregateFactoryRegistry {
 }
 
 /// Function type for applying events to aggregates.
-typedef EventApplier<TAggregate> =
-    void Function(TAggregate aggregate, Object event);
+typedef EventApplier<TAggregate> = void Function(TAggregate aggregate, Object event);
 
 /// Registry of event applier functions for mutation dispatch.
 final class EventApplierRegistry {
@@ -120,6 +171,31 @@ final class EventApplierRegistry {
 
   /// Creates an empty event applier registry.
   const EventApplierRegistry.empty() : _appliers = const {};
+
+  /// Merges this registry with another, returning a new registry.
+  ///
+  /// If both registries have appliers for the same aggregate type,
+  /// the event appliers are merged (with [other] taking precedence
+  /// for duplicate event types).
+  EventApplierRegistry merge(EventApplierRegistry other) {
+    final merged = <Type, Map<Type, EventApplier<Object>>>{};
+
+    // Copy all from this registry
+    for (final entry in _appliers.entries) {
+      merged[entry.key] = {...entry.value};
+    }
+
+    // Merge from other registry
+    for (final entry in other._appliers.entries) {
+      if (merged.containsKey(entry.key)) {
+        merged[entry.key]!.addAll(entry.value);
+      } else {
+        merged[entry.key] = {...entry.value};
+      }
+    }
+
+    return EventApplierRegistry(merged);
+  }
 
   /// Gets the applier for applying [eventType] to [aggregateType].
   ///

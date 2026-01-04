@@ -17,30 +17,15 @@ import 'dart:io';
 
 import 'package:continuum/continuum.dart';
 import 'package:continuum_store_hive/continuum_store_hive.dart';
+import 'package:continuum_store_hive_example/continuum.g.dart';
+import 'package:continuum_store_hive_example/domain/account.dart';
 import 'package:continuum_store_hive_example/domain/user.dart';
 import 'package:hive/hive.dart';
 
-Future<EventSourcingStore> openStore(HiveEventStore hiveStore) async {
-  final serializer = JsonEventSerializer(registry: $generatedEventRegistry)
-    ..registerSerializer<UserRegistered>(
-      eventType: 'user.registered',
-      toJson: (e) => e.toJson(),
-    )
-    ..registerSerializer<EmailChanged>(
-      eventType: 'user.email_changed',
-      toJson: (e) => e.toJson(),
-    )
-    ..registerSerializer<UserDeactivated>(
-      eventType: 'user.deactivated',
-      toJson: (e) => e.toJson(),
-    );
-
+EventSourcingStore createStore(HiveEventStore hiveStore) {
   return EventSourcingStore(
     eventStore: hiveStore,
-    serializer: serializer,
-    registry: $generatedEventRegistry,
-    aggregateFactories: $generatedAggregateFactories,
-    eventAppliers: $generatedEventAppliers,
+    aggregates: $aggregateList,
   );
 }
 
@@ -49,7 +34,7 @@ void main() async {
   final storageDir = Directory.systemTemp.createTempSync('user_app_');
   Hive.init(storageDir.path);
 
-  final userId = StreamId('user-001');
+  final userId = const StreamId('user-001');
 
   // ─────────────────────────────────────────────────────────────────────────
   // APP SESSION 1: User Registration
@@ -58,13 +43,13 @@ void main() async {
   // User opens the app and creates an account.
 
   var hiveStore = await HiveEventStore.openAsync(boxName: 'users');
-  var store = await openStore(hiveStore);
+  var store = createStore(hiveStore);
   var session = store.openSession();
 
   final user = session.startStream<User>(
     userId,
     UserRegistered(
-      eventId: EventId('evt-1'),
+      eventId: const EventId('evt-1'),
       userId: 'user-001',
       email: 'jane@example.com',
       name: 'Jane Doe',
@@ -84,7 +69,7 @@ void main() async {
   // User opens the app again and updates their email.
 
   hiveStore = await HiveEventStore.openAsync(boxName: 'users');
-  store = await openStore(hiveStore);
+  store = createStore(hiveStore);
   session = store.openSession();
 
   final loadedUser = await session.loadAsync<User>(userId);
@@ -92,7 +77,7 @@ void main() async {
 
   session.append(
     userId,
-    EmailChanged(eventId: EventId('evt-2'), newEmail: 'jane.doe@company.com'),
+    EmailChanged(eventId: const EventId('evt-2'), newEmail: 'jane.doe@company.com'),
   );
 
   await session.saveChangesAsync();
@@ -107,7 +92,7 @@ void main() async {
   // User decides to close their account.
 
   hiveStore = await HiveEventStore.openAsync(boxName: 'users');
-  store = await openStore(hiveStore);
+  store = createStore(hiveStore);
   session = store.openSession();
 
   final userToDeactivate = await session.loadAsync<User>(userId);
@@ -115,7 +100,7 @@ void main() async {
   session.append(
     userId,
     UserDeactivated(
-      eventId: EventId('evt-3'),
+      eventId: const EventId('evt-3'),
       deactivatedAt: DateTime.now(),
       reason: 'User requested account closure',
     ),
@@ -126,10 +111,64 @@ void main() async {
   print('Session 3: User active: ${userToDeactivate.isActive}');
   print('Session 3: Deactivated at: ${userToDeactivate.deactivatedAt}');
 
+  await hiveStore.closeAsync();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // APP SESSION 4: Bank Account Operations (Second Aggregate)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // This demonstrates working with multiple aggregate types in the same
+  // event store. Each aggregate has its own stream of events.
+
+  final accountId = const StreamId('account-001');
+
+  hiveStore = await HiveEventStore.openAsync(boxName: 'users');
+  store = createStore(hiveStore);
+  session = store.openSession();
+
+  final account = session.startStream<Account>(
+    accountId,
+    AccountOpened(
+      eventId: const EventId('acct-evt-1'),
+      accountId: 'account-001',
+      ownerId: 'user-001',
+    ),
+  );
+
+  await session.saveChangesAsync();
+  print('Session 4: Account "${account.id}" opened for owner: ${account.ownerId}');
+
+  await hiveStore.closeAsync();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // APP SESSION 5: Deposit and Withdraw (persistence across sessions)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  hiveStore = await HiveEventStore.openAsync(boxName: 'users');
+  store = createStore(hiveStore);
+  session = store.openSession();
+
+  final loadedAccount = await session.loadAsync<Account>(accountId);
+  print('Session 5: Loaded account with balance: \$${loadedAccount.balance}');
+
+  session.append(
+    accountId,
+    FundsDeposited(eventId: const EventId('acct-evt-2'), amount: 250),
+  );
+  session.append(
+    accountId,
+    FundsWithdrawn(eventId: const EventId('acct-evt-3'), amount: 75),
+  );
+
+  await session.saveChangesAsync();
+  print('Session 5: After deposit \$250 and withdraw \$75: \$${loadedAccount.balance}');
+
   // The event history now shows the complete user journey:
   // 1. User registered: "Jane Doe" with jane@example.com
   // 2. Email changed to: jane.doe@company.com
   // 3. Account deactivated
+  // 4. Bank account opened
+  // 5. Funds deposited and withdrawn
   //
   // Unlike CRUD, we have the complete audit trail of all changes.
 

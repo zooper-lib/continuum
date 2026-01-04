@@ -17,7 +17,7 @@ void main() {
   group('DomainEvent', () {
     test('should store eventId correctly', () {
       // Arrange
-      final eventId = EventId('evt_123');
+      final eventId = const EventId('evt_123');
 
       // Act
       final event = TestEvent(eventId: eventId, data: 'test');
@@ -31,7 +31,7 @@ void main() {
       final before = DateTime.now().toUtc();
 
       // Act
-      final event = TestEvent(eventId: EventId('evt_123'), data: 'test');
+      final event = TestEvent(eventId: const EventId('evt_123'), data: 'test');
       final after = DateTime.now().toUtc();
 
       // Assert - occurredOn should be between before and after
@@ -52,7 +52,7 @@ void main() {
 
       // Act
       final event = TestEvent(
-        eventId: EventId('evt_123'),
+        eventId: const EventId('evt_123'),
         data: 'test',
         occurredOn: specificTime,
       );
@@ -63,7 +63,7 @@ void main() {
 
     test('should default metadata to empty map when not provided', () {
       // Arrange & Act
-      final event = TestEvent(eventId: EventId('evt_123'), data: 'test');
+      final event = TestEvent(eventId: const EventId('evt_123'), data: 'test');
 
       // Assert - metadata should be empty by default
       expect(event.metadata, isEmpty);
@@ -75,7 +75,7 @@ void main() {
 
       // Act
       final event = TestEvent(
-        eventId: EventId('evt_123'),
+        eventId: const EventId('evt_123'),
         data: 'test',
         metadata: metadata,
       );

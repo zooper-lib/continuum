@@ -8,7 +8,7 @@ void main() {
       const value = 'cart_123';
 
       // Act
-      final streamId = StreamId(value);
+      final streamId = const StreamId(value);
 
       // Assert - the value should be accessible
       expect(streamId.value, equals(value));
@@ -19,8 +19,8 @@ void main() {
       const value = 'order_abc';
 
       // Act
-      final streamId1 = StreamId(value);
-      final streamId2 = StreamId(value);
+      final streamId1 = const StreamId(value);
+      final streamId2 = const StreamId(value);
 
       // Assert - equality should be based on value
       expect(streamId1, equals(streamId2));
@@ -29,8 +29,8 @@ void main() {
 
     test('should not be equal when values differ', () {
       // Arrange & Act
-      final streamId1 = StreamId('stream_1');
-      final streamId2 = StreamId('stream_2');
+      final streamId1 = const StreamId('stream_1');
+      final streamId2 = const StreamId('stream_2');
 
       // Assert - different values should not be equal
       expect(streamId1, isNot(equals(streamId2)));
@@ -39,8 +39,8 @@ void main() {
     test('should not be interchangeable with EventId', () {
       // Arrange - same string value but different types
       const value = 'same_id';
-      final streamId = StreamId(value);
-      final eventId = EventId(value);
+      final streamId = const StreamId(value);
+      final eventId = const EventId(value);
 
       // Assert - type safety prevents equality (at compile time too)
       // These are different types and cannot be compared as equal
@@ -52,7 +52,7 @@ void main() {
       const value = 'user_xyz';
 
       // Act
-      final streamId = StreamId(value);
+      final streamId = const StreamId(value);
 
       // Assert - toString should include the value
       expect(streamId.toString(), contains(value));

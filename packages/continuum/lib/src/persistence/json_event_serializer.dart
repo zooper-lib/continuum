@@ -1,48 +1,31 @@
 import '../events/domain_event.dart';
-import 'event_registry.dart';
 import 'event_serializer.dart';
+import 'event_serializer_registry.dart';
 
 /// JSON-based implementation of [EventSerializer].
 ///
-/// Uses a registry of `toJson` functions to serialize domain events
-/// and the [EventRegistry] for deserialization.
+/// Uses a generated [EventSerializerRegistry] for automatic
+/// serialization and deserialization of domain events.
 ///
-/// Each event must have a corresponding serializer registered via
-/// [registerSerializer] or through the constructor.
+/// Events must have a corresponding entry in the registry, which is
+/// automatically generated from `@Event` annotations.
 final class JsonEventSerializer implements EventSerializer {
-  final EventRegistry _registry;
-  final Map<Type, _EventSerializerEntry> _serializers;
+  final EventSerializerRegistry _registry;
 
   /// Creates a JSON event serializer with the given registry.
   ///
-  /// The [serializers] map provides the toJson and type discriminator
-  /// for each event type.
-  JsonEventSerializer({
-    required EventRegistry registry,
-    Map<Type, _EventSerializerEntry>? serializers,
-  }) : _registry = registry,
-       _serializers = serializers ?? {};
-
-  /// Registers a serializer for an event type.
-  ///
-  /// The [toJson] function converts the event to a JSON-compatible map.
-  /// The [eventType] is the stable type discriminator string.
-  void registerSerializer<TEvent extends DomainEvent>({
-    required String eventType,
-    required Map<String, dynamic> Function(TEvent event) toJson,
-  }) {
-    _serializers[TEvent] = _EventSerializerEntry(
-      eventType: eventType,
-      toJson: (event) => toJson(event as TEvent),
-    );
-  }
+  /// The registry is typically the generated `$generatedSerializerRegistry`
+  /// which contains all events discovered at compile time.
+  JsonEventSerializer({required EventSerializerRegistry registry}) : _registry = registry;
 
   @override
   SerializedEvent serialize(DomainEvent event) {
-    final entry = _serializers[event.runtimeType];
+    final entry = _registry[event.runtimeType];
     if (entry == null) {
-      throw StateError('No serializer registered for event type: ${event.runtimeType}. '
-          'Register a serializer using registerSerializer<${event.runtimeType}>().');
+      throw StateError(
+        'No serializer registered for event type: ${event.runtimeType}. '
+        'Ensure the event has an @Event annotation with a type discriminator.',
+      );
     }
 
     final data = entry.toJson(event);
@@ -55,25 +38,21 @@ final class JsonEventSerializer implements EventSerializer {
   }
 
   @override
-  DomainEvent deserialize({
-    required String eventType,
-    required Map<String, dynamic> data,
-    required Map<String, dynamic> storedMetadata,
-  }) {
+  DomainEvent deserialize({required String eventType, required Map<String, dynamic> data, required Map<String, dynamic> storedMetadata}) {
+    final entry = _registry.forEventType(eventType);
+    if (entry == null) {
+      throw StateError(
+        'No deserializer registered for event type: $eventType. '
+        'Ensure the event has an @Event annotation with this type discriminator.',
+      );
+    }
+
     // Merge stored metadata into the data for fromJson reconstruction
     final fullData = {...data};
     if (storedMetadata.isNotEmpty) {
       fullData['metadata'] = storedMetadata;
     }
 
-    return _registry.fromStored(eventType, fullData);
+    return entry.fromJson(fullData);
   }
-}
-
-/// Internal entry for event serialization configuration.
-final class _EventSerializerEntry {
-  final String eventType;
-  final Map<String, dynamic> Function(DomainEvent event) toJson;
-
-  const _EventSerializerEntry({required this.eventType, required this.toJson});
 }

@@ -45,7 +45,7 @@ void main() {
     group('fromStored', () {
       test('should deserialize known event type', () {
         // Arrange
-        final registry = EventRegistry({
+        final registry = const EventRegistry({
           'test.event': TestRegistryEvent.fromJson,
         });
         final data = {'eventId': 'evt_123', 'value': 'hello'};
@@ -60,7 +60,7 @@ void main() {
 
       test('should throw UnknownEventTypeException for unknown type', () {
         // Arrange
-        final registry = EventRegistry({
+        final registry = const EventRegistry({
           'test.event': TestRegistryEvent.fromJson,
         });
         final data = {'eventId': 'evt_123', 'value': 'hello'};
@@ -76,7 +76,7 @@ void main() {
     group('containsType', () {
       test('should return true for registered type', () {
         // Arrange
-        final registry = EventRegistry({
+        final registry = const EventRegistry({
           'test.event': TestRegistryEvent.fromJson,
         });
 
@@ -86,7 +86,7 @@ void main() {
 
       test('should return false for unregistered type', () {
         // Arrange
-        final registry = EventRegistry({
+        final registry = const EventRegistry({
           'test.event': TestRegistryEvent.fromJson,
         });
 
@@ -98,7 +98,7 @@ void main() {
     group('registeredTypes', () {
       test('should return all registered types', () {
         // Arrange
-        final registry = EventRegistry({
+        final registry = const EventRegistry({
           'type.one': TestRegistryEvent.fromJson,
           'type.two': AnotherTestEvent.fromJson,
         });
@@ -123,10 +123,10 @@ void main() {
     group('merge', () {
       test('should combine registries', () {
         // Arrange
-        final registry1 = EventRegistry({
+        final registry1 = const EventRegistry({
           'type.one': TestRegistryEvent.fromJson,
         });
-        final registry2 = EventRegistry({
+        final registry2 = const EventRegistry({
           'type.two': AnotherTestEvent.fromJson,
         });
 
@@ -140,10 +140,10 @@ void main() {
 
       test('should prefer second registry on conflict', () {
         // Arrange
-        final registry1 = EventRegistry({
+        final registry1 = const EventRegistry({
           'conflicting.type': TestRegistryEvent.fromJson,
         });
-        final registry2 = EventRegistry({
+        final registry2 = const EventRegistry({
           'conflicting.type': AnotherTestEvent.fromJson,
         });
 

@@ -1,30 +1,77 @@
-# This file configures the static analysis results for your project (errors,
-# warnings, and lints).
-#
-# This enables the 'recommended' set of lints from `package:lints`.
-# This set helps identify many issues that may lead to problems when running
-# or consuming Dart code, and enforces writing Dart using a single, idiomatic
-# style and format.
-#
-# If you want a smaller set of lints you can change this to specify
-# 'package:lints/core.yaml'. These are just the most critical lints
-# (the recommended set includes the core lints).
-# The core lints are also what is used by pub.dev for scoring packages.
-
 include: package:lints/recommended.yaml
 
-# Uncomment the following section to specify additional rules.
 
-# linter:
-#   rules:
-#     - camel_case_types
+formatter:
+  # Keep trailing commas.
+  trailing_commas: preserve
 
-# analyzer:
-#   exclude:
-#     - path/to/excluded/files/**
+  # Set the maximum line length.
+  page_width: 160
 
-# For more information about the core and recommended set of lints, see
-# https://dart.dev/go/core-lints
+# Customize additional linter rules.
+linter:
+  # Specify rules to be enabled or disabled.
+  rules:
+    # **Style Rules**
+    # Enforce using const constructors where possible.
+    prefer_const_constructors: true
+    prefer_const_literals_to_create_immutables: true
 
-# For additional information about configuring this file, see
-# https://dart.dev/guides/language/analysis-options
+    # Prefer single quotes over double quotes where possible.
+    prefer_single_quotes: true
+
+    # Enforce a consistent type definition for variables.
+    always_specify_types: false
+
+    # **Best Practices**
+    # Avoid using dynamic types.
+    avoid_dynamic_calls: true
+
+    # Avoid using print statements in production code.
+    avoid_print: true
+
+    # Prefer using the `final` keyword for variables that are not reassigned.
+    prefer_final_fields: true
+    prefer_final_locals: true
+
+    # **Error Prevention**
+
+    # Enforce non-nullable types where possible.
+    always_require_non_null_named_parameters: true
+
+    # **Documentation**
+    # Require documentation for public members.
+    public_member_api_docs: false
+
+    # **Other Useful Rules**
+    # Enforce sorting of directives (e.g., imports).
+    directives_ordering: true
+
+    # Prefer using `isEmpty` and `isNotEmpty` over `length` comparisons.
+    prefer_is_empty: true
+    prefer_is_not_empty: true
+
+    # **Disable Rules (if necessary)**
+    # Uncomment the following lines to disable specific lints.
+    # avoid_unused_constructor_parameters: false
+    # unnecessary_null_in_if_null_operators: false
+
+# Analyzer settings.
+analyzer:
+  # Exclude certain files or directories from analysis.
+  exclude:
+    - "**/*.g.dart"
+    - "**/build/**"
+    - "**/generated/**"
+    - "**/mocks/**"
+    - "**/*.freezed.dart/**"
+
+  # Language-specific analyzer strictness options.
+  language:
+    strict-casts: false
+    strict-inference: false
+    strict-raw-types: false
+
+  strong-mode:
+    implicit-casts: false
+    implicit-dynamic: false

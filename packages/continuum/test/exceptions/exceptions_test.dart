@@ -5,7 +5,7 @@ void main() {
   group('UnsupportedEventException', () {
     test('should store event type and aggregate type', () {
       // Arrange & Act
-      final exception = UnsupportedEventException(
+      final exception = const UnsupportedEventException(
         eventType: String,
         aggregateType: int,
       );
@@ -17,7 +17,7 @@ void main() {
 
     test('should have meaningful toString', () {
       // Arrange
-      final exception = UnsupportedEventException(
+      final exception = const UnsupportedEventException(
         eventType: String,
         aggregateType: int,
       );
@@ -34,7 +34,7 @@ void main() {
   group('InvalidCreationEventException', () {
     test('should store event type and aggregate type', () {
       // Arrange & Act
-      final exception = InvalidCreationEventException(
+      final exception = const InvalidCreationEventException(
         eventType: String,
         aggregateType: int,
       );
@@ -46,7 +46,7 @@ void main() {
 
     test('should have meaningful toString', () {
       // Arrange
-      final exception = InvalidCreationEventException(
+      final exception = const InvalidCreationEventException(
         eventType: String,
         aggregateType: int,
       );
@@ -66,7 +66,7 @@ void main() {
       const eventType = 'some.unknown.event';
 
       // Act
-      final exception = UnknownEventTypeException(eventType: eventType);
+      final exception = const UnknownEventTypeException(eventType: eventType);
 
       // Assert - event type should be stored
       expect(exception.eventType, equals(eventType));
@@ -75,7 +75,7 @@ void main() {
     test('should have meaningful toString', () {
       // Arrange
       const eventType = 'missing.event.type';
-      final exception = UnknownEventTypeException(eventType: eventType);
+      final exception = const UnknownEventTypeException(eventType: eventType);
 
       // Act
       final message = exception.toString();
@@ -88,7 +88,7 @@ void main() {
   group('ConcurrencyException', () {
     test('should store stream ID and version information', () {
       // Arrange
-      final streamId = StreamId('stream_123');
+      final streamId = const StreamId('stream_123');
 
       // Act
       final exception = ConcurrencyException(
@@ -105,7 +105,7 @@ void main() {
 
     test('should have meaningful toString', () {
       // Arrange
-      final exception = ConcurrencyException(
+      final exception = const ConcurrencyException(
         streamId: StreamId('cart_456'),
         expectedVersion: 3,
         actualVersion: 5,
@@ -124,7 +124,7 @@ void main() {
   group('StreamNotFoundException', () {
     test('should store stream ID', () {
       // Arrange
-      final streamId = StreamId('missing_stream');
+      final streamId = const StreamId('missing_stream');
 
       // Act
       final exception = StreamNotFoundException(streamId: streamId);
@@ -135,7 +135,7 @@ void main() {
 
     test('should have meaningful toString', () {
       // Arrange
-      final exception = StreamNotFoundException(
+      final exception = const StreamNotFoundException(
         streamId: StreamId('not_found_123'),
       );
 

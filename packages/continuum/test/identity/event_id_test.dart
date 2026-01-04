@@ -8,7 +8,7 @@ void main() {
       const value = 'evt_123';
 
       // Act
-      final eventId = EventId(value);
+      final eventId = const EventId(value);
 
       // Assert - the value should be accessible
       expect(eventId.value, equals(value));
@@ -19,8 +19,8 @@ void main() {
       const value = 'evt_abc';
 
       // Act
-      final eventId1 = EventId(value);
-      final eventId2 = EventId(value);
+      final eventId1 = const EventId(value);
+      final eventId2 = const EventId(value);
 
       // Assert - equality should be based on value
       expect(eventId1, equals(eventId2));
@@ -29,8 +29,8 @@ void main() {
 
     test('should not be equal when values differ', () {
       // Arrange & Act
-      final eventId1 = EventId('evt_1');
-      final eventId2 = EventId('evt_2');
+      final eventId1 = const EventId('evt_1');
+      final eventId2 = const EventId('evt_2');
 
       // Assert - different values should not be equal
       expect(eventId1, isNot(equals(eventId2)));
@@ -41,7 +41,7 @@ void main() {
       const value = 'evt_xyz';
 
       // Act
-      final eventId = EventId(value);
+      final eventId = const EventId(value);
 
       // Assert - toString should include the value
       expect(eventId.toString(), contains(value));
