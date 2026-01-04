@@ -1,0 +1,8 @@
+builders:
+  continuum_builder:
+    import: "package:continuum_generator/builder.dart"
+    builder_factories: ["continuumBuilder"]
+    build_extensions: {".dart": [".continuum.g.part"]}
+    auto_apply: dependents
+    build_to: cache
+    applies_builders: ["source_gen|combining_builder"]
