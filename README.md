@@ -41,7 +41,7 @@ class ShoppingCart with _$ShoppingCartEventHandlers {
   ShoppingCart._({required this.id, required this.items});
 
   // Creation factory for CartCreated events
-  static ShoppingCart createCartCreated(CartCreated event) {
+  static ShoppingCart createFromCartCreated(CartCreated event) {
     return ShoppingCart._(id: event.cartId, items: []);
   }
 

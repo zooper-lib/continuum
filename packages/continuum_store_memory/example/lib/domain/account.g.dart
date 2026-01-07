@@ -56,7 +56,7 @@ extension $AccountCreation on Never {
   static Account createFromEvent(DomainEvent event) {
     switch (event) {
       case AccountOpened():
-        return Account.createAccountOpened(event);
+        return Account.createFromAccountOpened(event);
       default:
         throw InvalidCreationEventException(
           eventType: event.runtimeType,
@@ -90,7 +90,7 @@ final $Account = GeneratedAggregate(
   }),
   aggregateFactories: AggregateFactoryRegistry({
     Account: {
-      AccountOpened: (event) => Account.createAccountOpened(event as AccountOpened),
+      AccountOpened: (event) => Account.createFromAccountOpened(event as AccountOpened),
     },
   }),
   eventAppliers: EventApplierRegistry({

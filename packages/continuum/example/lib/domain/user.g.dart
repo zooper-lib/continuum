@@ -56,7 +56,7 @@ extension $UserCreation on Never {
   static User createFromEvent(DomainEvent event) {
     switch (event) {
       case UserRegistered():
-        return User.createUserRegistered(event);
+        return User.createFromUserRegistered(event);
       default:
         throw InvalidCreationEventException(
           eventType: event.runtimeType,
@@ -90,7 +90,7 @@ final $User = GeneratedAggregate(
   }),
   aggregateFactories: AggregateFactoryRegistry({
     User: {
-      UserRegistered: (event) => User.createUserRegistered(event as UserRegistered),
+      UserRegistered: (event) => User.createFromUserRegistered(event as UserRegistered),
     },
   }),
   eventAppliers: EventApplierRegistry({

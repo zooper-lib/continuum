@@ -17,7 +17,7 @@ void main() {
   print('');
 
   // Start with a user
-  final user = User.createUserRegistered(
+  final user = User.createFromUserRegistered(
     UserRegistered(
       eventId: const EventId('evt-1'),
       userId: 'user-456',

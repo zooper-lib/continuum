@@ -27,7 +27,7 @@ void main() async {
   // Step 1: User fills out registration form.
   // Show the new user immediately using a local event (optimistic update).
   print('Step 1: User fills out form');
-  final optimisticUser = User.createUserRegistered(
+  final optimisticUser = User.createFromUserRegistered(
     UserRegistered(
       eventId: EventId('temp-${DateTime.now().millisecondsSinceEpoch}'),
       userId: 'temp-new-user',

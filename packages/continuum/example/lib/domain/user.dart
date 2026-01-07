@@ -21,7 +21,7 @@ class User with _$UserEventHandlers {
   User._({required this.id, required this.email, required this.name, required this.isActive, required this.deactivatedAt});
 
   /// Creates a user from the registration event.
-  static User createUserRegistered(UserRegistered event) {
+  static User createFromUserRegistered(UserRegistered event) {
     return User._(id: event.userId, email: event.email, name: event.name, isActive: true, deactivatedAt: null);
   }
 

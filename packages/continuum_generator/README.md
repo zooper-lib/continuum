@@ -72,7 +72,7 @@ class User with _$UserEventHandlers {
 
   User._({required this.id, required this.email});
 
-  static User createUserCreated(UserCreated event) {
+  static User createFromUserCreated(UserCreated event) {
     return User._(id: event.aggregateId.value, email: event.email);
   }
 
@@ -180,7 +180,7 @@ extension UserEventSourcingExtensions on User {
   }
   
   static User createFromEvent(DomainEvent event) {
-    // Calls User.createUserCreated() etc.
+    // Calls User.createFromUserCreated() etc.
   }
 }
 ```

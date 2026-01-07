@@ -27,7 +27,7 @@ void main() {
 
   // User starts the registration wizard
   print('Step 1: User enters basic info');
-  final draftUser = User.createUserRegistered(
+  final draftUser = User.createFromUserRegistered(
     UserRegistered(
       eventId: const EventId('draft-1'),
       userId: 'draft',

@@ -23,7 +23,7 @@ void main() async {
 
   // Imagine we loaded this user from a previous API call
   print('Initial state (loaded from backend):');
-  final existingUser = User.createUserRegistered(
+  final existingUser = User.createFromUserRegistered(
     UserRegistered(
       eventId: const EventId('loaded-evt'),
       userId: 'user-456',

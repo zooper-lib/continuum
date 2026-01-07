@@ -51,7 +51,7 @@ void main() {
   // Rebuild the aggregate by replaying events
   print('Replaying events to rebuild state...');
   final creationEvent = events.first as UserRegistered;
-  final user = User.createUserRegistered(creationEvent);
+  final user = User.createFromUserRegistered(creationEvent);
 
   // Apply all mutation events
   user.replayEvents(events.skip(1));

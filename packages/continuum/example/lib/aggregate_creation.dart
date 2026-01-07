@@ -16,7 +16,7 @@ void main() {
 
   // Every aggregate begins its life with a creation event.
   // The creation event captures all the data needed to initialize the aggregate.
-  final user = User.createUserRegistered(
+  final user = User.createFromUserRegistered(
     UserRegistered(
       eventId: const EventId('evt-1'),
       userId: 'user-123',

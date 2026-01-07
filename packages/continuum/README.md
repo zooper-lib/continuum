@@ -66,7 +66,7 @@ class User with _$UserEventHandlers {
   User._({required this.id, required this.name, required this.email});
 
   // Static factory for creating from first event
-  static User createUserRegistered(UserRegistered event) {
+  static User createFromUserRegistered(UserRegistered event) {
     return User._(
       id: event.aggregateId.value,
       name: event.name,
@@ -144,7 +144,7 @@ void main() {
   final userId = StreamId('123');
 
   // Create from a creation event
-  final user = User.createUserRegistered(
+  final user = User.createFromUserRegistered(
     UserRegistered(userId, 'Alice', 'alice@example.com'),
   );
 

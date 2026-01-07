@@ -104,14 +104,14 @@ final class CodeEmitter {
     // Generate createFromEvent dispatcher
     buffer.writeln('  /// Creates a ${aggregate.name} from a creation event.');
     buffer.writeln('  ///');
-    buffer.writeln('  /// Routes to the appropriate static create method.');
+    buffer.writeln('  /// Routes to the appropriate static createFrom<Event> method.');
     buffer.writeln('  /// Throws [InvalidCreationEventException] for unknown event types.');
     buffer.writeln('  static ${aggregate.name} createFromEvent(DomainEvent event) {');
     buffer.writeln('    switch (event) {');
 
     for (final event in aggregate.creationEvents) {
       // Derive the create method name from the event name
-      final createMethodName = 'create${event.name}';
+      final createMethodName = 'createFrom${event.name}';
       buffer.writeln('      case ${event.name}():');
       buffer.writeln('        return ${aggregate.name}.$createMethodName(event);');
     }
@@ -160,7 +160,7 @@ final class CodeEmitter {
     if (aggregate.creationEvents.isNotEmpty) {
       buffer.writeln('    ${aggregate.name}: {');
       for (final event in aggregate.creationEvents) {
-        final createMethodName = 'create${event.name}';
+        final createMethodName = 'createFrom${event.name}';
         buffer.writeln('      ${event.name}: (event) => ${aggregate.name}.$createMethodName(event as ${event.name}),');
       }
       buffer.writeln('    },');

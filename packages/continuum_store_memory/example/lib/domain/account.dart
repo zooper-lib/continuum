@@ -19,7 +19,7 @@ class Account with _$AccountEventHandlers {
 
   Account._({required this.id, required this.ownerId, required this.balance});
 
-  static Account createAccountOpened(AccountOpened event) {
+  static Account createFromAccountOpened(AccountOpened event) {
     return Account._(id: event.accountId, ownerId: event.ownerId, balance: 0);
   }
 
