@@ -1,0 +1,33 @@
+name: continuum_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.10.4
+
+workspace:
+  - packages/continuum
+  - packages/continuum_generator
+  - packages/continuum_store_memory
+  - packages/continuum_store_hive
+
+dev_dependencies:
+  melos: ^7.3.0
+
+melos:
+  ignore:
+    - packages/**/example
+
+  scripts:
+    analyze:
+      run: dart analyze .
+      description: Run static analysis in all packages.
+      exec:
+        failFast: true
+
+    test:
+      run: dart test
+      description: Run all package tests.
+      exec:
+        failFast: true
+      packageFilters:
+        dirExists: test

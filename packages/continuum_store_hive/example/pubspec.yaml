@@ -1,0 +1,20 @@
+name: continuum_store_hive_example
+description: Example demonstrating the Continuum Hive event store.
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  continuum:
+    path: ../../continuum
+  continuum_store_hive:
+    path: ../
+  hive: ^2.2.3
+
+dev_dependencies:
+  build_runner: ^2.4.15
+  lints: ^3.0.0
+  continuum_generator:
+    path: ../../continuum_generator
