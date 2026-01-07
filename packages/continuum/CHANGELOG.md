@@ -1,4 +1,4 @@
-## 0.1.0
+## 1.0.0
 
 - Initial release with event sourcing core functionality.
 - Added `@Aggregate()` and `@Event()` annotations for code generation.

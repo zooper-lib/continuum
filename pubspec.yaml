@@ -1,4 +1,4 @@
-name: raiser_workspace
+name: continuum_workspace
 publish_to: none
 
 environment:
@@ -6,9 +6,9 @@ environment:
 
 workspace:
   - packages/continuum
+  - packages/continuum_generator
   - packages/continuum_store_memory
   - packages/continuum_store_hive
-  - packages/continuum_generator
 
 dev_dependencies:
   melos: ^7.3.0
