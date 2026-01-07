@@ -22,6 +22,6 @@ class EmailChanged extends DomainEvent {
   }
 
   Map<String, dynamic> toJson() => {
-        'newEmail': newEmail,
-      };
+    'newEmail': newEmail,
+  };
 }

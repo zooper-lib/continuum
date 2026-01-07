@@ -25,7 +25,7 @@ class UserDeactivated extends DomainEvent {
   }
 
   Map<String, dynamic> toJson() => {
-        'deactivatedAt': deactivatedAt.toIso8601String(),
-        if (reason != null) 'reason': reason,
-      };
+    'deactivatedAt': deactivatedAt.toIso8601String(),
+    if (reason != null) 'reason': reason,
+  };
 }

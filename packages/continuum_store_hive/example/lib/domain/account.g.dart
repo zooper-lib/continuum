@@ -90,16 +90,13 @@ final $Account = GeneratedAggregate(
   }),
   aggregateFactories: AggregateFactoryRegistry({
     Account: {
-      AccountOpened: (event) =>
-          Account.createAccountOpened(event as AccountOpened),
+      AccountOpened: (event) => Account.createAccountOpened(event as AccountOpened),
     },
   }),
   eventAppliers: EventApplierRegistry({
     Account: {
-      FundsDeposited: (aggregate, event) =>
-          (aggregate as Account).applyFundsDeposited(event as FundsDeposited),
-      FundsWithdrawn: (aggregate, event) =>
-          (aggregate as Account).applyFundsWithdrawn(event as FundsWithdrawn),
+      FundsDeposited: (aggregate, event) => (aggregate as Account).applyFundsDeposited(event as FundsDeposited),
+      FundsWithdrawn: (aggregate, event) => (aggregate as Account).applyFundsWithdrawn(event as FundsWithdrawn),
     },
   }),
 );
