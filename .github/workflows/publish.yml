@@ -1,0 +1,47 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install workspace deps
+        run: dart pub get
+
+      - name: Activate Melos
+        run: |
+          dart pub global activate melos 7.3.0
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap
+        run: melos bootstrap
+
+      - name: Test
+        run: melos run test --no-select
+
+      - name: Configure pub.dev credentials
+        env:
+          PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS }}
+        run: |
+          test -n "$PUB_CREDENTIALS"
+          mkdir -p "$HOME/.config/dart"
+          printf '%s' "$PUB_CREDENTIALS" > "$HOME/.config/dart/pub-credentials.json"
+
+      - name: Publish packages
+        run: melos publish --no-dry-run --yes
