@@ -23,6 +23,7 @@ export 'src/identity/event_id.dart';
 export 'src/identity/stream_id.dart';
 
 // Persistence abstractions
+export 'src/persistence/atomic_event_store.dart';
 export 'src/persistence/event_registry.dart';
 export 'src/persistence/event_serializer.dart';
 export 'src/persistence/event_serializer_registry.dart';

@@ -28,7 +28,9 @@ final class JsonEventSerializer implements EventSerializer {
       );
     }
 
-    final data = entry.toJson(event);
+    // Make a defensive copy to ensure we can add standard fields even if the
+    // event's `toJson()` returns an unmodifiable/const map.
+    final data = <String, dynamic>{...entry.toJson(event)};
 
     // Include standard domain event fields
     data['eventId'] = event.eventId.value;

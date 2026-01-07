@@ -17,17 +17,11 @@ import 'dart:io';
 
 import 'package:continuum/continuum.dart';
 import 'package:continuum_store_hive/continuum_store_hive.dart';
-import 'package:continuum_store_hive_example/continuum.g.dart';
-import 'package:continuum_store_hive_example/domain/account.dart';
-import 'package:continuum_store_hive_example/domain/user.dart';
+import 'package:continuum_store_hive_example/account_scenarios.dart';
+import 'package:continuum_store_hive_example/atomic_scenarios.dart';
+import 'package:continuum_store_hive_example/store_factory.dart';
+import 'package:continuum_store_hive_example/user_scenarios.dart';
 import 'package:hive/hive.dart';
-
-EventSourcingStore createStore(HiveEventStore hiveStore) {
-  return EventSourcingStore(
-    eventStore: hiveStore,
-    aggregates: $aggregateList,
-  );
-}
 
 void main() async {
   // In a real Flutter app, use path_provider to get the documents directory
@@ -35,6 +29,7 @@ void main() async {
   Hive.init(storageDir.path);
 
   final userId = const StreamId('user-001');
+  final accountId = const StreamId('account-001');
 
   // ─────────────────────────────────────────────────────────────────────────
   // APP SESSION 1: User Registration
@@ -43,21 +38,8 @@ void main() async {
   // User opens the app and creates an account.
 
   var hiveStore = await HiveEventStore.openAsync(boxName: 'users');
-  var store = createStore(hiveStore);
-  var session = store.openSession();
-
-  final user = session.startStream<User>(
-    userId,
-    UserRegistered(
-      eventId: const EventId('evt-1'),
-      userId: 'user-001',
-      email: 'jane@example.com',
-      name: 'Jane Doe',
-    ),
-  );
-
-  await session.saveChangesAsync();
-  print('Session 1: User ${user.name} registered with ${user.email}');
+  var store = createStore(hiveStore: hiveStore);
+  await UserScenarios.registerUserAsync(store: store, userId: userId);
 
   // Simulate app close
   await hiveStore.closeAsync();
@@ -69,19 +51,8 @@ void main() async {
   // User opens the app again and updates their email.
 
   hiveStore = await HiveEventStore.openAsync(boxName: 'users');
-  store = createStore(hiveStore);
-  session = store.openSession();
-
-  final loadedUser = await session.loadAsync<User>(userId);
-  print('Session 2: Loaded user ${loadedUser.name}');
-
-  session.append(
-    userId,
-    EmailChanged(eventId: const EventId('evt-2'), newEmail: 'jane.doe@company.com'),
-  );
-
-  await session.saveChangesAsync();
-  print('Session 2: Email updated to ${loadedUser.email}');
+  store = createStore(hiveStore: hiveStore);
+  await UserScenarios.updateEmailAsync(store: store, userId: userId);
 
   await hiveStore.closeAsync();
 
@@ -92,24 +63,8 @@ void main() async {
   // User decides to close their account.
 
   hiveStore = await HiveEventStore.openAsync(boxName: 'users');
-  store = createStore(hiveStore);
-  session = store.openSession();
-
-  final userToDeactivate = await session.loadAsync<User>(userId);
-
-  session.append(
-    userId,
-    UserDeactivated(
-      eventId: const EventId('evt-3'),
-      deactivatedAt: DateTime.now(),
-      reason: 'User requested account closure',
-    ),
-  );
-
-  await session.saveChangesAsync();
-
-  print('Session 3: User active: ${userToDeactivate.isActive}');
-  print('Session 3: Deactivated at: ${userToDeactivate.deactivatedAt}');
+  store = createStore(hiveStore: hiveStore);
+  await UserScenarios.deactivateUserAsync(store: store, userId: userId);
 
   await hiveStore.closeAsync();
 
@@ -120,23 +75,13 @@ void main() async {
   // This demonstrates working with multiple aggregate types in the same
   // event store. Each aggregate has its own stream of events.
 
-  final accountId = const StreamId('account-001');
-
   hiveStore = await HiveEventStore.openAsync(boxName: 'users');
-  store = createStore(hiveStore);
-  session = store.openSession();
-
-  final account = session.startStream<Account>(
-    accountId,
-    AccountOpened(
-      eventId: const EventId('acct-evt-1'),
-      accountId: 'account-001',
-      ownerId: 'user-001',
-    ),
+  store = createStore(hiveStore: hiveStore);
+  await AccountScenarios.openAccountAsync(
+    store: store,
+    accountId: accountId,
+    ownerId: userId.value,
   );
-
-  await session.saveChangesAsync();
-  print('Session 4: Account "${account.id}" opened for owner: ${account.ownerId}');
 
   await hiveStore.closeAsync();
 
@@ -145,23 +90,34 @@ void main() async {
   // ─────────────────────────────────────────────────────────────────────────
 
   hiveStore = await HiveEventStore.openAsync(boxName: 'users');
-  store = createStore(hiveStore);
-  session = store.openSession();
+  store = createStore(hiveStore: hiveStore);
+  await AccountScenarios.depositAndWithdrawAsync(store: store, accountId: accountId);
 
-  final loadedAccount = await session.loadAsync<Account>(accountId);
-  print('Session 5: Loaded account with balance: \$${loadedAccount.balance}');
+  // ─────────────────────────────────────────────────────────────────────────
+  // APP SESSION 6: Atomic Multi-Stream Save (User + Account)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // One session can stage changes to multiple streams and persist them as a
+  // single atomic unit.
 
-  session.append(
-    accountId,
-    FundsDeposited(eventId: const EventId('acct-evt-2'), amount: 250),
+  await AtomicScenarios.runAtomicSaveAsync(
+    store: store,
+    userId: userId,
+    accountId: accountId,
   );
-  session.append(
-    accountId,
-    FundsWithdrawn(eventId: const EventId('acct-evt-3'), amount: 75),
-  );
 
-  await session.saveChangesAsync();
-  print('Session 5: After deposit \$250 and withdraw \$75: \$${loadedAccount.balance}');
+  // ─────────────────────────────────────────────────────────────────────────
+  // APP SESSION 7: Atomic Multi-Stream Rollback on Conflict
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // If any stream in the staged changes has a concurrency conflict, NONE of
+  // the streams are persisted.
+
+  await AtomicScenarios.runRollbackOnConflictAsync(
+    store: store,
+    userId: userId,
+    accountId: accountId,
+  );
 
   // The event history now shows the complete user journey:
   // 1. User registered: "Jane Doe" with jane@example.com

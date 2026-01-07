@@ -35,4 +35,9 @@ class User with _$UserEventHandlers {
     isActive = false;
     deactivatedAt = event.deactivatedAt;
   }
+
+  @override
+  String toString() {
+    return 'User(id: $id, name: $name, email: $email, isActive: $isActive, deactivatedAt: $deactivatedAt)';
+  }
 }

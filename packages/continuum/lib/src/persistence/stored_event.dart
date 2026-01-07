@@ -36,16 +36,19 @@ final class StoredEvent {
   final int? globalSequence;
 
   /// Creates a stored event with all persistence metadata.
-  const StoredEvent({
+  StoredEvent({
     required this.eventId,
     required this.streamId,
     required this.version,
     required this.eventType,
-    required this.data,
+    required Map<String, dynamic> data,
     required this.occurredOn,
-    required this.metadata,
+    required Map<String, dynamic> metadata,
     this.globalSequence,
-  });
+  }) :
+       // Snapshot payloads to prevent later mutation of persisted event data.
+       data = Map<String, dynamic>.unmodifiable(<String, dynamic>{...data}),
+       metadata = Map<String, dynamic>.unmodifiable(<String, dynamic>{...metadata});
 
   /// Creates a stored event from a domain event with additional metadata.
   ///

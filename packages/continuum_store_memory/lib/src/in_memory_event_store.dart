@@ -7,7 +7,7 @@ import 'package:continuum/continuum.dart';
 ///
 /// Thread-safety: This implementation is not thread-safe. For concurrent
 /// access, external synchronization is required.
-final class InMemoryEventStore implements EventStore {
+final class InMemoryEventStore implements AtomicEventStore {
   /// Internal storage of events by stream ID.
   final Map<StreamId, List<StoredEvent>> _streams = {};
 
@@ -25,50 +25,89 @@ final class InMemoryEventStore implements EventStore {
   }
 
   @override
-  Future<void> appendEventsAsync(StreamId streamId, ExpectedVersion expectedVersion, List<StoredEvent> events) async {
-    // Get or create the stream
-    final stream = _streams[streamId] ?? [];
-    final currentVersion = stream.isEmpty ? -1 : stream.last.version;
+  Future<void> appendEventsToStreamsAsync(
+    Map<StreamId, StreamAppendBatch> batches,
+  ) async {
+    if (batches.isEmpty) {
+      return;
+    }
 
-    // Check expected version for optimistic concurrency
+    final Map<StreamId, List<StoredEvent>> preparedEventsByStream = <StreamId, List<StoredEvent>>{};
+
+    for (final MapEntry<StreamId, StreamAppendBatch> entry in batches.entries) {
+      final StreamId streamId = entry.key;
+      final StreamAppendBatch batch = entry.value;
+
+      final List<StoredEvent>? existingStreamEvents = _streams[streamId];
+      final int currentVersion = (existingStreamEvents == null || existingStreamEvents.isEmpty) ? -1 : existingStreamEvents.last.version;
+
+      _throwIfExpectedVersionDoesNotMatch(
+        streamId: streamId,
+        expectedVersion: batch.expectedVersion,
+        currentVersion: currentVersion,
+      );
+
+      final List<StoredEvent> preparedEvents = <StoredEvent>[];
+      int nextVersion = currentVersion + 1;
+
+      for (final StoredEvent event in batch.events) {
+        preparedEvents.add(
+          StoredEvent(
+            eventId: event.eventId,
+            streamId: streamId,
+            version: nextVersion,
+            eventType: event.eventType,
+            data: event.data,
+            occurredOn: event.occurredOn,
+            metadata: event.metadata,
+            globalSequence: _globalSequence++,
+          ),
+        );
+        nextVersion++;
+      }
+
+      preparedEventsByStream[streamId] = preparedEvents;
+    }
+
+    for (final MapEntry<StreamId, List<StoredEvent>> entry in preparedEventsByStream.entries) {
+      final StreamId streamId = entry.key;
+      final List<StoredEvent> preparedEvents = entry.value;
+
+      if (_streams.containsKey(streamId)) {
+        _streams[streamId]!.addAll(preparedEvents);
+      } else {
+        _streams[streamId] = preparedEvents;
+      }
+    }
+  }
+
+  @override
+  Future<void> appendEventsAsync(StreamId streamId, ExpectedVersion expectedVersion, List<StoredEvent> events) async {
+    await appendEventsToStreamsAsync(
+      <StreamId, StreamAppendBatch>{
+        streamId: StreamAppendBatch(expectedVersion: expectedVersion, events: events),
+      },
+    );
+  }
+
+  /// Validates optimistic concurrency expectations.
+  ///
+  /// Throws a [ConcurrencyException] when the caller's [expectedVersion] does
+  /// not match the current state of the stream.
+  void _throwIfExpectedVersionDoesNotMatch({
+    required StreamId streamId,
+    required ExpectedVersion expectedVersion,
+    required int currentVersion,
+  }) {
     if (expectedVersion.isNoStream) {
-      // Expecting a new stream - current version should be -1
-      if (stream.isNotEmpty) {
+      if (currentVersion != -1) {
         throw ConcurrencyException(streamId: streamId, expectedVersion: -1, actualVersion: currentVersion);
       }
-    } else {
-      // Expecting a specific version
-      if (currentVersion != expectedVersion.value) {
-        throw ConcurrencyException(streamId: streamId, expectedVersion: expectedVersion.value, actualVersion: currentVersion);
-      }
+      return;
     }
 
-    // Assign sequential versions and global sequence numbers
-    final newEvents = <StoredEvent>[];
-    var nextVersion = currentVersion + 1;
-
-    for (final event in events) {
-      // Create a new StoredEvent with proper versioning
-      newEvents.add(
-        StoredEvent(
-          eventId: event.eventId,
-          streamId: streamId,
-          version: nextVersion,
-          eventType: event.eventType,
-          data: event.data,
-          occurredOn: event.occurredOn,
-          metadata: event.metadata,
-          globalSequence: _globalSequence++,
-        ),
-      );
-      nextVersion++;
-    }
-
-    // Store the events
-    if (_streams.containsKey(streamId)) {
-      _streams[streamId]!.addAll(newEvents);
-    } else {
-      _streams[streamId] = newEvents;
+    if (currentVersion != expectedVersion.value) {
+      throw ConcurrencyException(streamId: streamId, expectedVersion: expectedVersion.value, actualVersion: currentVersion);
     }
   }
 

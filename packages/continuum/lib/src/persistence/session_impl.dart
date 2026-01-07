@@ -3,6 +3,7 @@ import '../exceptions/invalid_creation_event_exception.dart';
 import '../exceptions/stream_not_found_exception.dart';
 import '../exceptions/unsupported_event_exception.dart';
 import '../identity/stream_id.dart';
+import 'atomic_event_store.dart';
 import 'event_serializer.dart';
 import 'event_sourcing_store.dart';
 import 'event_store.dart';
@@ -214,19 +215,73 @@ final class SessionImpl implements Session {
 
   @override
   Future<void> saveChangesAsync() async {
-    // Persist all streams with pending events
+    final pendingEntries = <MapEntry<StreamId, _StreamState>>[];
     for (final entry in _streams.entries) {
+      if (entry.value.pendingEvents.isNotEmpty) {
+        pendingEntries.add(entry);
+      }
+    }
+
+    if (pendingEntries.isEmpty) return;
+
+    // If the store supports atomic multi-stream writes, use it for true
+    // all-or-nothing semantics when saving across multiple streams.
+    if (pendingEntries.length > 1 && _eventStore is AtomicEventStore) {
+      final batches = <StreamId, StreamAppendBatch>{};
+      final newLoadedVersions = <StreamId, int>{};
+
+      for (final entry in pendingEntries) {
+        final streamId = entry.key;
+        final state = entry.value;
+
+        final expectedVersion = state.loadedVersion == -1 ? ExpectedVersion.noStream : ExpectedVersion.exact(state.loadedVersion);
+
+        final storedEvents = <StoredEvent>[];
+        var nextVersion = state.loadedVersion + 1;
+
+        for (final event in state.pendingEvents) {
+          final serialized = _serializer.serialize(event);
+          storedEvents.add(
+            StoredEvent.fromDomainEvent(
+              domainEvent: event,
+              streamId: streamId,
+              version: nextVersion,
+              eventType: serialized.eventType,
+              data: serialized.data,
+            ),
+          );
+          nextVersion++;
+        }
+
+        batches[streamId] = StreamAppendBatch(
+          expectedVersion: expectedVersion,
+          events: storedEvents,
+        );
+        newLoadedVersions[streamId] = nextVersion - 1;
+      }
+
+      await (_eventStore).appendEventsToStreamsAsync(batches);
+
+      for (final entry in pendingEntries) {
+        final streamId = entry.key;
+        final state = entry.value;
+        _streams[streamId] = _StreamState(
+          aggregate: state.aggregate,
+          aggregateType: state.aggregateType,
+          loadedVersion: newLoadedVersions[streamId]!,
+        );
+      }
+
+      return;
+    }
+
+    // Fallback: persist streams independently.
+    for (final entry in pendingEntries) {
       final streamId = entry.key;
       final state = entry.value;
 
-      if (state.pendingEvents.isEmpty) continue;
+      final expectedVersion = state.loadedVersion == -1 ? ExpectedVersion.noStream : ExpectedVersion.exact(state.loadedVersion);
 
-      // Determine expected version
-      final expectedVersion = state.loadedVersion == -1
-          ? ExpectedVersion.noStream
-          : ExpectedVersion.exact(state.loadedVersion);
-
-      // Convert pending events to stored events
       final storedEvents = <StoredEvent>[];
       var nextVersion = state.loadedVersion + 1;
 
@@ -244,15 +299,8 @@ final class SessionImpl implements Session {
         nextVersion++;
       }
 
-      // Append to store
-      await _eventStore.appendEventsAsync(
-        streamId,
-        expectedVersion,
-        storedEvents,
-      );
+      await _eventStore.appendEventsAsync(streamId, expectedVersion, storedEvents);
 
-      // Clear pending events after successful save
-      // Note: We update the loaded version to reflect persisted state
       _streams[streamId] = _StreamState(
         aggregate: state.aggregate,
         aggregateType: state.aggregateType,

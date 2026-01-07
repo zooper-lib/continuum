@@ -1,101 +1,55 @@
 /// Continuum - Event Sourcing for Dart
 ///
-/// This example demonstrates the core event sourcing pattern using a User
-/// aggregate. All packages in Continuum use the same User example for
-/// consistency.
+/// This package contains standalone examples demonstrating different aspects
+/// of event sourcing with Continuum. Each example is self-contained and runnable.
 ///
-/// To run this example:
+/// AGGREGATE FUNDAMENTALS:
+///   aggregate_creation.dart     - Creating aggregates from events
+///   aggregate_mutations.dart    - Mutating state by applying events
+///   event_replay.dart           - Rebuilding state by replaying event history
+///
+/// PERSISTENCE (EventSourcingStore + Session):
+///   store_creating_streams.dart     - Creating new aggregate streams
+///   store_loading_and_updating.dart - Loading and updating aggregates
+///   store_handling_conflicts.dart   - Detecting concurrency conflicts
+///   store_atomic_saves.dart         - Atomic multi-stream saves
+///   store_atomic_rollback.dart      - Atomic rollback on conflict
+///
+/// HYBRID MODE (Frontend Events + Backend State):
+///   hybrid_optimistic_creation.dart - Optimistic user creation
+///   hybrid_profile_edit.dart        - Instant feedback when editing
+///   hybrid_multi_step_form.dart     - Multi-step forms with cancel
+///
+/// To run any example:
 ///   cd example
 ///   dart pub get
 ///   dart run build_runner build
-///   dart run main.dart
+///   dart run <example_name>.dart
 library;
 
-import 'package:continuum/continuum.dart';
-import 'package:continuum_example/domain/events/email_changed.dart';
-import 'package:continuum_example/domain/events/user_deactivated.dart';
-import 'package:continuum_example/domain/events/user_registered.dart';
-import 'package:continuum_example/domain/user.dart';
-
 void main() {
-  // ─────────────────────────────────────────────────────────────────────────
-  // Creating a User
-  // ─────────────────────────────────────────────────────────────────────────
-  //
-  // Every aggregate starts with a creation event. The event captures the
-  // initial state.
-
-  final user = User.createUserRegistered(
-    UserRegistered(
-      eventId: const EventId('evt-1'),
-      userId: 'user-123',
-      email: 'alice@example.com',
-      name: 'Alice Smith',
-    ),
-  );
-
-  print('User registered: ${user.name} <${user.email}>');
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Mutating State with Events
-  // ─────────────────────────────────────────────────────────────────────────
-  //
-  // State changes are represented as events. The aggregate's apply methods
-  // update internal state based on each event.
-
-  user.applyEvent(
-    EmailChanged(
-      eventId: const EventId('evt-2'),
-      newEmail: 'alice.smith@company.com',
-    ),
-  );
-
-  print('Email updated to: ${user.email}');
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Deactivating the User
-  // ─────────────────────────────────────────────────────────────────────────
-
-  user.applyEvent(
-    UserDeactivated(
-      eventId: const EventId('evt-3'),
-      deactivatedAt: DateTime.now(),
-      reason: 'Account closed by user request',
-    ),
-  );
-
-  print('User active: ${user.isActive}');
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Replaying Events
-  // ─────────────────────────────────────────────────────────────────────────
-  //
-  // Given the same events, we rebuild the exact same state. This is how
-  // event stores load aggregates.
-
-  final events = [
-    EmailChanged(
-      eventId: const EventId('evt-2'),
-      newEmail: 'alice.smith@company.com',
-    ),
-    UserDeactivated(
-      eventId: const EventId('evt-3'),
-      deactivatedAt: DateTime.now(),
-      reason: 'Account closed by user request',
-    ),
-  ];
-
-  final rebuiltUser = User.createUserRegistered(
-    UserRegistered(
-      eventId: const EventId('evt-1'),
-      userId: 'user-123',
-      email: 'alice@example.com',
-      name: 'Alice Smith',
-    ),
-  );
-
-  rebuiltUser.replayEvents(events);
-
-  print('Rebuilt user email: ${rebuiltUser.email}');
-  print('Rebuilt user active: ${rebuiltUser.isActive}');
+  print('═══════════════════════════════════════════════════════════════════');
+  print('Continuum Examples');
+  print('═══════════════════════════════════════════════════════════════════');
+  print('');
+  print('AGGREGATE FUNDAMENTALS:');
+  print('  aggregate_creation.dart     - Creating aggregates from events');
+  print('  aggregate_mutations.dart    - Mutating state by applying events');
+  print('  event_replay.dart           - Rebuilding state by replaying history');
+  print('');
+  print('PERSISTENCE (EventSourcingStore + Session):');
+  print('  store_creating_streams.dart     - Creating aggregate streams');
+  print('  store_loading_and_updating.dart - Loading and updating');
+  print('  store_handling_conflicts.dart   - Conflict detection');
+  print('  store_atomic_saves.dart         - Atomic multi-stream saves');
+  print('  store_atomic_rollback.dart      - Atomic rollback on conflict');
+  print('');
+  print('HYBRID MODE (Frontend Events + Backend State):');
+  print('  hybrid_optimistic_creation.dart - Optimistic user creation');
+  print('  hybrid_profile_edit.dart        - Instant feedback editing');
+  print('  hybrid_multi_step_form.dart     - Multi-step forms with cancel');
+  print('');
+  print('Run any example:');
+  print('  dart run aggregate_creation.dart');
+  print('');
 }

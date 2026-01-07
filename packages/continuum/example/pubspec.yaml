@@ -9,6 +9,8 @@ environment:
 dependencies:
   continuum:
     path: ../
+  continuum_store_memory:
+    path: ../../continuum_store_memory
 
 dev_dependencies:
   build_runner: ^2.4.15

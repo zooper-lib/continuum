@@ -1,0 +1,10 @@
+targets:
+  $default:
+    builders:
+      # The continuum package itself has a lib/continuum.dart entrypoint.
+      # source_gen's combining_builder may output lib/continuum.g.dart for that file.
+      # Disabling continuum_generator's own combining builder for this package
+      # avoids an output collision while still allowing other builders (e.g. Mockito)
+      # to run via build_runner.
+      continuum_generator|continuum_combining_builder:
+        enabled: false

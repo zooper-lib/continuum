@@ -128,6 +128,79 @@ void main() {
       });
     });
 
+    group('appendEventsToStreamsAsync', () {
+      test('should append events to multiple streams atomically', () async {
+        // Arrange
+        final StreamId stream1 = const StreamId('atomic_stream_1');
+        final StreamId stream2 = const StreamId('atomic_stream_2');
+
+        final Map<StreamId, StreamAppendBatch> batches = <StreamId, StreamAppendBatch>{
+          stream1: StreamAppendBatch(
+            expectedVersion: ExpectedVersion.noStream,
+            events: <StoredEvent>[_createStoredEvent(stream1, 0, 'first')],
+          ),
+          stream2: StreamAppendBatch(
+            expectedVersion: ExpectedVersion.noStream,
+            events: <StoredEvent>[_createStoredEvent(stream2, 0, 'second')],
+          ),
+        };
+
+        // Act
+        await store.appendEventsToStreamsAsync(batches);
+
+        // Assert - both streams should be updated as a single logical unit
+        final List<StoredEvent> stream1Events = await store.loadStreamAsync(stream1);
+        final List<StoredEvent> stream2Events = await store.loadStreamAsync(stream2);
+
+        expect(stream1Events.single.version, equals(0));
+        expect(stream2Events.single.version, equals(0));
+
+        // Assert - global sequence should still be unique and sequential
+        final List<int?> globalSequences = <int?>[
+          stream1Events.single.globalSequence,
+          stream2Events.single.globalSequence,
+        ]..sort((int? a, int? b) => (a ?? -1).compareTo(b ?? -1));
+        expect(globalSequences, equals(<int>[0, 1]));
+      });
+
+      test('should not persist any events when one stream has a version mismatch', () async {
+        // Arrange
+        final StreamId stream1 = const StreamId('atomic_mismatch_1');
+        final StreamId stream2 = const StreamId('atomic_mismatch_2');
+
+        await store.appendEventsAsync(
+          stream1,
+          ExpectedVersion.noStream,
+          <StoredEvent>[_createStoredEvent(stream1, 0, 'first')],
+        );
+
+        final Map<StreamId, StreamAppendBatch> batches = <StreamId, StreamAppendBatch>{
+          stream1: StreamAppendBatch(
+            expectedVersion: ExpectedVersion.exact(999),
+            events: <StoredEvent>[_createStoredEvent(stream1, 1, 'should_fail')],
+          ),
+          stream2: StreamAppendBatch(
+            expectedVersion: ExpectedVersion.noStream,
+            events: <StoredEvent>[_createStoredEvent(stream2, 0, 'should_not_be_written')],
+          ),
+        };
+
+        // Act & Assert - the mismatch should prevent all writes
+        expect(
+          () => store.appendEventsToStreamsAsync(batches),
+          throwsA(isA<ConcurrencyException>()),
+        );
+
+        // Assert - stream1 is unchanged and stream2 remains empty
+        final List<StoredEvent> stream1EventsAfter = await store.loadStreamAsync(stream1);
+        final List<StoredEvent> stream2EventsAfter = await store.loadStreamAsync(stream2);
+
+        expect(stream1EventsAfter.length, equals(1));
+        expect(stream1EventsAfter.single.eventType, equals('first'));
+        expect(stream2EventsAfter, isEmpty);
+      });
+    });
+
     group('clear', () {
       test('should remove all events', () async {
         // Arrange
