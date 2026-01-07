@@ -44,4 +44,13 @@ jobs:
           printf '%s' "$PUB_CREDENTIALS" > "$HOME/.config/dart/pub-credentials.json"
 
       - name: Publish packages
-        run: melos publish --no-dry-run --yes
+        run: |
+          # Publish in workspace dependency order (dependencies first) and
+          # serially to avoid pub.dev validation failing when multiple packages
+          # are released together.
+          melos exec \
+            --no-private \
+            --no-published \
+            --order-dependents \
+            --concurrency=1 \
+            -- dart pub publish --force
