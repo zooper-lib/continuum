@@ -21,7 +21,7 @@ final class EventInfo {
   EventInfo({required this.element, required this.aggregateTypeName, required this.isCreationEvent, this.type});
 
   /// The name of the event class.
-  String get name => element.name;
+  String get name => element.name ?? element.displayName;
 
   /// The type discriminator, defaulting to the class name if not specified.
   String get typeDiscriminator => type ?? name;

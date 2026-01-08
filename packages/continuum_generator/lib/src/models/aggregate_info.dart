@@ -22,7 +22,7 @@ final class AggregateInfo {
       mutationEvents = mutationEvents ?? [];
 
   /// The name of the aggregate class.
-  String get name => element.name;
+  String get name => element.name ?? element.displayName;
 
   /// All events (creation + mutation) for this aggregate.
   List<EventInfo> get allEvents => [...creationEvents, ...mutationEvents];
