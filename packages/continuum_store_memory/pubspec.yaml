@@ -10,7 +10,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  continuum: ^1.0.0
+  continuum: ^2.0.0
 
 dev_dependencies:
   build_runner: ^2.4.0

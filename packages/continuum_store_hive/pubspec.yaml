@@ -10,7 +10,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  continuum: ^1.0.0
+  continuum: ^2.0.0
   hive: ^2.2.3
 
 dev_dependencies:
