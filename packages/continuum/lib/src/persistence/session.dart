@@ -8,7 +8,7 @@ import '../identity/stream_id.dart';
 ///
 /// Sessions are short-lived and should not be reused after [saveChangesAsync]
 /// is called.
-abstract interface class Session {
+abstract interface class ContinuumSession {
   /// Loads an aggregate by its stream ID.
   ///
   /// Reconstructs the aggregate by loading stored events and replaying

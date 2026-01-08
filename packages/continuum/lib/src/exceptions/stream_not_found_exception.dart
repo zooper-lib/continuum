@@ -12,6 +12,5 @@ final class StreamNotFoundException implements Exception {
   const StreamNotFoundException({required this.streamId});
 
   @override
-  String toString() =>
-      'StreamNotFoundException: Stream ${streamId.value} does not exist';
+  String toString() => 'StreamNotFoundException: Stream ${streamId.value} does not exist';
 }

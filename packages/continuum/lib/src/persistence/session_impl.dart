@@ -44,8 +44,8 @@ final class _StreamState {
   }
 }
 
-/// Internal implementation of the Session interface.
-final class SessionImpl implements Session {
+/// Internal implementation of the ContinuumSession interface.
+final class SessionImpl implements ContinuumSession {
   final EventStore _eventStore;
   final EventSerializer _serializer;
   final AggregateFactoryRegistry _aggregateFactories;

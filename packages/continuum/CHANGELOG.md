@@ -5,6 +5,7 @@
 - **BREAKING**: Renamed `@Event` annotation to `@AggregateEvent` to avoid naming conflicts with user code.
 - **BREAKING**: Renamed `ofAggregate:` parameter to `of:` in `@AggregateEvent` annotation.
 - **BREAKING**: Renamed `DomainEvent` class to `ContinuumEvent` to avoid naming conflicts.
+- **BREAKING**: Renamed `Session` interface to `ContinuumSession` to avoid naming conflicts.
 - **BREAKING**: Renamed `StoredEvent.fromDomainEvent()` to `StoredEvent.fromContinuumEvent()`.
 - **BREAKING**: Updated all parameter names from `domainEvent` to `continuumEvent`.
 
