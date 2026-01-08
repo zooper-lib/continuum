@@ -1,6 +1,6 @@
 name: continuum_store_hive
 description: Hive-backed EventStore implementation for the continuum event sourcing library.
-version: 1.0.0
+version: 2.0.0
 repository: https://github.com/zooper/continuum
 homepage: https://zooper.dev
 
