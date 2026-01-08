@@ -34,9 +34,11 @@ final class AggregateDiscovery {
     final pendingEvents = <EventInfo>[];
 
     // First pass: discover all aggregates in THIS library
-    for (final element in library.topLevelElements) {
-      if (element is ClassElement && _aggregateChecker.hasAnnotationOf(element)) {
-        aggregates[element.name] = AggregateInfo(element: element);
+    for (final element in library.classes) {
+      if (_aggregateChecker.hasAnnotationOf(element)) {
+        final aggregateName = element.name ?? element.displayName;
+        if (aggregateName.isEmpty) continue;
+        aggregates[aggregateName] = AggregateInfo(element: element);
       }
     }
 
@@ -46,8 +48,8 @@ final class AggregateDiscovery {
     }
 
     // Second pass: discover events defined in THIS library
-    for (final element in library.topLevelElements) {
-      if (element is ClassElement && _eventChecker.hasAnnotationOf(element)) {
+    for (final element in library.classes) {
+      if (_eventChecker.hasAnnotationOf(element)) {
         final eventInfo = _extractEventInfo(element);
         if (eventInfo != null) {
           pendingEvents.add(eventInfo);
@@ -57,9 +59,13 @@ final class AggregateDiscovery {
 
     // Third pass: discover events from IMPORTED libraries
     // This allows events to be defined in separate files
-    for (final importedLibrary in library.importedLibraries) {
+    final importedLibraries = <LibraryElement>{
+      for (final fragment in library.fragments) ...fragment.importedLibraries,
+    };
+
+    for (final importedLibrary in importedLibraries) {
       // Scan exported elements from the imported library
-      for (final element in importedLibrary.exportNamespace.definedNames.values) {
+      for (final element in importedLibrary.exportNamespace.definedNames2.values) {
         if (element is ClassElement && _eventChecker.hasAnnotationOf(element)) {
           final eventInfo = _extractEventInfo(element);
           if (eventInfo != null) {
@@ -138,9 +144,9 @@ final class AggregateDiscovery {
 
     // Look for static methods starting with 'create' that take this event type
     for (final method in aggregateElement.methods) {
-      if (method.isStatic && method.name.startsWith('create')) {
+      if (method.isStatic && method.displayName.startsWith('create')) {
         // Check if the method has a parameter of this event type
-        for (final param in method.parameters) {
+        for (final param in method.formalParameters) {
           if (param.type.element == eventElement) {
             return true;
           }

@@ -1,8 +1,6 @@
 import 'dart:async';
 
-import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
-import 'package:continuum/continuum.dart';
 import 'package:glob/glob.dart';
 import 'package:source_gen/source_gen.dart';
 
@@ -23,7 +21,7 @@ import 'package:source_gen/source_gen.dart';
 /// ```
 class CombiningBuilder implements Builder {
   /// Type checker for the @Aggregate annotation.
-  static final _aggregateChecker = const TypeChecker.fromRuntime(Aggregate);
+  static const _aggregateChecker = TypeChecker.fromUrl('package:continuum/src/annotations/aggregate.dart#Aggregate');
 
   @override
   Map<String, List<String>> get buildExtensions => {
@@ -44,14 +42,14 @@ class CombiningBuilder implements Builder {
       final library = await buildStep.resolver.libraryFor(input);
 
       // Find all classes annotated with @Aggregate
-      for (final element in library.topLevelElements) {
-        if (element is ClassElement && _aggregateChecker.hasAnnotationOf(element)) {
+      for (final element in library.classes) {
+        if (_aggregateChecker.hasAnnotationOf(element)) {
           // Calculate the import path relative to lib/
           final importPath = input.path.replaceFirst('lib/', '');
 
           aggregateInfos.add(
             _AggregateInfo(
-              className: element.name,
+              className: element.displayName,
               importPath: importPath,
             ),
           );

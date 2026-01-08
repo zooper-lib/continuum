@@ -51,7 +51,7 @@ extension $UserEventDispatch on User {
 extension $UserCreation on Never {
   /// Creates a User from a creation event.
   ///
-  /// Routes to the appropriate static create method.
+  /// Routes to the appropriate static createFrom<Event> method.
   /// Throws [InvalidCreationEventException] for unknown event types.
   static User createFromEvent(DomainEvent event) {
     switch (event) {
@@ -90,13 +90,16 @@ final $User = GeneratedAggregate(
   }),
   aggregateFactories: AggregateFactoryRegistry({
     User: {
-      UserRegistered: (event) => User.createFromUserRegistered(event as UserRegistered),
+      UserRegistered: (event) =>
+          User.createFromUserRegistered(event as UserRegistered),
     },
   }),
   eventAppliers: EventApplierRegistry({
     User: {
-      EmailChanged: (aggregate, event) => (aggregate as User).applyEmailChanged(event as EmailChanged),
-      UserDeactivated: (aggregate, event) => (aggregate as User).applyUserDeactivated(event as UserDeactivated),
+      EmailChanged: (aggregate, event) =>
+          (aggregate as User).applyEmailChanged(event as EmailChanged),
+      UserDeactivated: (aggregate, event) =>
+          (aggregate as User).applyUserDeactivated(event as UserDeactivated),
     },
   }),
 );
