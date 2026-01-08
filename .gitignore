@@ -113,3 +113,6 @@ lib/generated_plugin_registrant.dart
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/dart,flutter,visualstudiocode
+
+**/.idea/
+**/*.iml

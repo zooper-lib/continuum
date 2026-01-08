@@ -1,4 +1,4 @@
-import '../events/domain_event.dart';
+import '../events/continuum_event.dart';
 import '../identity/event_id.dart';
 import '../identity/stream_id.dart';
 
@@ -45,17 +45,16 @@ final class StoredEvent {
     required this.occurredOn,
     required Map<String, dynamic> metadata,
     this.globalSequence,
-  }) :
-       // Snapshot payloads to prevent later mutation of persisted event data.
+  }) : // Snapshot payloads to prevent later mutation of persisted event data.
        data = Map<String, dynamic>.unmodifiable(<String, dynamic>{...data}),
        metadata = Map<String, dynamic>.unmodifiable(<String, dynamic>{...metadata});
 
-  /// Creates a stored event from a domain event with additional metadata.
+  /// Creates a stored event from a continuum event with additional metadata.
   ///
-  /// The [domainEvent] provides base event data, while [streamId], [version],
+  /// The [continuumEvent] provides base event data, while [streamId], [version],
   /// [eventType], and [data] provide persistence-specific information.
-  factory StoredEvent.fromDomainEvent({
-    required DomainEvent domainEvent,
+  factory StoredEvent.fromContinuumEvent({
+    required ContinuumEvent continuumEvent,
     required StreamId streamId,
     required int version,
     required String eventType,
@@ -63,13 +62,13 @@ final class StoredEvent {
     int? globalSequence,
   }) {
     return StoredEvent(
-      eventId: domainEvent.eventId,
+      eventId: continuumEvent.eventId,
       streamId: streamId,
       version: version,
       eventType: eventType,
       data: data,
-      occurredOn: domainEvent.occurredOn,
-      metadata: domainEvent.metadata,
+      occurredOn: continuumEvent.occurredOn,
+      metadata: continuumEvent.metadata,
       globalSequence: globalSequence,
     );
   }

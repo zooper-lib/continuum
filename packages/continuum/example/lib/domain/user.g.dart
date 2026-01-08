@@ -51,7 +51,7 @@ extension $UserEventDispatch on User {
 extension $UserCreation on Never {
   /// Creates a User from a creation event.
   ///
-  /// Routes to the appropriate static create method.
+  /// Routes to the appropriate static createFrom<Event> method.
   /// Throws [InvalidCreationEventException] for unknown event types.
   static User createFromEvent(DomainEvent event) {
     switch (event) {

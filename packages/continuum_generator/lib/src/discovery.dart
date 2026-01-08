@@ -8,21 +8,21 @@ import 'models/event_info.dart';
 /// Type checker for the @Aggregate annotation.
 const _aggregateChecker = TypeChecker.fromUrl('package:continuum/src/annotations/aggregate.dart#Aggregate');
 
-/// Type checker for the @Event annotation.
-const _eventChecker = TypeChecker.fromUrl('package:continuum/src/annotations/event.dart#Event');
+/// Type checker for the @AggregateEvent annotation.
+const _eventChecker = TypeChecker.fromUrl('package:continuum/src/annotations/event.dart#AggregateEvent');
 
-/// Type checker for the DomainEvent base class.
-const _domainEventChecker = TypeChecker.fromUrl('package:continuum/src/events/domain_event.dart#DomainEvent');
+/// Type checker for the ContinuumEvent base class.
+const _continuumEventChecker = TypeChecker.fromUrl('package:continuum/src/events/continuum_event.dart#ContinuumEvent');
 
 /// Discovers aggregates and events from library elements.
 ///
-/// Scans a library for classes annotated with `@Aggregate()` and `@Event()`
+/// Scans a library for classes annotated with `@Aggregate()` and `@AggregateEvent()`
 /// and builds the mapping between aggregates and their events.
 ///
 /// Events can be defined in the same file OR in separate imported files.
 /// The generator discovers events by:
 /// 1. Looking at elements defined in this library (including part files)
-/// 2. Looking at imported elements that have `@Event(ofAggregate: X)`
+/// 2. Looking at imported elements that have `@AggregateEvent(of: X)`
 ///    where X is an aggregate defined in this library
 final class AggregateDiscovery {
   /// Discovers all aggregates and events in the given library.
@@ -34,9 +34,11 @@ final class AggregateDiscovery {
     final pendingEvents = <EventInfo>[];
 
     // First pass: discover all aggregates in THIS library
-    for (final element in library.topLevelElements) {
-      if (element is ClassElement && _aggregateChecker.hasAnnotationOf(element)) {
-        aggregates[element.name] = AggregateInfo(element: element);
+    for (final element in library.classes) {
+      if (_aggregateChecker.hasAnnotationOf(element)) {
+        final aggregateName = element.name ?? element.displayName;
+        if (aggregateName.isEmpty) continue;
+        aggregates[aggregateName] = AggregateInfo(element: element);
       }
     }
 
@@ -46,8 +48,8 @@ final class AggregateDiscovery {
     }
 
     // Second pass: discover events defined in THIS library
-    for (final element in library.topLevelElements) {
-      if (element is ClassElement && _eventChecker.hasAnnotationOf(element)) {
+    for (final element in library.classes) {
+      if (_eventChecker.hasAnnotationOf(element)) {
         final eventInfo = _extractEventInfo(element);
         if (eventInfo != null) {
           pendingEvents.add(eventInfo);
@@ -57,9 +59,13 @@ final class AggregateDiscovery {
 
     // Third pass: discover events from IMPORTED libraries
     // This allows events to be defined in separate files
-    for (final importedLibrary in library.importedLibraries) {
+    final importedLibraries = <LibraryElement>{
+      for (final fragment in library.fragments) ...fragment.importedLibraries,
+    };
+
+    for (final importedLibrary in importedLibraries) {
       // Scan exported elements from the imported library
-      for (final element in importedLibrary.exportNamespace.definedNames.values) {
+      for (final element in importedLibrary.exportNamespace.definedNames2.values) {
         if (element is ClassElement && _eventChecker.hasAnnotationOf(element)) {
           final eventInfo = _extractEventInfo(element);
           if (eventInfo != null) {
@@ -89,17 +95,17 @@ final class AggregateDiscovery {
 
   /// Extracts event information from an annotated class element.
   EventInfo? _extractEventInfo(ClassElement element) {
-    // Verify the event extends DomainEvent
-    if (!_domainEventChecker.isSuperOf(element)) {
-      // Could throw an error here, but for now we skip non-DomainEvent classes
+    // Verify the event extends ContinuumEvent
+    if (!_continuumEventChecker.isSuperOf(element)) {
+      // Could throw an error here, but for now we skip non-ContinuumEvent classes
       return null;
     }
 
     final annotation = _eventChecker.firstAnnotationOf(element);
     if (annotation == null) return null;
 
-    // Extract the ofAggregate type
-    final ofAggregateValue = annotation.getField('ofAggregate');
+    // Extract the of type
+    final ofAggregateValue = annotation.getField('of');
     if (ofAggregateValue == null || ofAggregateValue.isNull) return null;
 
     final aggregateType = ofAggregateValue.toTypeValue();
@@ -138,9 +144,9 @@ final class AggregateDiscovery {
 
     // Look for static methods starting with 'create' that take this event type
     for (final method in aggregateElement.methods) {
-      if (method.isStatic && method.name.startsWith('create')) {
+      if (method.isStatic && method.displayName.startsWith('create')) {
         // Check if the method has a parameter of this event type
-        for (final param in method.parameters) {
+        for (final param in method.formalParameters) {
           if (param.type.element == eventElement) {
             return true;
           }

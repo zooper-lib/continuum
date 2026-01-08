@@ -1,4 +1,4 @@
-import '../events/domain_event.dart';
+import '../events/continuum_event.dart';
 import '../identity/stream_id.dart';
 
 /// Unit of work abstraction for event-sourced aggregate operations.
@@ -8,7 +8,7 @@ import '../identity/stream_id.dart';
 ///
 /// Sessions are short-lived and should not be reused after [saveChangesAsync]
 /// is called.
-abstract interface class Session {
+abstract interface class ContinuumSession {
   /// Loads an aggregate by its stream ID.
   ///
   /// Reconstructs the aggregate by loading stored events and replaying
@@ -30,7 +30,7 @@ abstract interface class Session {
   /// creation event for the aggregate type.
   TAggregate startStream<TAggregate>(
     StreamId streamId,
-    DomainEvent creationEvent,
+    ContinuumEvent creationEvent,
   );
 
   /// Appends a mutation event to an existing stream.
@@ -39,7 +39,7 @@ abstract interface class Session {
   /// recorded as pending for persistence.
   ///
   /// Throws if the stream has not been loaded or started in this session.
-  void append(StreamId streamId, DomainEvent event);
+  void append(StreamId streamId, ContinuumEvent event);
 
   /// Persists all pending events to the event store.
   ///

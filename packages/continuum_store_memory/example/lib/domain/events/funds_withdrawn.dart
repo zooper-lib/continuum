@@ -3,8 +3,8 @@ import 'package:continuum/continuum.dart';
 import '../account.dart';
 
 /// Event fired when funds are withdrawn from an account.
-@Event(ofAggregate: Account, type: 'account.funds_withdrawn')
-class FundsWithdrawn extends DomainEvent {
+@AggregateEvent(of: Account, type: 'account.funds_withdrawn')
+class FundsWithdrawn extends ContinuumEvent {
   final int amount;
 
   FundsWithdrawn({

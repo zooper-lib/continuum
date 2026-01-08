@@ -2,7 +2,7 @@ import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
 
 /// Test event for registry testing.
-final class TestRegistryEvent extends DomainEvent {
+final class TestRegistryEvent extends ContinuumEvent {
   final String value;
 
   TestRegistryEvent({
@@ -22,7 +22,7 @@ final class TestRegistryEvent extends DomainEvent {
 }
 
 /// Another test event for testing multiple registrations.
-final class AnotherTestEvent extends DomainEvent {
+final class AnotherTestEvent extends ContinuumEvent {
   final int number;
 
   AnotherTestEvent({

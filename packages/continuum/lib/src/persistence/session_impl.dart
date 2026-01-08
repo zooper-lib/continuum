@@ -1,4 +1,4 @@
-import '../events/domain_event.dart';
+import '../events/continuum_event.dart';
 import '../exceptions/invalid_creation_event_exception.dart';
 import '../exceptions/stream_not_found_exception.dart';
 import '../exceptions/unsupported_event_exception.dart';
@@ -23,14 +23,14 @@ final class _StreamState {
   final int loadedVersion;
 
   /// Pending events not yet persisted.
-  final List<DomainEvent> pendingEvents;
+  final List<ContinuumEvent> pendingEvents;
 
   /// Creates a stream state for tracking.
   _StreamState({
     required this.aggregate,
     required this.aggregateType,
     required this.loadedVersion,
-    List<DomainEvent>? pendingEvents,
+    List<ContinuumEvent>? pendingEvents,
   }) : pendingEvents = pendingEvents ?? [];
 
   /// Creates a copy with a new pending events list.
@@ -44,8 +44,8 @@ final class _StreamState {
   }
 }
 
-/// Internal implementation of the Session interface.
-final class SessionImpl implements Session {
+/// Internal implementation of the ContinuumSession interface.
+final class SessionImpl implements ContinuumSession {
   final EventStore _eventStore;
   final EventSerializer _serializer;
   final AggregateFactoryRegistry _aggregateFactories;
@@ -136,7 +136,7 @@ final class SessionImpl implements Session {
   }
 
   /// Applies an event to an aggregate using the registered applier.
-  void _applyEvent<TAggregate>(TAggregate aggregate, DomainEvent event) {
+  void _applyEvent<TAggregate>(TAggregate aggregate, ContinuumEvent event) {
     final applier = _eventAppliers.getApplier<TAggregate>(
       TAggregate,
       event.runtimeType,
@@ -155,7 +155,7 @@ final class SessionImpl implements Session {
   @override
   TAggregate startStream<TAggregate>(
     StreamId streamId,
-    DomainEvent creationEvent,
+    ContinuumEvent creationEvent,
   ) {
     // Get the factory for creating the aggregate
     final factory = _aggregateFactories.getFactory<TAggregate>(
@@ -185,7 +185,7 @@ final class SessionImpl implements Session {
   }
 
   @override
-  void append(StreamId streamId, DomainEvent event) {
+  void append(StreamId streamId, ContinuumEvent event) {
     final state = _streams[streamId];
 
     if (state == null) {
@@ -242,8 +242,8 @@ final class SessionImpl implements Session {
         for (final event in state.pendingEvents) {
           final serialized = _serializer.serialize(event);
           storedEvents.add(
-            StoredEvent.fromDomainEvent(
-              domainEvent: event,
+            StoredEvent.fromContinuumEvent(
+              continuumEvent: event,
               streamId: streamId,
               version: nextVersion,
               eventType: serialized.eventType,
@@ -288,8 +288,8 @@ final class SessionImpl implements Session {
       for (final event in state.pendingEvents) {
         final serialized = _serializer.serialize(event);
         storedEvents.add(
-          StoredEvent.fromDomainEvent(
-            domainEvent: event,
+          StoredEvent.fromContinuumEvent(
+            continuumEvent: event,
             streamId: streamId,
             version: nextVersion,
             eventType: serialized.eventType,

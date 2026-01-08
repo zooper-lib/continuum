@@ -3,8 +3,8 @@ import 'package:continuum/continuum.dart';
 import '../user.dart';
 
 /// Event fired when a user changes their email address.
-@Event(ofAggregate: User, type: 'user.email_changed')
-class EmailChanged extends DomainEvent {
+@AggregateEvent(of: User, type: 'user.email_changed')
+class EmailChanged extends ContinuumEvent {
   final String newEmail;
 
   EmailChanged({required super.eventId, required this.newEmail, super.occurredOn, super.metadata});

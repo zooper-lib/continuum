@@ -38,7 +38,7 @@ void main() async {
   final userId = const StreamId('user-001');
 
   // Open a session, create aggregate, save
-  Session session = store.openSession();
+  ContinuumSession session = store.openSession();
   final user = session.startStream<User>(
     userId,
     UserRegistered(

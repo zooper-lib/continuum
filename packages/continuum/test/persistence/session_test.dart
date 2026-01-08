@@ -34,8 +34,8 @@ void main() {
       for (final (index, event) in [created, incremented].indexed) {
         final serialized = serializer.serialize(event);
         stored.add(
-          StoredEvent.fromDomainEvent(
-            domainEvent: event,
+          StoredEvent.fromContinuumEvent(
+            continuumEvent: event,
             streamId: streamId,
             version: index,
             eventType: serialized.eventType,
@@ -140,8 +140,8 @@ void main() {
       final streamId = const StreamId('counter-existing');
 
       final created = CounterCreated(eventId: const EventId('e-1'), initial: 1);
-      final storedCreated = StoredEvent.fromDomainEvent(
-        domainEvent: created,
+      final storedCreated = StoredEvent.fromContinuumEvent(
+        continuumEvent: created,
         streamId: streamId,
         version: 0,
         eventType: serializer.serialize(created).eventType,

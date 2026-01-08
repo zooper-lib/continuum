@@ -1,10 +1,10 @@
-import '../events/domain_event.dart';
+import '../events/continuum_event.dart';
 
-/// Function type for serializing domain events to JSON.
-typedef EventToJsonFactory = Map<String, dynamic> Function(DomainEvent event);
+/// Function type for serializing continuum events to JSON.
+typedef EventToJsonFactory = Map<String, dynamic> Function(ContinuumEvent event);
 
 /// Function type for deserializing events from JSON data.
-typedef EventFromJsonFactory = DomainEvent Function(Map<String, dynamic> json);
+typedef EventFromJsonFactory = ContinuumEvent Function(Map<String, dynamic> json);
 
 /// Entry containing all serialization info for an event type.
 final class EventSerializerEntry {
