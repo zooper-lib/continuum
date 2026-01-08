@@ -3,8 +3,8 @@ import 'package:continuum/continuum.dart';
 import '../account.dart';
 
 /// Event fired when funds are deposited into an account.
-@Event(ofAggregate: Account, type: 'account.funds_deposited')
-class FundsDeposited extends DomainEvent {
+@AggregateEvent(of: Account, type: 'account.funds_deposited')
+class FundsDeposited extends ContinuumEvent {
   final int amount;
 
   FundsDeposited({

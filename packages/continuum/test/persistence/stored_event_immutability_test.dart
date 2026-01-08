@@ -21,7 +21,7 @@ void main() {
       expect(stored.data['a'], equals(1));
     });
 
-    test('BUG: StoredEvent.fromDomainEvent should snapshot metadata (defensive copy)', () {
+    test('BUG: StoredEvent.fromContinuumEvent should snapshot metadata (defensive copy)', () {
       final mutableMetadata = <String, dynamic>{'correlationId': 'corr-1'};
 
       final event = _TestEvent(
@@ -29,8 +29,8 @@ void main() {
         metadata: mutableMetadata,
       );
 
-      final stored = StoredEvent.fromDomainEvent(
-        domainEvent: event,
+      final stored = StoredEvent.fromContinuumEvent(
+        continuumEvent: event,
         streamId: const StreamId('s-1'),
         version: 0,
         eventType: 'x',
@@ -44,7 +44,7 @@ void main() {
   });
 }
 
-final class _TestEvent extends DomainEvent {
+final class _TestEvent extends ContinuumEvent {
   _TestEvent({
     required super.eventId,
     super.metadata,

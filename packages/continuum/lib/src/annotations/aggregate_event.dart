@@ -8,17 +8,17 @@
 /// discriminator for serialization.
 ///
 /// ```dart
-/// @Event(ofAggregate: ShoppingCart)
-/// class ItemAdded extends DomainEvent {
+/// @AggregateEvent(of: ShoppingCart)
+/// class ItemAdded extends ContinuumEvent {
 ///   // event implementation
 /// }
 /// ```
-class Event {
+class AggregateEvent {
   /// The aggregate type this event belongs to.
   ///
   /// This creates a compile-time association between the event and its
   /// aggregate, enabling the generator to build proper mappings.
-  final Type ofAggregate;
+  final Type of;
 
   /// Optional stable type discriminator for persistence serialization.
   ///
@@ -26,10 +26,10 @@ class Event {
   /// mutation, but cannot be persisted without explicit type mapping.
   final String? type;
 
-  /// Creates an event annotation associating this event with [ofAggregate].
+  /// Creates an event annotation associating this event with [of].
   ///
   /// The [type] parameter provides a stable string discriminator for
   /// persistence serialization. When omitted, the event remains valid
   /// for in-memory usage but cannot be persisted.
-  const Event({required this.ofAggregate, this.type});
+  const AggregateEvent({required this.of, this.type});
 }

@@ -53,8 +53,8 @@ class ShoppingCart with _$ShoppingCartEventHandlers {
 }
 
 // Creation event (first event in stream)
-@Event(ofAggregate: ShoppingCart, type: 'cart.created')
-class CartCreated extends DomainEvent {
+@AggregateEvent(of: ShoppingCart, type: 'cart.created')
+class CartCreated extends ContinuumEvent {
   final String cartId;
 
   CartCreated({
@@ -73,8 +73,8 @@ class CartCreated extends DomainEvent {
 }
 
 // Mutation event
-@Event(ofAggregate: ShoppingCart, type: 'item.added')
-class ItemAdded extends DomainEvent {
+@AggregateEvent(of: ShoppingCart, type: 'item.added')
+class ItemAdded extends ContinuumEvent {
   final String productId;
 
   ItemAdded({
@@ -138,7 +138,7 @@ await session.saveChangesAsync();
 ### continuum
 
 Core library providing:
-- `@Aggregate()` and `@Event()` annotations
+- `@Aggregate()` and `@AggregateEvent()` annotations
 - `DomainEvent` base class
 - `EventId` and `StreamId` strong types
 - `Session`, `EventStore`, `EventSourcingStore` abstractions

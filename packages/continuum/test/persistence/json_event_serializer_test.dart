@@ -1,7 +1,7 @@
 import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
 
-final class ImmutableMapEvent extends DomainEvent {
+final class ImmutableMapEvent extends ContinuumEvent {
   ImmutableMapEvent({
     required super.eventId,
     super.occurredOn,

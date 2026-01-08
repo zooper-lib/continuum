@@ -2,7 +2,7 @@ import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
 
 /// Test event for stored event testing.
-final class TestStoredEvent extends DomainEvent {
+final class TestStoredEvent extends ContinuumEvent {
   final String payload;
 
   TestStoredEvent({
@@ -63,14 +63,14 @@ void main() {
       expect(stored.globalSequence, isNull);
     });
 
-    group('fromDomainEvent', () {
-      test('should create stored event from domain event', () {
+    group('fromContinuumEvent', () {
+      test('should create stored event from continuum event', () {
         // Arrange
         final eventId = const EventId('evt_789');
         final occurredOn = DateTime.utc(2025, 3, 20);
         final metadata = {'correlationId': 'corr_123'};
 
-        final domainEvent = TestStoredEvent(
+        final continuumEvent = TestStoredEvent(
           eventId: eventId,
           payload: 'test payload',
           occurredOn: occurredOn,
@@ -81,8 +81,8 @@ void main() {
         final data = {'payload': 'test payload'};
 
         // Act
-        final stored = StoredEvent.fromDomainEvent(
-          domainEvent: domainEvent,
+        final stored = StoredEvent.fromContinuumEvent(
+          continuumEvent: continuumEvent,
           streamId: streamId,
           version: 3,
           eventType: 'test.stored.event',
@@ -103,14 +103,14 @@ void main() {
 
       test('should work without globalSequence', () {
         // Arrange
-        final domainEvent = TestStoredEvent(
+        final continuumEvent = TestStoredEvent(
           eventId: const EventId('evt_1'),
           payload: 'test',
         );
 
         // Act
-        final stored = StoredEvent.fromDomainEvent(
-          domainEvent: domainEvent,
+        final stored = StoredEvent.fromContinuumEvent(
+          continuumEvent: continuumEvent,
           streamId: const StreamId('stream_1'),
           version: 0,
           eventType: 'test.event',

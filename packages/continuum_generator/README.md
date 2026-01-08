@@ -82,8 +82,8 @@ class User with _$UserEventHandlers {
   }
 }
 
-@Event(ofAggregate: User, type: 'user.created')
-class UserCreated extends DomainEvent {
+@AggregateEvent(of: User, type: 'user.created')
+class UserCreated extends ContinuumEvent {
   final String email;
   UserCreated(StreamId aggregateId, this.email) : super(aggregateId);
   
@@ -93,8 +93,8 @@ class UserCreated extends DomainEvent {
   }
 }
 
-@Event(ofAggregate: User, type: 'user.email_changed')
-class EmailChanged extends DomainEvent {
+@AggregateEvent(of: User, type: 'user.email_changed')
+class EmailChanged extends ContinuumEvent {
   final String newEmail;
   EmailChanged(StreamId aggregateId, this.newEmail) : super(aggregateId);
   

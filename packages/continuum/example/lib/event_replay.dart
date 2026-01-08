@@ -21,7 +21,7 @@ void main() {
 
   // Simulate an event history (as if loaded from an event store)
   print('Event history:');
-  final events = <DomainEvent>[
+  final events = <ContinuumEvent>[
     UserRegistered(
       eventId: const EventId('evt-1'),
       userId: 'user-789',

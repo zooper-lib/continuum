@@ -1,8 +1,8 @@
 import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
 
-/// Test implementation of DomainEvent for testing purposes.
-final class TestEvent extends DomainEvent {
+/// Test implementation of ContinuumEvent for testing purposes.
+final class TestEvent extends ContinuumEvent {
   final String data;
 
   TestEvent({
@@ -14,7 +14,7 @@ final class TestEvent extends DomainEvent {
 }
 
 void main() {
-  group('DomainEvent', () {
+  group('ContinuumEvent', () {
     test('should store eventId correctly', () {
       // Arrange
       final eventId = const EventId('evt_123');
