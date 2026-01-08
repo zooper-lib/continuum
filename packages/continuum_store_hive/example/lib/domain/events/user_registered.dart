@@ -3,8 +3,8 @@ import 'package:continuum/continuum.dart';
 import '../user.dart';
 
 /// Event fired when a new user registers.
-@Event(ofAggregate: User, type: 'user.registered')
-class UserRegistered extends DomainEvent {
+@AggregateEvent(of: User, type: 'user.registered')
+class UserRegistered extends ContinuumEvent {
   final String userId;
   final String email;
   final String name;

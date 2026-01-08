@@ -15,8 +15,7 @@ final class EventId {
   const EventId(this.value);
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is EventId && value == other.value;
+  bool operator ==(Object other) => identical(this, other) || other is EventId && value == other.value;
 
   @override
   int get hashCode => value.hashCode;

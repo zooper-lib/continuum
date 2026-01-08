@@ -1,8 +1,8 @@
 import '../identity/event_id.dart';
 
-/// Base contract for all domain events in an event-sourced system.
+/// Base contract for all continuum events in an event-sourced system.
 ///
-/// Domain events represent facts that have happened in the domain.
+/// Continuum events represent facts that have happened in the domain.
 /// They are immutable and carry all the information needed to describe
 /// what occurred.
 ///
@@ -11,8 +11,8 @@ import '../identity/event_id.dart';
 /// [metadata] defaults.
 ///
 /// ```dart
-/// @Event(ofAggregate: ShoppingCart, type: 'item_added')
-/// class ItemAdded extends DomainEvent {
+/// @AggregateEvent(of: ShoppingCart, type: 'item_added')
+/// class ItemAdded extends ContinuumEvent {
 ///   final String productId;
 ///   final int quantity;
 ///
@@ -25,7 +25,7 @@ import '../identity/event_id.dart';
 ///   });
 /// }
 /// ```
-abstract class DomainEvent {
+abstract class ContinuumEvent {
   /// Unique identifier for this event instance.
   final EventId eventId;
 
@@ -39,11 +39,11 @@ abstract class DomainEvent {
   /// Can include correlation IDs, causation IDs, user context, etc.
   final Map<String, dynamic> metadata;
 
-  /// Creates a domain event with the given [eventId].
+  /// Creates a continuum event with the given [eventId].
   ///
   /// If [occurredOn] is not provided, it defaults to the current UTC time.
   /// If [metadata] is not provided, it defaults to an empty map.
-  DomainEvent({
+  ContinuumEvent({
     required this.eventId,
     DateTime? occurredOn,
     Map<String, dynamic>? metadata,

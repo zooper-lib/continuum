@@ -87,7 +87,7 @@ final class EventSourcingStore {
   ///
   /// Each session is independent and tracks its own loaded aggregates
   /// and pending events. Sessions should be short-lived.
-  Session openSession() {
+  ContinuumSession openSession() {
     return SessionImpl(
       eventStore: _eventStore,
       serializer: _serializer,

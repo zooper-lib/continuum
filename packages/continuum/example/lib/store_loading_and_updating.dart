@@ -31,7 +31,7 @@ void main() async {
 
   // Setup: Create a user first
   final userId = const StreamId('user-001');
-  Session session = store.openSession();
+  ContinuumSession session = store.openSession();
   session.startStream<User>(
     userId,
     UserRegistered(

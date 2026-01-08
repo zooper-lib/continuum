@@ -3,8 +3,8 @@ import 'package:continuum/continuum.dart';
 import '../user.dart';
 
 /// Event fired when a user account is deactivated.
-@Event(ofAggregate: User, type: 'user.deactivated')
-class UserDeactivated extends DomainEvent {
+@AggregateEvent(of: User, type: 'user.deactivated')
+class UserDeactivated extends ContinuumEvent {
   final DateTime deactivatedAt;
   final String? reason;
 

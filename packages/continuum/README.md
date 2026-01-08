@@ -91,15 +91,15 @@ class User with _$UserEventHandlers {
 
 ```dart
 // For Mode 1 (no persistence):
-@Event(ofAggregate: User)
-class EmailChanged extends DomainEvent {
+@AggregateEvent(of: User)
+class EmailChanged extends ContinuumEvent {
   final String newEmail;
   EmailChanged(StreamId aggregateId, this.newEmail) : super(aggregateId);
 }
 
 // For Mode 2/3 (with persistence), add type strings:
-@Event(ofAggregate: User, type: 'user.email_changed')
-class EmailChanged extends DomainEvent {
+@AggregateEvent(of: User, type: 'user.email_changed')
+class EmailChanged extends ContinuumEvent {
   final String newEmail;
   EmailChanged(StreamId aggregateId, this.newEmail) : super(aggregateId);
 
@@ -110,8 +110,8 @@ class EmailChanged extends DomainEvent {
   }
 }
 
-@Event(ofAggregate: User, type: 'user.registered')
-class UserRegistered extends DomainEvent {
+@AggregateEvent(of: User, type: 'user.registered')
+class UserRegistered extends ContinuumEvent {
   final String name;
   final String email;
   
@@ -239,8 +239,8 @@ class Order with _$OrderEventHandlers {
 Events represent things that have happened. They are immutable and describe state changes.
 
 ```dart
-@Event(ofAggregate: Order, type: 'order.item_added') // type required for persistence
-class ItemAdded extends DomainEvent {
+@AggregateEvent(of: Order, type: 'order.item_added') // type required for persistence
+class ItemAdded extends ContinuumEvent {
   final String itemId;
   ItemAdded(StreamId aggregateId, this.itemId) : super(aggregateId);
 }
@@ -326,8 +326,8 @@ try {
 Events are serialized to JSON for storage. Implement `toJson()` and `fromJson()`:
 
 ```dart
-@Event(ofAggregate: User, type: 'user.email_changed')
-class EmailChanged extends DomainEvent {
+@AggregateEvent(of: User, type: 'user.email_changed')
+class EmailChanged extends ContinuumEvent {
   final String newEmail;
   
   EmailChanged(StreamId aggregateId, this.newEmail) : super(aggregateId);

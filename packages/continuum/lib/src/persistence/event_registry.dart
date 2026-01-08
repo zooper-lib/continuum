@@ -1,8 +1,8 @@
-import '../events/domain_event.dart';
+import '../events/continuum_event.dart';
 import '../exceptions/unknown_event_type_exception.dart';
 
 /// Factory function type for deserializing events from JSON data.
-typedef EventFactory = DomainEvent Function(Map<String, dynamic> json);
+typedef EventFactory = ContinuumEvent Function(Map<String, dynamic> json);
 
 /// Registry mapping stable event type strings to deserialization factories.
 ///
@@ -32,7 +32,7 @@ final class EventRegistry {
   /// Deserializes a stored event from its type and data.
   ///
   /// Throws [UnknownEventTypeException] if the event type is not registered.
-  DomainEvent fromStored(String eventType, Map<String, dynamic> data) {
+  ContinuumEvent fromStored(String eventType, Map<String, dynamic> data) {
     final factory = _factories[eventType];
     if (factory == null) {
       throw UnknownEventTypeException(eventType: eventType);

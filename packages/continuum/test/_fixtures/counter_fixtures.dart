@@ -6,7 +6,7 @@ final class Counter {
   Counter(this.value);
 }
 
-final class CounterCreated extends DomainEvent {
+final class CounterCreated extends ContinuumEvent {
   final int initial;
 
   CounterCreated({
@@ -26,7 +26,7 @@ final class CounterCreated extends DomainEvent {
   }
 }
 
-final class CounterIncremented extends DomainEvent {
+final class CounterIncremented extends ContinuumEvent {
   final int amount;
 
   CounterIncremented({

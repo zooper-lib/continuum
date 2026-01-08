@@ -6,10 +6,10 @@ library;
 
 // Annotations for code generation discovery
 export 'src/annotations/aggregate.dart';
-export 'src/annotations/event.dart';
+export 'src/annotations/aggregate_event.dart';
 
-// Domain event base contract
-export 'src/events/domain_event.dart';
+// Continuum event base contract
+export 'src/events/continuum_event.dart';
 
 // Exceptions used by generated code and persistence
 export 'src/exceptions/concurrency_exception.dart';

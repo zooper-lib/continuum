@@ -38,14 +38,11 @@ final class ExpectedVersion {
   bool get isNoStream => value == -1;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ExpectedVersion && value == other.value;
+  bool operator ==(Object other) => identical(this, other) || other is ExpectedVersion && value == other.value;
 
   @override
   int get hashCode => value.hashCode;
 
   @override
-  String toString() =>
-      isNoStream ? 'ExpectedVersion.noStream' : 'ExpectedVersion($value)';
+  String toString() => isNoStream ? 'ExpectedVersion.noStream' : 'ExpectedVersion($value)';
 }

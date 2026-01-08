@@ -1,4 +1,4 @@
-import '../events/domain_event.dart';
+import '../events/continuum_event.dart';
 import 'event_serializer.dart';
 import 'event_serializer_registry.dart';
 
@@ -19,7 +19,7 @@ final class JsonEventSerializer implements EventSerializer {
   JsonEventSerializer({required EventSerializerRegistry registry}) : _registry = registry;
 
   @override
-  SerializedEvent serialize(DomainEvent event) {
+  SerializedEvent serialize(ContinuumEvent event) {
     final entry = _registry[event.runtimeType];
     if (entry == null) {
       throw StateError(
@@ -40,7 +40,7 @@ final class JsonEventSerializer implements EventSerializer {
   }
 
   @override
-  DomainEvent deserialize({required String eventType, required Map<String, dynamic> data, required Map<String, dynamic> storedMetadata}) {
+  ContinuumEvent deserialize({required String eventType, required Map<String, dynamic> data, required Map<String, dynamic> storedMetadata}) {
     final entry = _registry.forEventType(eventType);
     if (entry == null) {
       throw StateError(
