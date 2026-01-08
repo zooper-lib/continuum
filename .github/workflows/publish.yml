@@ -32,6 +32,26 @@ jobs:
       - name: Bootstrap
         run: melos bootstrap
 
+      - name: Set release train version
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Releasing version: $VERSION"
+
+          # Force every public workspace package to the exact same version.
+          # We intentionally avoid committing/tagging here; the tag already exists.
+          melos version --yes \
+            --no-changelog \
+            --no-git-commit-version \
+            --no-git-tag-version \
+            -V continuum:$VERSION \
+            -V continuum_generator:$VERSION \
+            -V continuum_store_hive:$VERSION \
+            -V continuum_store_memory:$VERSION
+
+      - name: Analyze
+        run: melos run analyze --no-select
+
       - name: Test
         run: melos run test --no-select
 
@@ -45,12 +65,6 @@ jobs:
 
       - name: Publish packages
         run: |
-          # Publish in workspace dependency order (dependencies first) and
-          # serially to avoid pub.dev validation failing when multiple packages
-          # are released together.
-          melos exec \
-            --no-private \
-            --no-published \
-            --order-dependents \
-            --concurrency=1 \
-            -- dart pub publish --force
+          # Publish in workspace dependency order (dependencies first).
+          # melos publish is dry-run by default; we explicitly publish.
+          melos publish --no-private --no-dry-run --yes
