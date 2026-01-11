@@ -1,16 +1,28 @@
 import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 /// Test event for registry testing.
-final class TestRegistryEvent extends ContinuumEvent {
+final class TestRegistryEvent implements ContinuumEvent {
+  TestRegistryEvent({
+    required this.value,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
   final String value;
 
-  TestRegistryEvent({
-    required super.eventId,
-    required this.value,
-    super.occurredOn,
-    super.metadata,
-  });
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 
   /// Factory for deserialization.
   factory TestRegistryEvent.fromJson(Map<String, dynamic> json) {
@@ -22,15 +34,26 @@ final class TestRegistryEvent extends ContinuumEvent {
 }
 
 /// Another test event for testing multiple registrations.
-final class AnotherTestEvent extends ContinuumEvent {
+final class AnotherTestEvent implements ContinuumEvent {
+  AnotherTestEvent({
+    required this.number,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
   final int number;
 
-  AnotherTestEvent({
-    required super.eventId,
-    required this.number,
-    super.occurredOn,
-    super.metadata,
-  });
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 
   factory AnotherTestEvent.fromJson(Map<String, dynamic> json) {
     return AnotherTestEvent(

@@ -1,18 +1,30 @@
 import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
-final class ImmutableMapEvent extends ContinuumEvent {
+final class ImmutableMapEvent implements ContinuumEvent {
   ImmutableMapEvent({
-    required super.eventId,
-    super.occurredOn,
-    super.metadata,
-  });
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 
   factory ImmutableMapEvent.fromJson(Map<String, dynamic> json) {
     return ImmutableMapEvent(
       eventId: EventId(json['eventId'] as String),
       occurredOn: DateTime.parse(json['occurredOn'] as String),
-      metadata: (json['metadata'] as Map?)?.cast<String, dynamic>(),
+      metadata: (json['metadata'] as Map<String, dynamic>),
     );
   }
 }

@@ -1,16 +1,28 @@
 import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 /// Test event for stored event testing.
-final class TestStoredEvent extends ContinuumEvent {
+final class TestStoredEvent implements ContinuumEvent {
+  TestStoredEvent({
+    required this.payload,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
   final String payload;
 
-  TestStoredEvent({
-    required super.eventId,
-    required this.payload,
-    super.occurredOn,
-    super.metadata,
-  });
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 
 void main() {

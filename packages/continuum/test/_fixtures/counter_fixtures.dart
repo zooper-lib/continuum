@@ -1,4 +1,5 @@
 import 'package:continuum/continuum.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 final class Counter {
   int value;
@@ -6,42 +7,64 @@ final class Counter {
   Counter(this.value);
 }
 
-final class CounterCreated extends ContinuumEvent {
+final class CounterCreated implements ContinuumEvent {
+  CounterCreated({
+    required this.initial,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
   final int initial;
 
-  CounterCreated({
-    required super.eventId,
-    required this.initial,
-    super.occurredOn,
-    super.metadata,
-  });
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 
   factory CounterCreated.fromJson(Map<String, dynamic> json) {
     return CounterCreated(
       eventId: EventId(json['eventId'] as String),
       initial: json['initial'] as int,
       occurredOn: DateTime.parse(json['occurredOn'] as String),
-      metadata: (json['metadata'] as Map?)?.cast<String, dynamic>(),
+      metadata: Map<String, Object?>.from(json['metadata'] as Map),
     );
   }
 }
 
-final class CounterIncremented extends ContinuumEvent {
+final class CounterIncremented implements ContinuumEvent {
+  CounterIncremented({
+    required this.amount,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
   final int amount;
 
-  CounterIncremented({
-    required super.eventId,
-    required this.amount,
-    super.occurredOn,
-    super.metadata,
-  });
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 
   factory CounterIncremented.fromJson(Map<String, dynamic> json) {
     return CounterIncremented(
       eventId: EventId(json['eventId'] as String),
       amount: json['amount'] as int,
       occurredOn: DateTime.parse(json['occurredOn'] as String),
-      metadata: (json['metadata'] as Map?)?.cast<String, dynamic>(),
+      metadata: Map<String, Object?>.from(json['metadata'] as Map),
     );
   }
 }

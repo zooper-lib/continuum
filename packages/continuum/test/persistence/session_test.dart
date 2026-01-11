@@ -2,6 +2,7 @@ import 'package:continuum/continuum.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 import '../_fixtures/counter_fixtures.dart';
 
@@ -139,7 +140,7 @@ void main() {
       final serializer = JsonEventSerializer(registry: buildCounterSerializerRegistry());
       final streamId = const StreamId('counter-existing');
 
-      final created = CounterCreated(eventId: const EventId('e-1'), initial: 1);
+      final created = CounterCreated(initial: 1);
       final storedCreated = StoredEvent.fromContinuumEvent(
         continuumEvent: created,
         streamId: streamId,
@@ -157,7 +158,7 @@ void main() {
 
       session.append(
         streamId,
-        CounterIncremented(eventId: const EventId('e-2'), amount: 2),
+        CounterIncremented(amount: 2),
       );
 
       await session.saveChangesAsync();

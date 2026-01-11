@@ -33,7 +33,7 @@ final class JsonEventSerializer implements EventSerializer {
     final data = <String, dynamic>{...entry.toJson(event)};
 
     // Include standard domain event fields
-    data['eventId'] = event.eventId.value;
+    data['eventId'] = event.id.value;
     data['occurredOn'] = event.occurredOn.toIso8601String();
 
     return SerializedEvent(eventType: entry.eventType, data: data);
@@ -49,11 +49,11 @@ final class JsonEventSerializer implements EventSerializer {
       );
     }
 
-    // Merge stored metadata into the data for fromJson reconstruction
-    final fullData = {...data};
-    if (storedMetadata.isNotEmpty) {
-      fullData['metadata'] = storedMetadata;
-    }
+    // Merge stored metadata into the data for fromJson reconstruction.
+    //
+    // IMPORTANT: Always provide a `metadata` key (even when empty) so event
+    // implementations can reliably deserialize using `json['metadata'] as Map`.
+    final fullData = {...data, 'metadata': storedMetadata};
 
     return entry.fromJson(fullData);
   }

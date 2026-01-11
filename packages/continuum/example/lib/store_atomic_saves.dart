@@ -44,7 +44,6 @@ void main() async {
   session.startStream<User>(
     userId1,
     UserRegistered(
-      eventId: const EventId('evt-1'),
       userId: 'user-001',
       email: 'alice@example.com',
       name: 'Alice',
@@ -53,7 +52,6 @@ void main() async {
   session.startStream<User>(
     userId2,
     UserRegistered(
-      eventId: const EventId('evt-2'),
       userId: 'user-002',
       email: 'bob@example.com',
       name: 'Bob',
@@ -81,12 +79,12 @@ void main() async {
   print('  [Session] Staging changes for Alice...');
   session.append(
     userId1,
-    EmailChanged(eventId: const EventId('evt-3'), newEmail: 'alice.new@company.com'),
+    EmailChanged(newEmail: 'alice.new@company.com'),
   );
   print('  [Session] Staging changes for Bob...');
   session.append(
     userId2,
-    EmailChanged(eventId: const EventId('evt-4'), newEmail: 'bob.new@company.com'),
+    EmailChanged(newEmail: 'bob.new@company.com'),
   );
   print('  [Session] Both changes staged');
   print('');

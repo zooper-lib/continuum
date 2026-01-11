@@ -1,6 +1,5 @@
 include: package:lints/recommended.yaml
 
-
 formatter:
   # Keep trailing commas.
   trailing_commas: preserve

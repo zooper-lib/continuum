@@ -23,21 +23,17 @@ void main() {
   print('Event history:');
   final events = <ContinuumEvent>[
     UserRegistered(
-      eventId: const EventId('evt-1'),
       userId: 'user-789',
       email: 'carol@example.com',
       name: 'Carol White',
     ),
     EmailChanged(
-      eventId: const EventId('evt-2'),
       newEmail: 'carol.white@newcompany.com',
     ),
     EmailChanged(
-      eventId: const EventId('evt-3'),
       newEmail: 'carol.white@finalcompany.com',
     ),
     UserDeactivated(
-      eventId: const EventId('evt-4'),
       deactivatedAt: DateTime.now(),
       reason: 'Migration to new system',
     ),
