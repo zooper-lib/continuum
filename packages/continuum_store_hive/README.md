@@ -6,9 +6,9 @@ Hive-backed `EventStore` implementation for [continuum](../continuum). Events ar
 
 ```yaml
 dependencies:
-  continuum: ^0.1.0
-  continuum_store_hive: ^0.1.0
-  hive: ^4.0.0
+  continuum: latest
+  continuum_store_hive: latest
+  hive: ^2.2.3
 ```
 
 ## Usage
@@ -34,7 +34,10 @@ void main() async {
   // Use your aggregates
   final userId = StreamId('user-1');
   final session = store.openSession();
-  session.startStream<User>(userId, UserRegistered(userId, 'Alice', 'alice@example.com'));
+  session.startStream<User>(
+    userId,
+    UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
+  );
   await session.saveChangesAsync();
 
   // Events are persisted - survive app restart

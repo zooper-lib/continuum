@@ -58,11 +58,11 @@ final class CodeEmitter {
     buffer.writeln('extension \$${aggregate.name}EventDispatch on ${aggregate.name} {');
 
     // Generate applyEvent dispatcher
-    buffer.writeln('  /// Applies a domain event to this aggregate.');
+    buffer.writeln('  /// Applies a continuum event to this aggregate.');
     buffer.writeln('  ///');
     buffer.writeln('  /// Routes supported mutation events to the corresponding apply method.');
     buffer.writeln('  /// Throws [UnsupportedEventException] for unknown event types.');
-    buffer.writeln('  void applyEvent(DomainEvent event) {');
+    buffer.writeln('  void applyEvent(ContinuumEvent event) {');
     buffer.writeln('    switch (event) {');
 
     for (final event in aggregate.mutationEvents) {
@@ -83,7 +83,7 @@ final class CodeEmitter {
     buffer.writeln('  /// Replays multiple events in order.');
     buffer.writeln('  ///');
     buffer.writeln('  /// Applies each event sequentially via [applyEvent].');
-    buffer.writeln('  void replayEvents(Iterable<DomainEvent> events) {');
+    buffer.writeln('  void replayEvents(Iterable<ContinuumEvent> events) {');
     buffer.writeln('    for (final event in events) {');
     buffer.writeln('      applyEvent(event);');
     buffer.writeln('    }');
@@ -106,7 +106,7 @@ final class CodeEmitter {
     buffer.writeln('  ///');
     buffer.writeln('  /// Routes to the appropriate static createFrom<Event> method.');
     buffer.writeln('  /// Throws [InvalidCreationEventException] for unknown event types.');
-    buffer.writeln('  static ${aggregate.name} createFromEvent(DomainEvent event) {');
+    buffer.writeln('  static ${aggregate.name} createFromEvent(ContinuumEvent event) {');
     buffer.writeln('    switch (event) {');
 
     for (final event in aggregate.creationEvents) {

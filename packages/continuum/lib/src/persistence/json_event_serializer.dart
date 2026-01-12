@@ -8,7 +8,7 @@ import 'event_serializer_registry.dart';
 /// serialization and deserialization of domain events.
 ///
 /// Events must have a corresponding entry in the registry, which is
-/// automatically generated from `@Event` annotations.
+/// automatically generated from `@AggregateEvent` annotations.
 final class JsonEventSerializer implements EventSerializer {
   final EventSerializerRegistry _registry;
 
@@ -24,7 +24,7 @@ final class JsonEventSerializer implements EventSerializer {
     if (entry == null) {
       throw StateError(
         'No serializer registered for event type: ${event.runtimeType}. '
-        'Ensure the event has an @Event annotation with a type discriminator.',
+        'Ensure the event has an @AggregateEvent annotation with a type discriminator.',
       );
     }
 
@@ -40,12 +40,16 @@ final class JsonEventSerializer implements EventSerializer {
   }
 
   @override
-  ContinuumEvent deserialize({required String eventType, required Map<String, dynamic> data, required Map<String, dynamic> storedMetadata}) {
+  ContinuumEvent deserialize({
+    required String eventType,
+    required Map<String, dynamic> data,
+    required Map<String, dynamic> storedMetadata,
+  }) {
     final entry = _registry.forEventType(eventType);
     if (entry == null) {
       throw StateError(
         'No deserializer registered for event type: $eventType. '
-        'Ensure the event has an @Event annotation with this type discriminator.',
+        'Ensure the event has an @AggregateEvent annotation with this type discriminator.',
       );
     }
 

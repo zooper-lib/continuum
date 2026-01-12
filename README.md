@@ -17,18 +17,19 @@ Continuum provides a comprehensive event sourcing framework for Dart application
 
 ```yaml
 dependencies:
-  continuum: ^0.1.0
-  continuum_store_memory: ^0.1.0  # or continuum_store_hive
+  continuum: latest
+  continuum_store_memory: latest  # or continuum_store_hive
 
 dev_dependencies:
   build_runner: ^2.4.0
-  continuum_generator: ^0.1.0
+  continuum_generator: latest
 ```
 
 ### 2. Define your aggregate and events
 
 ```dart
 import 'package:continuum/continuum.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 part 'shopping_cart.g.dart';
 
@@ -54,15 +55,26 @@ class ShoppingCart with _$ShoppingCartEventHandlers {
 
 // Creation event (first event in stream)
 @AggregateEvent(of: ShoppingCart, type: 'cart.created')
-class CartCreated extends ContinuumEvent {
+class CartCreated implements ContinuumEvent {
   final String cartId;
 
   CartCreated({
-    required super.eventId,
     required this.cartId,
-    super.occurredOn,
-    super.metadata,
-  });
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 
   factory CartCreated.fromJson(Map<String, dynamic> json) {
     return CartCreated(
@@ -74,15 +86,26 @@ class CartCreated extends ContinuumEvent {
 
 // Mutation event
 @AggregateEvent(of: ShoppingCart, type: 'item.added')
-class ItemAdded extends ContinuumEvent {
+class ItemAdded implements ContinuumEvent {
   final String productId;
 
   ItemAdded({
-    required super.eventId,
     required this.productId,
-    super.occurredOn,
-    super.metadata,
-  });
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 
   factory ItemAdded.fromJson(Map<String, dynamic> json) {
     return ItemAdded(
@@ -104,14 +127,12 @@ dart run build_runner build
 ```dart
 import 'package:continuum/continuum.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
+import 'continuum.g.dart'; // Generated
 
 // Create the store
 final store = EventSourcingStore(
   eventStore: InMemoryEventStore(),
-  serializer: mySerializer,
-  registry: $generatedEventRegistry,
-  aggregateFactories: $generatedAggregateFactories,
-  eventAppliers: $generatedEventAppliers,
+  aggregates: $aggregateList,
 );
 
 // Open a session
@@ -139,9 +160,9 @@ await session.saveChangesAsync();
 
 Core library providing:
 - `@Aggregate()` and `@AggregateEvent()` annotations
-- `DomainEvent` base class
+- `ContinuumEvent` base contract
 - `EventId` and `StreamId` strong types
-- `Session`, `EventStore`, `EventSourcingStore` abstractions
+- `ContinuumSession`, `EventStore`, `EventSourcingStore` abstractions
 - Exception types for error handling
 
 ### continuum_generator
@@ -150,7 +171,6 @@ Code generator that produces:
 - `_$<Aggregate>EventHandlers` mixin for mutation events
 - `applyEvent()` dispatcher and `replayEvents()` helper
 - `createFromEvent()` factory dispatcher
-- `$generatedEventRegistry` for deserialization
 - Aggregate factory and applier registries
 
 ### continuum_store_memory

@@ -19,15 +19,11 @@ melos:
 
   scripts:
     analyze:
-      run: dart analyze .
+      run: dart run melos exec --fail-fast -- "dart analyze ."
       description: Run static analysis in all packages.
-      exec:
-        failFast: true
 
     test:
-      run: dart test
+      run: dart run melos exec --fail-fast -- "dart test"
       description: Run all package tests.
-      exec:
-        failFast: true
       packageFilters:
         dirExists: test
