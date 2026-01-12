@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:continuum/continuum.dart';
 import 'package:hive/hive.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 /// Hive-backed implementation of [EventStore].
 ///

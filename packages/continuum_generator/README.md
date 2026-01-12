@@ -49,11 +49,11 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  continuum: ^0.1.0
+  continuum: latest
 
 dev_dependencies:
   build_runner: ^2.4.0
-  continuum_generator: ^0.1.0
+  continuum_generator: latest
 ```
 
 ## Usage
@@ -73,7 +73,7 @@ class User with _$UserEventHandlers {
   User._({required this.id, required this.email});
 
   static User createFromUserCreated(UserCreated event) {
-    return User._(id: event.aggregateId.value, email: event.email);
+    return User._(id: event.userId, email: event.email);
   }
 
   @override
@@ -83,24 +83,88 @@ class User with _$UserEventHandlers {
 }
 
 @AggregateEvent(of: User, type: 'user.created')
-class UserCreated extends ContinuumEvent {
+class UserCreated implements ContinuumEvent {
+  UserCreated({
+    required this.userId,
+    required this.email,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final String userId;
   final String email;
-  UserCreated(StreamId aggregateId, this.email) : super(aggregateId);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
   
-  Map<String, dynamic> toJson() => {'email': email};
-  factory UserCreated.fromJson(StreamId id, Map<String, dynamic> json) {
-    return UserCreated(id, json['email'] as String);
+  Map<String, dynamic> toJson() => {
+    'userId': userId,
+    'email': email,
+    'eventId': id.toString(),
+    'occurredOn': occurredOn.toIso8601String(),
+    'metadata': metadata,
+  };
+
+  factory UserCreated.fromJson(Map<String, dynamic> json) {
+    return UserCreated(
+      userId: json['userId'] as String,
+      email: json['email'] as String,
+      eventId: EventId(json['eventId'] as String),
+      occurredOn: DateTime.parse(json['occurredOn'] as String),
+      metadata: Map<String, Object?>.from(json['metadata'] as Map),
+    );
   }
 }
 
 @AggregateEvent(of: User, type: 'user.email_changed')
-class EmailChanged extends ContinuumEvent {
+class EmailChanged implements ContinuumEvent {
+  EmailChanged({
+    required this.userId,
+    required this.newEmail,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final String userId;
   final String newEmail;
-  EmailChanged(StreamId aggregateId, this.newEmail) : super(aggregateId);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
   
-  Map<String, dynamic> toJson() => {'newEmail': newEmail};
-  factory EmailChanged.fromJson(StreamId id, Map<String, dynamic> json) {
-    return EmailChanged(id, json['newEmail'] as String);
+  Map<String, dynamic> toJson() => {
+    'userId': userId,
+    'newEmail': newEmail,
+    'eventId': id.toString(),
+    'occurredOn': occurredOn.toIso8601String(),
+    'metadata': metadata,
+  };
+
+  factory EmailChanged.fromJson(Map<String, dynamic> json) {
+    return EmailChanged(
+      userId: json['userId'] as String,
+      newEmail: json['newEmail'] as String,
+      eventId: EventId(json['eventId'] as String),
+      occurredOn: DateTime.parse(json['occurredOn'] as String),
+      metadata: Map<String, Object?>.from(json['metadata'] as Map),
+    );
   }
 }
 ```
@@ -159,7 +223,7 @@ The generator creates a mixin that dispatches events to your apply methods:
 mixin _$UserEventHandlers {
   void applyEmailChanged(EmailChanged event);
   
-  void $applyEvent(DomainEvent event) {
+  void $applyEvent(ContinuumEvent event) {
     if (event is EmailChanged) return applyEmailChanged(event);
     throw UnknownEventException(event.runtimeType);
   }
@@ -171,15 +235,15 @@ mixin _$UserEventHandlers {
 ```dart
 // Generated in user.g.dart
 extension UserEventSourcingExtensions on User {
-  void applyEvent(DomainEvent event) {
+  void applyEvent(ContinuumEvent event) {
     $applyEvent(event);
   }
   
-  static User replayEvents(Iterable<DomainEvent> events) {
+  static User replayEvents(Iterable<ContinuumEvent> events) {
     // Replays events to reconstruct aggregate
   }
   
-  static User createFromEvent(DomainEvent event) {
+  static User createFromEvent(ContinuumEvent event) {
     // Calls User.createFromUserCreated() etc.
   }
 }

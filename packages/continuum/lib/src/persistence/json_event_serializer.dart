@@ -8,7 +8,7 @@ import 'event_serializer_registry.dart';
 /// serialization and deserialization of domain events.
 ///
 /// Events must have a corresponding entry in the registry, which is
-/// automatically generated from `@Event` annotations.
+/// automatically generated from `@AggregateEvent` annotations.
 final class JsonEventSerializer implements EventSerializer {
   final EventSerializerRegistry _registry;
 
@@ -24,7 +24,7 @@ final class JsonEventSerializer implements EventSerializer {
     if (entry == null) {
       throw StateError(
         'No serializer registered for event type: ${event.runtimeType}. '
-        'Ensure the event has an @Event annotation with a type discriminator.',
+        'Ensure the event has an @AggregateEvent annotation with a type discriminator.',
       );
     }
 
@@ -33,27 +33,31 @@ final class JsonEventSerializer implements EventSerializer {
     final data = <String, dynamic>{...entry.toJson(event)};
 
     // Include standard domain event fields
-    data['eventId'] = event.eventId.value;
+    data['eventId'] = event.id.value;
     data['occurredOn'] = event.occurredOn.toIso8601String();
 
     return SerializedEvent(eventType: entry.eventType, data: data);
   }
 
   @override
-  ContinuumEvent deserialize({required String eventType, required Map<String, dynamic> data, required Map<String, dynamic> storedMetadata}) {
+  ContinuumEvent deserialize({
+    required String eventType,
+    required Map<String, dynamic> data,
+    required Map<String, dynamic> storedMetadata,
+  }) {
     final entry = _registry.forEventType(eventType);
     if (entry == null) {
       throw StateError(
         'No deserializer registered for event type: $eventType. '
-        'Ensure the event has an @Event annotation with this type discriminator.',
+        'Ensure the event has an @AggregateEvent annotation with this type discriminator.',
       );
     }
 
-    // Merge stored metadata into the data for fromJson reconstruction
-    final fullData = {...data};
-    if (storedMetadata.isNotEmpty) {
-      fullData['metadata'] = storedMetadata;
-    }
+    // Merge stored metadata into the data for fromJson reconstruction.
+    //
+    // IMPORTANT: Always provide a `metadata` key (even when empty) so event
+    // implementations can reliably deserialize using `json['metadata'] as Map`.
+    final fullData = {...data, 'metadata': storedMetadata};
 
     return entry.fromJson(fullData);
   }

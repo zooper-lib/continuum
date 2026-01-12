@@ -1,5 +1,6 @@
 import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 void main() {
   group('StreamId', () {

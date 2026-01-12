@@ -1,4 +1,4 @@
-import '../identity/event_id.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 /// Base contract for all continuum events in an event-sourced system.
 ///
@@ -12,41 +12,28 @@ import '../identity/event_id.dart';
 ///
 /// ```dart
 /// @AggregateEvent(of: ShoppingCart, type: 'item_added')
-/// class ItemAdded extends ContinuumEvent {
+/// class ItemAdded implements ContinuumEvent {
 ///   final String productId;
 ///   final int quantity;
 ///
 ///   ItemAdded({
-///     required super.eventId,
+///     required EventId eventId,
 ///     required this.productId,
 ///     required this.quantity,
-///     super.occurredOn,
-///     super.metadata,
-///   });
+///     DateTime? occurredOn,
+///     Map<String, Object?> metadata = const {},
+///   }) : id = eventId,
+///        occurredOn = occurredOn ?? DateTime.now(),
+///        metadata = Map<String, Object?>.unmodifiable(metadata);
+///
+///   @override
+///   final EventId id;
+///
+///   @override
+///   final DateTime occurredOn;
+///
+///   @override
+///   final Map<String, Object?> metadata;
 /// }
 /// ```
-abstract class ContinuumEvent {
-  /// Unique identifier for this event instance.
-  final EventId eventId;
-
-  /// The timestamp when this event occurred.
-  ///
-  /// Defaults to UTC now if not explicitly provided.
-  final DateTime occurredOn;
-
-  /// Optional metadata associated with this event.
-  ///
-  /// Can include correlation IDs, causation IDs, user context, etc.
-  final Map<String, dynamic> metadata;
-
-  /// Creates a continuum event with the given [eventId].
-  ///
-  /// If [occurredOn] is not provided, it defaults to the current UTC time.
-  /// If [metadata] is not provided, it defaults to an empty map.
-  ContinuumEvent({
-    required this.eventId,
-    DateTime? occurredOn,
-    Map<String, dynamic>? metadata,
-  }) : occurredOn = occurredOn ?? DateTime.now().toUtc(),
-       metadata = metadata ?? const {};
-}
+abstract interface class ContinuumEvent implements ZooperDomainEvent {}

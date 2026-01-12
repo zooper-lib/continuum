@@ -1,16 +1,28 @@
 import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 /// Test implementation of ContinuumEvent for testing purposes.
-final class TestEvent extends ContinuumEvent {
+final class TestEvent implements ContinuumEvent {
   final String data;
 
   TestEvent({
-    required super.eventId,
     required this.data,
-    super.occurredOn,
-    super.metadata,
-  });
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now().toUtc(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 
 void main() {
@@ -23,7 +35,7 @@ void main() {
       final event = TestEvent(eventId: eventId, data: 'test');
 
       // Assert - eventId should be accessible
-      expect(event.eventId, equals(eventId));
+      expect(event.id, equals(eventId));
     });
 
     test('should default occurredOn to UTC now when not provided', () {

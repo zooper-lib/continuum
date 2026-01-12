@@ -19,7 +19,6 @@ export 'src/exceptions/unknown_event_type_exception.dart';
 export 'src/exceptions/unsupported_event_exception.dart';
 
 // Strong identity types
-export 'src/identity/event_id.dart';
 export 'src/identity/stream_id.dart';
 
 // Persistence abstractions

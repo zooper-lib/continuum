@@ -4,7 +4,6 @@
 /// Each event represents a state transition with business meaning.
 library;
 
-import 'package:continuum/continuum.dart';
 import 'package:continuum_example/domain/events/email_changed.dart';
 import 'package:continuum_example/domain/events/user_deactivated.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
@@ -19,7 +18,6 @@ void main() {
   // Start with a user
   final user = User.createFromUserRegistered(
     UserRegistered(
-      eventId: const EventId('evt-1'),
       userId: 'user-456',
       email: 'bob@example.com',
       name: 'Bob Johnson',
@@ -34,7 +32,6 @@ void main() {
   print('Applying EmailChanged event...');
   user.applyEvent(
     EmailChanged(
-      eventId: const EventId('evt-2'),
       newEmail: 'bob.johnson@company.com',
     ),
   );
@@ -47,7 +44,6 @@ void main() {
   print('Applying UserDeactivated event...');
   user.applyEvent(
     UserDeactivated(
-      eventId: const EventId('evt-3'),
       deactivatedAt: DateTime.now(),
       reason: 'User requested account closure',
     ),

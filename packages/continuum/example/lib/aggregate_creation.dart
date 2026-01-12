@@ -4,7 +4,6 @@
 /// Every aggregate starts with a creation event that captures its initial state.
 library;
 
-import 'package:continuum/continuum.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
 
@@ -18,7 +17,6 @@ void main() {
   // The creation event captures all the data needed to initialize the aggregate.
   final user = User.createFromUserRegistered(
     UserRegistered(
-      eventId: const EventId('evt-1'),
       userId: 'user-123',
       email: 'alice@example.com',
       name: 'Alice Smith',

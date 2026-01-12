@@ -6,7 +6,6 @@
 /// applies events locally while the backend request is in flight.
 library;
 
-import 'package:continuum/continuum.dart';
 import 'package:continuum_example/domain/events/email_changed.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
@@ -25,7 +24,6 @@ void main() async {
   print('Initial state (loaded from backend):');
   final existingUser = User.createFromUserRegistered(
     UserRegistered(
-      eventId: const EventId('loaded-evt'),
       userId: 'user-456',
       name: 'Jane Doe',
       email: 'jane@example.com',
@@ -40,7 +38,6 @@ void main() async {
   print('Step 1: User changes email in form');
   existingUser.applyEvent(
     EmailChanged(
-      eventId: EventId('local-${DateTime.now().millisecondsSinceEpoch}'),
       newEmail: 'jane.doe@company.com',
     ),
   );

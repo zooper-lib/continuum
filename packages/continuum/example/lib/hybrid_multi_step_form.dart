@@ -11,7 +11,6 @@
 /// away, it gets garbage collected automatically if nothing references it.
 library;
 
-import 'package:continuum/continuum.dart';
 import 'package:continuum_example/domain/events/email_changed.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
@@ -29,7 +28,6 @@ void main() {
   print('Step 1: User enters basic info');
   final draftUser = User.createFromUserRegistered(
     UserRegistered(
-      eventId: const EventId('draft-1'),
       userId: 'draft',
       name: 'Draft User',
       email: 'step1@example.com',
@@ -41,7 +39,9 @@ void main() {
   // User progresses to step 2
   print('Step 2: User updates email');
   draftUser.applyEvent(
-    EmailChanged(eventId: const EventId('draft-2'), newEmail: 'step2@example.com'),
+    EmailChanged(
+      newEmail: 'step2@example.com',
+    ),
   );
   print('  Current email: ${draftUser.email}');
   print('');
@@ -49,7 +49,9 @@ void main() {
   // User progresses to step 3
   print('Step 3: User finalizes email');
   draftUser.applyEvent(
-    EmailChanged(eventId: const EventId('draft-3'), newEmail: 'final@example.com'),
+    EmailChanged(
+      newEmail: 'final@example.com',
+    ),
   );
   print('  Current email: ${draftUser.email}');
   print('');

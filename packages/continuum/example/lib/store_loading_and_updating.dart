@@ -35,7 +35,6 @@ void main() async {
   session.startStream<User>(
     userId,
     UserRegistered(
-      eventId: const EventId('evt-1'),
       userId: 'user-001',
       email: 'alice@example.com',
       name: 'Alice Smith',
@@ -69,7 +68,6 @@ void main() async {
   session.append(
     userId,
     EmailChanged(
-      eventId: const EventId('evt-2'),
       newEmail: 'alice.smith@company.com',
     ),
   );

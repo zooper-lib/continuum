@@ -44,7 +44,6 @@ void main() async {
   session.startStream<User>(
     userId1,
     UserRegistered(
-      eventId: const EventId('evt-1'),
       userId: 'user-001',
       email: 'alice@example.com',
       name: 'Alice',
@@ -53,7 +52,6 @@ void main() async {
   session.startStream<User>(
     userId2,
     UserRegistered(
-      eventId: const EventId('evt-2'),
       userId: 'user-002',
       email: 'bob@example.com',
       name: 'Bob',
@@ -79,7 +77,9 @@ void main() async {
   await concurrentSession.loadAsync<User>(userId1);
   concurrentSession.append(
     userId1,
-    EmailChanged(eventId: const EventId('evt-3'), newEmail: 'alice.concurrent@company.com'),
+    EmailChanged(
+      newEmail: 'alice.concurrent@company.com',
+    ),
   );
   await concurrentSession.saveChangesAsync();
   print('  [Store] Alice now at version 1');
@@ -90,12 +90,12 @@ void main() async {
   print('Stale session tries to save changes to BOTH users...');
   staleSession.append(
     userId1,
-    EmailChanged(eventId: const EventId('evt-4'), newEmail: 'alice.stale@company.com'),
+    EmailChanged(newEmail: 'alice.stale@company.com'),
   );
   print('  [Stale Session] Staging Alice update (expects version 0 → 1)');
   staleSession.append(
     userId2,
-    EmailChanged(eventId: const EventId('evt-5'), newEmail: 'bob.stale@company.com'),
+    EmailChanged(newEmail: 'bob.stale@company.com'),
   );
   print('  [Stale Session] Staging Bob update (expects version 0 → 1)');
   print('');
