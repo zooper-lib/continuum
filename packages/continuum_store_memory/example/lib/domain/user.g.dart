@@ -19,11 +19,11 @@ mixin _$UserEventHandlers {
 
 /// Generated extension providing event dispatch for User.
 extension $UserEventDispatch on User {
-  /// Applies a domain event to this aggregate.
+  /// Applies a continuum event to this aggregate.
   ///
   /// Routes supported mutation events to the corresponding apply method.
   /// Throws [UnsupportedEventException] for unknown event types.
-  void applyEvent(DomainEvent event) {
+  void applyEvent(ContinuumEvent event) {
     switch (event) {
       case EmailChanged():
         applyEmailChanged(event);
@@ -40,7 +40,7 @@ extension $UserEventDispatch on User {
   /// Replays multiple events in order.
   ///
   /// Applies each event sequentially via [applyEvent].
-  void replayEvents(Iterable<DomainEvent> events) {
+  void replayEvents(Iterable<ContinuumEvent> events) {
     for (final event in events) {
       applyEvent(event);
     }
@@ -53,7 +53,7 @@ extension $UserCreation on Never {
   ///
   /// Routes to the appropriate static create method.
   /// Throws [InvalidCreationEventException] for unknown event types.
-  static User createFromEvent(DomainEvent event) {
+  static User createFromEvent(ContinuumEvent event) {
     switch (event) {
       case UserRegistered():
         return User.createFromUserRegistered(event);

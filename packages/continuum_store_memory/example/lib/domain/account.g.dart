@@ -19,11 +19,11 @@ mixin _$AccountEventHandlers {
 
 /// Generated extension providing event dispatch for Account.
 extension $AccountEventDispatch on Account {
-  /// Applies a domain event to this aggregate.
+  /// Applies a continuum event to this aggregate.
   ///
   /// Routes supported mutation events to the corresponding apply method.
   /// Throws [UnsupportedEventException] for unknown event types.
-  void applyEvent(DomainEvent event) {
+  void applyEvent(ContinuumEvent event) {
     switch (event) {
       case FundsDeposited():
         applyFundsDeposited(event);
@@ -40,7 +40,7 @@ extension $AccountEventDispatch on Account {
   /// Replays multiple events in order.
   ///
   /// Applies each event sequentially via [applyEvent].
-  void replayEvents(Iterable<DomainEvent> events) {
+  void replayEvents(Iterable<ContinuumEvent> events) {
     for (final event in events) {
       applyEvent(event);
     }
@@ -53,7 +53,7 @@ extension $AccountCreation on Never {
   ///
   /// Routes to the appropriate static create method.
   /// Throws [InvalidCreationEventException] for unknown event types.
-  static Account createFromEvent(DomainEvent event) {
+  static Account createFromEvent(ContinuumEvent event) {
     switch (event) {
       case AccountOpened():
         return Account.createFromAccountOpened(event);

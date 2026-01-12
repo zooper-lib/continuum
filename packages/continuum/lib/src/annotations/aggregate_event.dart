@@ -9,7 +9,7 @@
 ///
 /// ```dart
 /// @AggregateEvent(of: ShoppingCart)
-/// class ItemAdded extends ContinuumEvent {
+/// class ItemAdded implements ContinuumEvent {
 ///   // event implementation
 /// }
 /// ```

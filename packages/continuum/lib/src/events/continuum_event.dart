@@ -12,17 +12,28 @@ import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 ///
 /// ```dart
 /// @AggregateEvent(of: ShoppingCart, type: 'item_added')
-/// class ItemAdded extends ContinuumEvent {
+/// class ItemAdded implements ContinuumEvent {
 ///   final String productId;
 ///   final int quantity;
 ///
 ///   ItemAdded({
-///     required super.eventId,
+///     required EventId eventId,
 ///     required this.productId,
 ///     required this.quantity,
-///     super.occurredOn,
-///     super.metadata,
-///   });
+///     DateTime? occurredOn,
+///     Map<String, Object?> metadata = const {},
+///   }) : id = eventId,
+///        occurredOn = occurredOn ?? DateTime.now(),
+///        metadata = Map<String, Object?>.unmodifiable(metadata);
+///
+///   @override
+///   final EventId id;
+///
+///   @override
+///   final DateTime occurredOn;
+///
+///   @override
+///   final Map<String, Object?> metadata;
 /// }
 /// ```
 abstract interface class ContinuumEvent implements ZooperDomainEvent {}

@@ -43,11 +43,11 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  continuum: ^0.1.0
+  continuum: latest
 
 dev_dependencies:
   build_runner: ^2.4.0
-  continuum_generator: ^0.1.0
+  continuum_generator: latest
 ```
 
 ### 1. Define Your Aggregate
@@ -68,7 +68,7 @@ class User with _$UserEventHandlers {
   // Static factory for creating from first event
   static User createFromUserRegistered(UserRegistered event) {
     return User._(
-      id: event.aggregateId.value,
+      id: event.userId,
       name: event.name,
       email: event.email,
     );
@@ -90,38 +90,81 @@ class User with _$UserEventHandlers {
 ### 2. Define Your Events
 
 ```dart
-// For Mode 1 (no persistence):
+import 'package:continuum/continuum.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
+
+// For Mode 1 (no persistence) you can omit `type:` and serialization.
 @AggregateEvent(of: User)
-class EmailChanged extends ContinuumEvent {
+class EmailChanged implements ContinuumEvent {
+  EmailChanged({
+    required this.userId,
+    required this.newEmail,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final String userId;
   final String newEmail;
-  EmailChanged(StreamId aggregateId, this.newEmail) : super(aggregateId);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 
-// For Mode 2/3 (with persistence), add type strings:
-@AggregateEvent(of: User, type: 'user.email_changed')
-class EmailChanged extends ContinuumEvent {
-  final String newEmail;
-  EmailChanged(StreamId aggregateId, this.newEmail) : super(aggregateId);
-
-  // Serialization for persistence
-  Map<String, dynamic> toJson() => {'newEmail': newEmail};
-  factory EmailChanged.fromJson(StreamId id, Map<String, dynamic> json) {
-    return EmailChanged(id, json['newEmail'] as String);
-  }
-}
-
+// For Mode 2/3 (with persistence), add `type:` and `toJson`/`fromJson`.
 @AggregateEvent(of: User, type: 'user.registered')
-class UserRegistered extends ContinuumEvent {
+class UserRegistered implements ContinuumEvent {
+  UserRegistered({
+    required this.userId,
+    required this.name,
+    required this.email,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final String userId;
   final String name;
   final String email;
-  
-  UserRegistered(StreamId aggregateId, this.name, this.email) 
-    : super(aggregateId);
 
-  Map<String, dynamic> toJson() => {'name': name, 'email': email};
-  factory UserRegistered.fromJson(StreamId id, Map<String, dynamic> json) {
-    return UserRegistered(id, json['name'] as String, json['email'] as String);
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
+
+  factory UserRegistered.fromJson(Map<String, dynamic> json) {
+    return UserRegistered(
+      userId: json['userId'] as String,
+      name: json['name'] as String,
+      email: json['email'] as String,
+      eventId: EventId(json['eventId'] as String),
+      occurredOn: DateTime.parse(json['occurredOn'] as String),
+      metadata: Map<String, Object?>.from(json['metadata'] as Map),
+    );
   }
+
+  Map<String, dynamic> toJson() => {
+    'userId': userId,
+    'name': name,
+    'email': email,
+    'eventId': id.toString(),
+    'occurredOn': occurredOn.toIso8601String(),
+    'metadata': metadata,
+  };
 }
 ```
 
@@ -145,11 +188,11 @@ void main() {
 
   // Create from a creation event
   final user = User.createFromUserRegistered(
-    UserRegistered(userId, 'Alice', 'alice@example.com'),
+    UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
   );
 
   // Apply events to mutate state
-  user.applyEvent(EmailChanged(userId, 'alice@company.com'));
+  user.applyEvent(EmailChanged(userId: userId.value, newEmail: 'alice@company.com'));
 
   print(user.email); // alice@company.com
 
@@ -175,9 +218,9 @@ void main() async {
   final session = store.openSession();
   session.startStream<User>(
     userId,
-    UserRegistered(userId, 'Alice', 'alice@example.com'),
+    UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
   );
-  session.append(userId, EmailChanged(userId, 'alice@company.com'));
+  session.append(userId, EmailChanged(userId: userId.value, newEmail: 'alice@company.com'));
   await session.saveChangesAsync();
 
   // Load aggregate (reconstructed from events)
@@ -198,8 +241,8 @@ void main() async {
   final user = await backendApi.fetchUser(userId);
 
   // User edits email in UI (optimistic)
-  final pendingEvents = <DomainEvent>[];
-  final emailChanged = EmailChanged(userId, 'new@email.com');
+  final pendingEvents = <ContinuumEvent>[];
+  final emailChanged = EmailChanged(userId: userId.value, newEmail: 'new@email.com');
   pendingEvents.add(emailChanged);
   user.applyEvent(emailChanged);
 
@@ -239,10 +282,30 @@ class Order with _$OrderEventHandlers {
 Events represent things that have happened. They are immutable and describe state changes.
 
 ```dart
+import 'package:continuum/continuum.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
+
 @AggregateEvent(of: Order, type: 'order.item_added') // type required for persistence
-class ItemAdded extends ContinuumEvent {
+class ItemAdded implements ContinuumEvent {
   final String itemId;
-  ItemAdded(StreamId aggregateId, this.itemId) : super(aggregateId);
+
+  ItemAdded({
+    required this.itemId,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 ```
 
@@ -253,9 +316,12 @@ Sessions track pending events and manage aggregate versions. Call `saveChangesAs
 ```dart
 final session = store.openSession();
 
-session.startStream<Order>(orderId, OrderCreated(orderId, customerId));
-session.append(orderId, ItemAdded(orderId, 'item-1'));
-session.append(orderId, ItemAdded(orderId, 'item-2'));
+session.startStream<Order>(
+  orderId,
+  OrderCreated(orderId: orderId.value, customerId: customerId),
+);
+session.append(orderId, ItemAdded(itemId: 'item-1'));
+session.append(orderId, ItemAdded(itemId: 'item-2'));
 
 await session.saveChangesAsync(); // All or nothing
 ```
@@ -327,20 +393,54 @@ Events are serialized to JSON for storage. Implement `toJson()` and `fromJson()`
 
 ```dart
 @AggregateEvent(of: User, type: 'user.email_changed')
-class EmailChanged extends ContinuumEvent {
+import 'package:continuum/continuum.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
+
+@AggregateEvent(of: User, type: 'user.email_changed')
+class EmailChanged implements ContinuumEvent {
+  EmailChanged({
+    required this.userId,
+    required this.newEmail,
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final String userId;
   final String newEmail;
-  
-  EmailChanged(StreamId aggregateId, this.newEmail) : super(aggregateId);
-  
-  Map<String, dynamic> toJson() => {'newEmail': newEmail};
-  
-  factory EmailChanged.fromJson(StreamId id, Map<String, dynamic> json) {
-    return EmailChanged(id, json['newEmail'] as String);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
+
+  factory EmailChanged.fromJson(Map<String, dynamic> json) {
+    return EmailChanged(
+      userId: json['userId'] as String,
+      newEmail: json['newEmail'] as String,
+      eventId: EventId(json['eventId'] as String),
+      occurredOn: DateTime.parse(json['occurredOn'] as String),
+      metadata: Map<String, Object?>.from(json['metadata'] as Map),
+    );
   }
+
+  Map<String, dynamic> toJson() => {
+    'userId': userId,
+    'newEmail': newEmail,
+    'eventId': id.toString(),
+    'occurredOn': occurredOn.toIso8601String(),
+    'metadata': metadata,
+  };
 }
 ```
 
-The `ofAggregate` links the event to its aggregate. The `type` string identifies the event type in storage—make it unique and stable.
+The `of` links the event to its aggregate. The `type` string identifies the event type in storage—make it unique and stable.
 
 ## Examples
 
