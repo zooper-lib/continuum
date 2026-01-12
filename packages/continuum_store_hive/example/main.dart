@@ -50,7 +50,6 @@ void main() async {
   final user = session.startStream<User>(
     userId,
     UserRegistered(
-      eventId: const EventId('evt-1'),
       userId: 'user-001',
       email: 'alice@example.com',
       name: 'Alice',

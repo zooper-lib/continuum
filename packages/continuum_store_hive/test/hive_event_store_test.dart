@@ -4,6 +4,7 @@ import 'package:continuum/continuum.dart';
 import 'package:continuum_store_hive/continuum_store_hive.dart';
 import 'package:hive/hive.dart';
 import 'package:test/test.dart';
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 void main() {
   late Directory tempDir;

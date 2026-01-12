@@ -1,5 +1,6 @@
+import 'package:zooper_flutter_core/zooper_flutter_core.dart';
+
 import '../events/continuum_event.dart';
-import '../identity/event_id.dart';
 import '../identity/stream_id.dart';
 
 /// Represents a persisted domain event with storage metadata.
@@ -62,7 +63,7 @@ final class StoredEvent {
     int? globalSequence,
   }) {
     return StoredEvent(
-      eventId: continuumEvent.eventId,
+      eventId: continuumEvent.id,
       streamId: streamId,
       version: version,
       eventType: eventType,

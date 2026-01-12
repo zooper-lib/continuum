@@ -7,7 +7,6 @@
 /// is the source of truth.
 library;
 
-import 'package:continuum/continuum.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
 import 'package:continuum_example/hybrid/backend_api.dart';
@@ -29,7 +28,6 @@ void main() async {
   print('Step 1: User fills out form');
   final optimisticUser = User.createFromUserRegistered(
     UserRegistered(
-      eventId: EventId('temp-${DateTime.now().millisecondsSinceEpoch}'),
       userId: 'temp-new-user',
       name: 'Jane Doe',
       email: 'jane@example.com',

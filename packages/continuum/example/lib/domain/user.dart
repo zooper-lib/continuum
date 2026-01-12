@@ -18,11 +18,23 @@ class User with _$UserEventHandlers {
   bool isActive;
   DateTime? deactivatedAt;
 
-  User._({required this.id, required this.email, required this.name, required this.isActive, required this.deactivatedAt});
+  User._({
+    required this.id,
+    required this.email,
+    required this.name,
+    required this.isActive,
+    required this.deactivatedAt,
+  });
 
   /// Creates a user from the registration event.
   static User createFromUserRegistered(UserRegistered event) {
-    return User._(id: event.userId, email: event.email, name: event.name, isActive: true, deactivatedAt: null);
+    return User._(
+      id: event.userId,
+      email: event.email,
+      name: event.name,
+      isActive: true,
+      deactivatedAt: null,
+    );
   }
 
   @override
