@@ -34,37 +34,6 @@ jobs:
       - name: Bootstrap
         run: melos bootstrap
 
-      - name: Derive version from tag
-        run: |
-          set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          echo "Releasing version: $VERSION"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-
-      - name: Checkout release branch (avoid detached HEAD)
-        run: |
-          set -euo pipefail
-
-          BRANCH="release/$VERSION"
-          echo "Checking out $BRANCH"
-
-          git fetch origin "$BRANCH:refs/remotes/origin/$BRANCH" --tags --force
-          git checkout -B "$BRANCH" "origin/$BRANCH"
-
-      - name: Set release train version
-        run: |
-          set -euo pipefail
-          # Force every public workspace package to the exact same version.
-          # We intentionally avoid committing/tagging here; the tag already exists.
-          melos version --yes \
-            --no-changelog \
-            --no-git-commit-version \
-            --no-git-tag-version \
-            -V continuum:$VERSION \
-            -V continuum_generator:$VERSION \
-            -V continuum_store_hive:$VERSION \
-            -V continuum_store_memory:$VERSION
-
       - name: Analyze
         run: melos run analyze --no-select
 
