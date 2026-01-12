@@ -10,7 +10,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  zooper_flutter_core: ^1.0.2
+  zooper_flutter_core: ^1.0.3
 
   meta: ^1.15.0
 
