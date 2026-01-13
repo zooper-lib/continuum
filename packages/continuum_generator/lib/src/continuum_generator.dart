@@ -1,8 +1,8 @@
 import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 
-import 'discovery.dart';
-import 'emitter.dart';
+import 'aggregate_discovery.dart';
+import 'code_emitter.dart';
 
 /// Generator for continuum event sourcing code.
 ///
