@@ -4,6 +4,12 @@ import 'package:build/build.dart';
 import 'package:glob/glob.dart';
 import 'package:source_gen/source_gen.dart';
 
+const List<String> _generatedDartFileSuffixesToIgnore = <String>[
+  '.freezed.dart',
+  '.g.dart',
+  '.mocks.dart',
+];
+
 /// A builder that combines all discovered aggregates into a single file.
 ///
 /// This builder runs after all per-aggregate generators have completed.
@@ -35,8 +41,12 @@ class CombiningBuilder implements Builder {
     final aggregateInfos = <_AggregateInfo>[];
 
     await for (final input in buildStep.findAssets(dartFiles)) {
-      // Skip generated files to avoid cycles
-      if (input.path.endsWith('.g.dart')) continue;
+      // Skip generated files to avoid cycles and non-library `part of` files.
+      if (_generatedDartFileSuffixesToIgnore.any(input.path.endsWith)) continue;
+
+      // Some tools (like Freezed) generate `part of` files under `lib/`.
+      // Those are not libraries, and `libraryFor(...)` will throw.
+      if (!await buildStep.resolver.isLibrary(input)) continue;
 
       // Try to resolve the library
       final library = await buildStep.resolver.libraryFor(input);
