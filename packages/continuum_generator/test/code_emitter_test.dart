@@ -30,7 +30,10 @@ class EmailChanged implements ContinuumEvent {
         inputs,
         (resolver) async {
           final library = await _libraryFor(resolver, 'continuum_generator|lib/domain.dart');
-          final aggregates = AggregateDiscovery().discoverAggregates(library);
+          final aggregates = AggregateDiscovery().discoverAggregates(
+            library,
+            candidateEventLibraries: <LibraryElement>[library],
+          );
           return CodeEmitter().emit(aggregates);
         },
         rootPackage: 'continuum_generator',
@@ -69,7 +72,10 @@ class UserRenamed implements ContinuumEvent {
         inputs,
         (resolver) async {
           final library = await _libraryFor(resolver, 'continuum_generator|lib/contracts.dart');
-          final aggregates = AggregateDiscovery().discoverAggregates(library);
+          final aggregates = AggregateDiscovery().discoverAggregates(
+            library,
+            candidateEventLibraries: <LibraryElement>[library],
+          );
           return CodeEmitter().emit(aggregates);
         },
         rootPackage: 'continuum_generator',
