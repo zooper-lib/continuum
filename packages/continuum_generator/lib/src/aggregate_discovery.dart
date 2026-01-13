@@ -20,16 +20,28 @@ const _continuumEventChecker = TypeChecker.fromUrl('package:continuum/src/events
 /// and builds the mapping between aggregates and their events.
 ///
 /// Events can be defined in the same file OR in separate imported files.
-/// The generator discovers events by:
-/// 1. Looking at elements defined in this library (including part files)
-/// 2. Looking at imported elements that have `@AggregateEvent(of: X)`
-///    where X is an aggregate defined in this library
+///
+/// The generator can discover events from:
+/// 1. Elements defined in this library (including part files)
+/// 2. A wider set of candidate libraries (e.g. all libraries in the package)
+///
+/// This flexibility allows the generator to discover events even when the
+/// aggregate library does not import the event's defining library.
 final class AggregateDiscovery {
   /// Discovers all aggregates and events in the given library.
   ///
   /// Returns a list of [AggregateInfo] with associated events categorized
   /// as creation or mutation events.
-  List<AggregateInfo> discoverAggregates(LibraryElement library) {
+  ///
+  /// When [candidateEventLibraries] is provided, events are discovered by
+  /// scanning those libraries (and this library) for `@AggregateEvent` types.
+  ///
+  /// When [candidateEventLibraries] is not provided, discovery is limited to
+  /// this library and its direct imports.
+  List<AggregateInfo> discoverAggregates(
+    LibraryElement library, {
+    Iterable<LibraryElement>? candidateEventLibraries,
+  }) {
     final aggregates = <String, AggregateInfo>{};
     final pendingEvents = <EventInfo>[];
 
@@ -47,36 +59,41 @@ final class AggregateDiscovery {
       return [];
     }
 
-    // Second pass: discover events defined in THIS library
-    for (final element in library.classes) {
-      if (_eventChecker.hasAnnotationOf(element)) {
-        final eventInfo = _extractEventInfo(element);
-        if (eventInfo != null) {
-          pendingEvents.add(eventInfo);
-        }
-      }
-    }
-
-    // Third pass: discover events from IMPORTED libraries
-    // This allows events to be defined in separate files
-    final importedLibraries = <LibraryElement>{
-      for (final fragment in library.fragments) ...fragment.importedLibraries,
+    // Second pass: discover events.
+    //
+    // If candidateEventLibraries is provided, scan that wider set.
+    // Otherwise, fall back to scanning this library and its direct imports.
+    final librariesToScan = <LibraryElement>{
+      library,
+      if (candidateEventLibraries != null) ...candidateEventLibraries,
     };
 
-    for (final importedLibrary in importedLibraries) {
-      // Scan exported elements from the imported library
-      for (final element in importedLibrary.exportNamespace.definedNames2.values) {
-        if (element is ClassElement && _eventChecker.hasAnnotationOf(element)) {
-          final eventInfo = _extractEventInfo(element);
-          if (eventInfo != null) {
-            // Only include if this event belongs to an aggregate in THIS library
-            if (aggregates.containsKey(eventInfo.aggregateTypeName)) {
-              pendingEvents.add(eventInfo);
-            }
-          }
-        }
+    if (candidateEventLibraries == null) {
+      for (final fragment in library.fragments) {
+        librariesToScan.addAll(fragment.importedLibraries);
       }
     }
+
+    final discoveredEventsByKey = <String, EventInfo>{};
+
+    for (final candidateLibrary in librariesToScan) {
+      for (final element in candidateLibrary.classes) {
+        if (!_eventChecker.hasAnnotationOf(element)) continue;
+
+        final eventInfo = _extractEventInfo(element);
+        if (eventInfo == null) continue;
+
+        // Only include if this event belongs to an aggregate in THIS library.
+        if (!aggregates.containsKey(eventInfo.aggregateTypeName)) continue;
+
+        final eventName = element.name ?? element.displayName;
+        final key = '${eventInfo.aggregateTypeName}#$eventName';
+
+        discoveredEventsByKey[key] = eventInfo;
+      }
+    }
+
+    pendingEvents.addAll(discoveredEventsByKey.values);
 
     // Associate events with aggregates
     for (final eventInfo in pendingEvents) {

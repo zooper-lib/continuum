@@ -163,5 +163,56 @@ class UserRenamed implements ContinuumEvent {
         },
       );
     });
+
+    test('discovers events without aggregate imports (package-wide scan)', () async {
+      // Arrange
+      final builder = continuumBuilder(const BuilderOptions({}));
+
+      // Act + Assert
+      await testBuilder(
+        builder,
+        {
+          'continuum|lib/src/annotations/aggregate.dart': _aggregateAnnotationSource,
+          'continuum|lib/src/annotations/aggregate_event.dart': _aggregateEventAnnotationSource,
+          'continuum|lib/src/events/continuum_event.dart': _continuumEventSource,
+          'continuum|lib/continuum.dart': _continuumFacadeSource,
+          // IMPORTANT: Aggregate file does NOT import the event file.
+          'continuum_generator|lib/audio_file.dart': r"""
+import 'package:continuum/continuum.dart';
+import 'package:continuum/src/annotations/aggregate.dart';
+
+part 'audio_file.continuum.g.dart';
+
+@Aggregate()
+abstract class AudioFile {}
+""",
+          // Event lives in a separate library and imports the aggregate instead.
+          'continuum_generator|lib/audio_file_deleted_event.dart': r"""
+import 'package:continuum/continuum.dart';
+import 'package:continuum/src/annotations/aggregate_event.dart';
+
+import 'audio_file.dart';
+
+@AggregateEvent(of: AudioFile)
+class AudioFileDeletedEvent implements ContinuumEvent {
+  const AudioFileDeletedEvent();
+}
+""",
+        },
+        rootPackage: 'continuum_generator',
+        outputs: {
+          'continuum_generator|lib/audio_file.continuum.g.part': decodedMatches(
+            allOf(
+              contains(r'mixin _$AudioFileEventHandlers'),
+              // WHY: This proves we discovered the event even without imports.
+              contains(r'void applyAudioFileDeletedEvent(AudioFileDeletedEvent event);'),
+              contains(r'extension $AudioFileEventDispatch on AudioFile'),
+              contains(r'case AudioFileDeletedEvent():'),
+              contains(r'applyAudioFileDeletedEvent(event);'),
+            ),
+          ),
+        },
+      );
+    });
   });
 }

@@ -22,7 +22,10 @@ abstract class UserBase {}
         inputs,
         (resolver) async {
           final library = await _libraryFor(resolver, 'continuum_generator|lib/domain.dart');
-          return AggregateDiscovery().discoverAggregates(library);
+          return AggregateDiscovery().discoverAggregates(
+            library,
+            candidateEventLibraries: <LibraryElement>[library],
+          );
         },
         rootPackage: 'continuum_generator',
         readAllSourcesFromFilesystem: true,
@@ -56,7 +59,10 @@ class EmailChanged implements ContinuumEvent {
         inputs,
         (resolver) async {
           final library = await _libraryFor(resolver, 'continuum_generator|lib/domain.dart');
-          return AggregateDiscovery().discoverAggregates(library);
+          return AggregateDiscovery().discoverAggregates(
+            library,
+            candidateEventLibraries: <LibraryElement>[library],
+          );
         },
         rootPackage: 'continuum_generator',
         readAllSourcesFromFilesystem: true,
@@ -87,7 +93,10 @@ interface class UserContract {}
         inputs,
         (resolver) async {
           final library = await _libraryFor(resolver, 'continuum_generator|lib/contracts.dart');
-          return AggregateDiscovery().discoverAggregates(library);
+          return AggregateDiscovery().discoverAggregates(
+            library,
+            candidateEventLibraries: <LibraryElement>[library],
+          );
         },
         rootPackage: 'continuum_generator',
         readAllSourcesFromFilesystem: true,
@@ -121,7 +130,10 @@ class UserRenamed implements ContinuumEvent {
         inputs,
         (resolver) async {
           final library = await _libraryFor(resolver, 'continuum_generator|lib/contracts.dart');
-          return AggregateDiscovery().discoverAggregates(library);
+          return AggregateDiscovery().discoverAggregates(
+            library,
+            candidateEventLibraries: <LibraryElement>[library],
+          );
         },
         rootPackage: 'continuum_generator',
         readAllSourcesFromFilesystem: true,
@@ -133,6 +145,53 @@ class UserRenamed implements ContinuumEvent {
       expect(
         aggregates.single.mutationEvents.map((e) => e.name),
         contains('UserRenamed'),
+      );
+    });
+
+    test('discovers events in separate libraries without imports', () async {
+      // Arrange
+      final inputs = <String, String>{
+        'continuum_generator|lib/audio_file.dart': r"""
+import 'package:continuum/src/annotations/aggregate.dart';
+
+@Aggregate()
+abstract class AudioFile {}
+""",
+        'continuum_generator|lib/audio_file_deleted_event.dart': r"""
+import 'package:continuum/src/annotations/aggregate_event.dart';
+import 'package:continuum/src/events/continuum_event.dart';
+
+import 'audio_file.dart';
+
+@AggregateEvent(of: AudioFile)
+class AudioFileDeletedEvent implements ContinuumEvent {
+  const AudioFileDeletedEvent();
+}
+""",
+      };
+
+      // Act
+      final aggregates = await resolveSources(
+        inputs,
+        (resolver) async {
+          final aggregateLibrary = await _libraryFor(resolver, 'continuum_generator|lib/audio_file.dart');
+          final eventLibrary = await _libraryFor(resolver, 'continuum_generator|lib/audio_file_deleted_event.dart');
+
+          return AggregateDiscovery().discoverAggregates(
+            aggregateLibrary,
+            candidateEventLibraries: <LibraryElement>[aggregateLibrary, eventLibrary],
+          );
+        },
+        rootPackage: 'continuum_generator',
+        readAllSourcesFromFilesystem: true,
+      );
+
+      // Assert
+      expect(aggregates, hasLength(1));
+      expect(aggregates.single.name, 'AudioFile');
+      expect(
+        aggregates.single.mutationEvents.map((e) => e.name),
+        contains('AudioFileDeletedEvent'),
       );
     });
   });
