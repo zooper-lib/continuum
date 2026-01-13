@@ -7,6 +7,7 @@
 ///   aggregate_creation.dart     - Creating aggregates from events
 ///   aggregate_mutations.dart    - Mutating state by applying events
 ///   event_replay.dart           - Rebuilding state by replaying event history
+///   abstract_interface_aggregates.dart - Abstract/interface aggregate support
 ///
 /// PERSISTENCE (EventSourcingStore + Session):
 ///   store_creating_streams.dart     - Creating new aggregate streams
@@ -36,6 +37,7 @@ void main() {
   print('  aggregate_creation.dart     - Creating aggregates from events');
   print('  aggregate_mutations.dart    - Mutating state by applying events');
   print('  event_replay.dart           - Rebuilding state by replaying history');
+  print('  abstract_interface_aggregates.dart - Abstract/interface support');
   print('');
   print('PERSISTENCE (EventSourcingStore + Session):');
   print('  store_creating_streams.dart     - Creating aggregate streams');

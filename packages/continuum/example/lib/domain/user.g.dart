@@ -90,13 +90,16 @@ final $User = GeneratedAggregate(
   }),
   aggregateFactories: AggregateFactoryRegistry({
     User: {
-      UserRegistered: (event) => User.createFromUserRegistered(event as UserRegistered),
+      UserRegistered: (event) =>
+          User.createFromUserRegistered(event as UserRegistered),
     },
   }),
   eventAppliers: EventApplierRegistry({
     User: {
-      EmailChanged: (aggregate, event) => (aggregate as User).applyEmailChanged(event as EmailChanged),
-      UserDeactivated: (aggregate, event) => (aggregate as User).applyUserDeactivated(event as UserDeactivated),
+      EmailChanged: (aggregate, event) =>
+          (aggregate as User).applyEmailChanged(event as EmailChanged),
+      UserDeactivated: (aggregate, event) =>
+          (aggregate as User).applyUserDeactivated(event as UserDeactivated),
     },
   }),
 );

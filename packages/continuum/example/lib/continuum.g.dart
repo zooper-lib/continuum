@@ -4,7 +4,9 @@
 
 import 'package:continuum/continuum.dart';
 
+import 'abstract_interface_aggregates.dart';
 import 'domain/user.dart';
+import 'abstract_interface_aggregates.dart';
 
 /// All discovered aggregates in this package.
 ///
@@ -18,5 +20,7 @@ import 'domain/user.dart';
 /// );
 /// ```
 final List<GeneratedAggregate> $aggregateList = [
+  $AbstractUserBase,
   $User,
+  $UserContract,
 ];

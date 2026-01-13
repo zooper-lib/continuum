@@ -9,7 +9,7 @@ import 'models/event_info.dart';
 const _aggregateChecker = TypeChecker.fromUrl('package:continuum/src/annotations/aggregate.dart#Aggregate');
 
 /// Type checker for the @AggregateEvent annotation.
-const _eventChecker = TypeChecker.fromUrl('package:continuum/src/annotations/event.dart#AggregateEvent');
+const _eventChecker = TypeChecker.fromUrl('package:continuum/src/annotations/aggregate_event.dart#AggregateEvent');
 
 /// Type checker for the ContinuumEvent base class.
 const _continuumEventChecker = TypeChecker.fromUrl('package:continuum/src/events/continuum_event.dart#ContinuumEvent');
@@ -96,7 +96,7 @@ final class AggregateDiscovery {
   /// Extracts event information from an annotated class element.
   EventInfo? _extractEventInfo(ClassElement element) {
     // Verify the event extends ContinuumEvent
-    if (!_continuumEventChecker.isSuperOf(element)) {
+    if (!_continuumEventChecker.isAssignableFrom(element)) {
       // Could throw an error here, but for now we skip non-ContinuumEvent classes
       return null;
     }

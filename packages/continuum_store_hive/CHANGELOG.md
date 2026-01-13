@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added an example demonstrating code generation for `abstract class` and `abstract interface class` aggregates.
+
 ### Fixed
 
 - Combining builder now skips non-library Dart files (e.g. `*.freezed.dart` part files) when scanning `lib/`, preventing build failures in apps using Freezed.
