@@ -6,3 +6,4 @@ custom_lint:
   enable_all_lint_rules: false
   rules:
     - continuum_missing_apply_handlers
+    - continuum_missing_creation_factories

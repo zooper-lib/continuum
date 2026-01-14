@@ -4,7 +4,7 @@ import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 import '../user.dart';
 
 /// Event fired when a new user registers.
-@AggregateEvent(of: User, type: 'user.registered')
+@AggregateEvent(of: User, type: 'user.registered', creation: true)
 class UserRegistered implements ContinuumEvent {
   UserRegistered({
     required this.userId,
