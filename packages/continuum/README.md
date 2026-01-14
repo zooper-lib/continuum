@@ -364,6 +364,51 @@ targets:
         enabled: true
 ```
 
+## Custom Lints (Recommended)
+
+Continuum can optionally surface common mistakes *immediately in the editor* using a custom lint plugin.
+
+### Why use it?
+
+Some Continuum patterns rely on generated mixins (for example `_$UserEventHandlers`). If a concrete `@Aggregate()` class forgets to implement one of the required `apply<Event>(...)` handlers, Dart can sometimes delay the failure until runtime (or until the class is instantiated, depending on how the type is used).
+
+The `continuum_lints` package detects this situation early and reports it as a diagnostic while you type.
+
+### Setup
+
+Add these dev dependencies:
+
+```yaml
+dev_dependencies:
+  custom_lint: ^0.8.1
+  continuum_lints: ^0.1.0
+```
+
+Enable the analyzer plugin in your `analysis_options.yaml`:
+
+```yaml
+analyzer:
+  plugins:
+    - custom_lint
+```
+
+Optionally, configure which rules are enabled (recommended to keep things explicit):
+
+```yaml
+custom_lint:
+  enable_all_lint_rules: false
+  rules:
+    - continuum_missing_apply_handlers
+```
+
+### CI usage
+
+`dart analyze` does not run custom lints. In CI, run:
+
+```bash
+dart run custom_lint
+```
+
 ## Working with Persistence
 
 ### Event Stores
