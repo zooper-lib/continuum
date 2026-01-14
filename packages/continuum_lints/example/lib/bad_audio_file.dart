@@ -23,6 +23,7 @@ mixin _$AudioFileEventHandlers {
 /// mixes in `_$AudioFileEventHandlers`, but does not implement the required
 /// apply method.
 @Aggregate()
+// ignore: continuum_missing_apply_handlers
 class AudioFile with _$AudioFileEventHandlers {
   /// Creates an [AudioFile].
   const AudioFile();
