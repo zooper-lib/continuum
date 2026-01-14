@@ -79,6 +79,7 @@ For each Dart or Flutter package:
 2. Parse CHANGELOG.md and extract ## [Unreleased]
 3. Determine the bump type using the rules above
 4. Compute the next version
+5. Update workspace-internal dependency references that point to this package to use the new version (e.g. update other packages' `pubspec.yaml` entries like `my_package: ^<new_version>`).
 
 ### pubspec.yaml
 
