@@ -3,6 +3,8 @@
 
 These instructions are for AI assistants working in this project.
 
+Always check the skills in `/copilot/skills` and `~/.copilot/skills` first.
+
 Always open `@/openspec/AGENTS.md` when the request:
 - Mentions planning or proposals (words like proposal, spec, change, plan)
 - Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
