@@ -26,10 +26,19 @@ class AggregateEvent {
   /// mutation, but cannot be persisted without explicit type mapping.
   final String? type;
 
+  /// Whether this event is a creation event (the first event in a stream).
+  ///
+  /// When `true`, the generator treats this as an aggregate creation event and
+  /// will not generate an `apply<Event>(...)` contract for it.
+  ///
+  /// Creation events require the aggregate to provide a matching static factory
+  /// method `createFrom<EventName>(Event event)`.
+  final bool creation;
+
   /// Creates an event annotation associating this event with [of].
   ///
   /// The [type] parameter provides a stable string discriminator for
   /// persistence serialization. When omitted, the event remains valid
   /// for in-memory usage but cannot be persisted.
-  const AggregateEvent({required this.of, this.type});
+  const AggregateEvent({required this.of, this.type, this.creation = false});
 }

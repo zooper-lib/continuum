@@ -2,6 +2,7 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
 import 'package:build_test/build_test.dart';
 import 'package:continuum_generator/src/aggregate_discovery.dart';
+import 'package:source_gen/source_gen.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -192,6 +193,104 @@ class AudioFileDeletedEvent implements ContinuumEvent {
       expect(
         aggregates.single.mutationEvents.map((e) => e.name),
         contains('AudioFileDeletedEvent'),
+      );
+    });
+
+    test('classifies creation events via explicit annotation flag', () async {
+      // Arrange
+      final inputs = <String, String>{
+        'continuum_generator|lib/domain.dart': r"""
+import 'package:continuum/src/annotations/aggregate.dart';
+import 'package:continuum/src/annotations/aggregate_event.dart';
+import 'package:continuum/src/events/continuum_event.dart';
+
+@Aggregate()
+class User {
+  const User();
+
+  static User createFromUserRegistered(UserRegistered event) {
+    return const User();
+  }
+}
+
+@AggregateEvent(of: User, creation: true)
+class UserRegistered implements ContinuumEvent {
+  const UserRegistered();
+}
+
+@AggregateEvent(of: User)
+class UserRenamed implements ContinuumEvent {
+  const UserRenamed();
+}
+""",
+      };
+
+      // Act
+      final aggregates = await resolveSources(
+        inputs,
+        (resolver) async {
+          final library = await _libraryFor(resolver, 'continuum_generator|lib/domain.dart');
+          return AggregateDiscovery().discoverAggregates(
+            library,
+            candidateEventLibraries: <LibraryElement>[library],
+          );
+        },
+        rootPackage: 'continuum_generator',
+        readAllSourcesFromFilesystem: true,
+      );
+
+      // Assert
+      expect(aggregates, hasLength(1));
+      expect(aggregates.single.name, 'User');
+
+      // WHY: Creation events should not require apply handlers.
+      expect(
+        aggregates.single.creationEvents.map((e) => e.name),
+        contains('UserRegistered'),
+      );
+      expect(
+        aggregates.single.mutationEvents.map((e) => e.name),
+        contains('UserRenamed'),
+      );
+    });
+
+    test('throws when a creation event is missing its createFrom<Event> factory', () async {
+      // Arrange
+      final inputs = <String, String>{
+        'continuum_generator|lib/domain.dart': r"""
+import 'package:continuum/src/annotations/aggregate.dart';
+import 'package:continuum/src/annotations/aggregate_event.dart';
+import 'package:continuum/src/events/continuum_event.dart';
+
+@Aggregate()
+class User {
+  const User();
+}
+
+@AggregateEvent(of: User, creation: true)
+class UserRegistered implements ContinuumEvent {
+  const UserRegistered();
+}
+""",
+      };
+
+      // Act + Assert
+      await expectLater(
+        () async {
+          await resolveSources(
+            inputs,
+            (resolver) async {
+              final library = await _libraryFor(resolver, 'continuum_generator|lib/domain.dart');
+              return AggregateDiscovery().discoverAggregates(
+                library,
+                candidateEventLibraries: <LibraryElement>[library],
+              );
+            },
+            rootPackage: 'continuum_generator',
+            readAllSourcesFromFilesystem: true,
+          );
+        },
+        throwsA(isA<InvalidGenerationSourceError>()),
       );
     });
   });

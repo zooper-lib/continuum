@@ -1,5 +1,15 @@
 import 'package:continuum/continuum.dart';
 
+/// Example creation event used by the missing-creation-factories lint.
+///
+/// This event is explicitly marked as a creation event, which means the
+/// aggregate must define a matching `createFromAudioFileCreated(...)` factory.
+@AggregateEvent(of: AudioFile, creation: true)
+abstract class AudioFileCreated implements ContinuumEvent {
+  /// Creates a test event instance.
+  const AudioFileCreated();
+}
+
 /// Example event type used by the lint demonstration.
 ///
 /// This event intentionally has no generator annotations because the lint rule
@@ -19,24 +29,22 @@ mixin _$AudioFileEventHandlers {
   void applyAudioFileDeletedEvent(AudioFileDeletedEvent event);
 }
 
-/// Demonstrates the lint: this class is concrete, annotated with `@Aggregate()`,
-/// mixes in `_$AudioFileEventHandlers`, but does not implement the required
-/// apply method.
+/// Demonstrates both lint rules:
+///
+/// - `continuum_missing_apply_handlers`: this class is concrete, mixes in the
+///   generated event handlers mixin, but does not implement
+///   `applyAudioFileDeletedEvent(...)`.
+/// - `continuum_missing_creation_factories`: the [AudioFileCreated] event is
+///   marked as a creation event but the aggregate does not define
+///   `createFromAudioFileCreated(...)`.
 @Aggregate()
-// ignore: continuum_missing_apply_handlers
+// ignore: continuum_missing_apply_handlers, continuum_missing_creation_factories
 class AudioFile with _$AudioFileEventHandlers {
   /// Creates an [AudioFile].
   const AudioFile();
 
   /// Implements `noSuchMethod` so the class can remain concrete even though it
   /// does not implement all interface members.
-  ///
-  /// Why this matters for the example:
-  /// - Without this, the analyzer may surface a hard error for missing
-  ///   implementations.
-  /// - With this, the class can still type-check, but it would fail at runtime
-  ///   if `applyAudioFileDeletedEvent` is invoked.
-  /// - The lint provides actionable feedback earlier than runtime.
   @override
   dynamic noSuchMethod(Invocation invocation) {
     return super.noSuchMethod(invocation);
