@@ -1,11 +1,16 @@
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
+import 'package:custom_lint_builder/custom_lint_builder.dart';
 
 /// Computes which `apply...` handlers a concrete aggregate is still missing.
 ///
 /// The handler requirements are derived from the generated
 /// `_$<Aggregate>EventHandlers` mixin.
 final class ContinuumRequiredApplyHandlers {
+  static final TypeChecker _aggregateEventChecker = const TypeChecker.fromUrl(
+    'package:continuum/src/annotations/aggregate_event.dart#AggregateEvent',
+  );
+
   /// Creates a requirement checker for generated continuum apply handlers.
   const ContinuumRequiredApplyHandlers();
 
@@ -34,6 +39,7 @@ final class ContinuumRequiredApplyHandlers {
     final List<MethodElement> requiredApplyMethods = eventHandlersMixinType.element.methods
         .where((MethodElement method) => method.isAbstract)
         .where((MethodElement method) => method.displayName.startsWith('apply'))
+        .where((MethodElement method) => !_isCreationApplyHandler(method, classElement))
         .toList(growable: false);
 
     if (requiredApplyMethods.isEmpty) {
@@ -50,6 +56,27 @@ final class ContinuumRequiredApplyHandlers {
     }
 
     return missing;
+  }
+
+  bool _isCreationApplyHandler(MethodElement applyMethod, ClassElement aggregateClassElement) {
+    // Convention: apply handlers always accept a single event parameter.
+    if (applyMethod.formalParameters.length != 1) return false;
+
+    final FormalParameterElement parameter = applyMethod.formalParameters.single;
+    if (parameter.isNamed || parameter.isOptionalPositional) return false;
+
+    final Element? eventElement = parameter.type.element;
+    if (eventElement is! ClassElement) return false;
+
+    if (!_aggregateEventChecker.hasAnnotationOf(eventElement)) return false;
+
+    final annotation = _aggregateEventChecker.firstAnnotationOf(eventElement);
+    if (annotation == null) return false;
+
+    final DartType? annotatedAggregateType = annotation.getField('of')?.toTypeValue();
+    if (annotatedAggregateType?.element != aggregateClassElement) return false;
+
+    return annotation.getField('creation')?.toBoolValue() ?? false;
   }
 
   InterfaceType? _findEventHandlersMixinType(ClassElement classElement) {
