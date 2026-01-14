@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `continuum_missing_apply_handlers` no longer requires `apply<Event>(...)` handlers for creation events marked with `@AggregateEvent(creation: true)`.
+
 ## [4.0.0] - 2026-01-14
 
 ### Breaking Changes
