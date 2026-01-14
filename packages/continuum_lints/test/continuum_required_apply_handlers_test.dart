@@ -36,6 +36,8 @@ class User {}
       // Arrange
       final Map<String, String> inputs = <String, String>{
         'continuum_lints|lib/domain.dart': r'''
+import 'package:continuum/continuum.dart';
+
 part 'domain.g.dart';
 
 class User with _$UserEventHandlers {
@@ -50,11 +52,11 @@ mixin _$UserEventHandlers {
   void applyNameChanged(NameChanged event);
 }
 
-class EmailChanged {
+class EmailChanged implements ContinuumEvent {
   const EmailChanged();
 }
 
-class NameChanged {
+class NameChanged implements ContinuumEvent {
   const NameChanged();
 }
 ''',
@@ -77,6 +79,58 @@ class NameChanged {
       // Assert
       expect(missing, contains('applyNameChanged'));
       expect(missing, isNot(contains('applyEmailChanged')));
+    });
+
+    test('does not require apply handlers for creation events', () async {
+      // Arrange
+      final Map<String, String> inputs = <String, String>{
+        'continuum_lints|lib/domain.dart': r'''
+import 'package:continuum/continuum.dart';
+
+part 'domain.g.dart';
+
+@Aggregate()
+class User with _$UserEventHandlers {
+  const User();
+}
+''',
+        'continuum_lints|lib/domain.g.dart': r'''
+part of 'domain.dart';
+
+mixin _$UserEventHandlers {
+  void applyUserRegistered(UserRegistered event);
+  void applyEmailChanged(EmailChanged event);
+}
+
+@AggregateEvent(of: User, creation: true)
+class UserRegistered implements ContinuumEvent {
+  const UserRegistered();
+}
+
+class EmailChanged implements ContinuumEvent {
+  const EmailChanged();
+}
+''',
+      };
+
+      // Act
+      final List<String> missing = await resolveSources(
+        inputs,
+        (Resolver resolver) async {
+          final LibraryElement library = await _libraryFor(resolver, 'continuum_lints|lib/domain.dart');
+          final ClassElement userClass = _classNamed(library, 'User');
+
+          // WHY: Creation events are rehydration boundaries and do not require
+          // apply<Event>(...) mutation handlers.
+          return const ContinuumRequiredApplyHandlers().findMissingApplyHandlers(userClass);
+        },
+        rootPackage: 'continuum_lints',
+        readAllSourcesFromFilesystem: true,
+      );
+
+      // Assert
+      expect(missing, contains('applyEmailChanged'));
+      expect(missing, isNot(contains('applyUserRegistered')));
     });
   });
 }

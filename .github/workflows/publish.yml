@@ -48,6 +48,14 @@ jobs:
           mkdir -p "$HOME/.config/dart"
           printf '%s' "$PUB_CREDENTIALS" > "$HOME/.config/dart/pub-credentials.json"
 
+      - name: Copy root CHANGELOG into all packages
+        run: |
+          for dir in packages/*; do
+            if [ -d "$dir" ] && [ -f "$dir/pubspec.yaml" ]; then
+              cp CHANGELOG.md "$dir/CHANGELOG.md"
+            fi
+          done
+
       - name: Publish packages
         run: |
           # Publish in workspace dependency order (dependencies first).
