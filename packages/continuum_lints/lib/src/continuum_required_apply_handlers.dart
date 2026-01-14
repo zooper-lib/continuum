@@ -14,28 +14,38 @@ final class ContinuumRequiredApplyHandlers {
   /// If the class does not mix in `_$<Aggregate>EventHandlers`, this returns an
   /// empty list.
   List<String> findMissingApplyHandlers(ClassElement classElement) {
+    final List<MethodElement> missingMethods = findMissingApplyHandlerMethods(classElement);
+
+    return missingMethods.map((MethodElement method) => method.displayName).toList(growable: false);
+  }
+
+  /// Returns the list of missing apply handler method elements.
+  ///
+  /// This is useful for generating method stubs in quick-fixes.
+  ///
+  /// If the class does not mix in `_$<Aggregate>EventHandlers`, this returns an
+  /// empty list.
+  List<MethodElement> findMissingApplyHandlerMethods(ClassElement classElement) {
     final InterfaceType? eventHandlersMixinType = _findEventHandlersMixinType(classElement);
     if (eventHandlersMixinType == null) {
-      return const <String>[];
+      return const <MethodElement>[];
     }
 
-    final List<String> requiredApplyMethodNames = eventHandlersMixinType.element.methods
+    final List<MethodElement> requiredApplyMethods = eventHandlersMixinType.element.methods
         .where((MethodElement method) => method.isAbstract)
-        .map((MethodElement method) => method.displayName)
-        .where((String methodName) => methodName.startsWith('apply'))
+        .where((MethodElement method) => method.displayName.startsWith('apply'))
         .toList(growable: false);
 
-    if (requiredApplyMethodNames.isEmpty) {
-      return const <String>[];
+    if (requiredApplyMethods.isEmpty) {
+      return const <MethodElement>[];
     }
 
-    final List<String> missing = <String>[];
+    final List<MethodElement> missing = <MethodElement>[];
 
-    for (final String requiredMethodName in requiredApplyMethodNames) {
-      final MethodElement? concreteImplementation = _findConcreteMethodImplementation(classElement, requiredMethodName);
-
+    for (final MethodElement requiredMethod in requiredApplyMethods) {
+      final MethodElement? concreteImplementation = _findConcreteMethodImplementation(classElement, requiredMethod.displayName);
       if (concreteImplementation == null) {
-        missing.add(requiredMethodName);
+        missing.add(requiredMethod);
       }
     }
 

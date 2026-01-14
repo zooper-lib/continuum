@@ -381,7 +381,7 @@ Add these dev dependencies:
 ```yaml
 dev_dependencies:
   custom_lint: ^0.8.1
-  continuum_lints: ^0.1.0
+  continuum_lints: ^3.1.1
 ```
 
 Enable the analyzer plugin in your `analysis_options.yaml`:

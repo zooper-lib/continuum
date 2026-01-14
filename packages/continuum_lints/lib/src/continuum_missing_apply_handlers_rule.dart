@@ -4,6 +4,7 @@ import 'package:analyzer/error/error.dart' hide LintCode;
 import 'package:analyzer/error/listener.dart';
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 
+import 'continuum_implement_missing_apply_handlers_fix.dart';
 import 'continuum_required_apply_handlers.dart';
 
 /// Reports when a non-abstract `@Aggregate()` class is missing required
@@ -27,6 +28,11 @@ final class ContinuumMissingApplyHandlersRule extends DartLintRule {
   static final TypeChecker _aggregateChecker = const TypeChecker.fromUrl('package:continuum/src/annotations/aggregate.dart#Aggregate');
 
   const ContinuumMissingApplyHandlersRule() : super(code: _lintCode);
+
+  @override
+  List<Fix> getFixes() {
+    return <Fix>[ContinuumImplementMissingApplyHandlersFix()];
+  }
 
   @override
   void run(

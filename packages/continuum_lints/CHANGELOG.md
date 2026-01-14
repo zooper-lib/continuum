@@ -10,4 +10,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added a custom lint rule that reports when a non-abstract `@Aggregate()` class mixes in the generated `_$<Aggregate>EventHandlers` but does not implement all required `apply<Event>(...)` methods.
+- Added a Quick Fix action to implement missing `apply<Event>(...)` handler stubs.
 - Added a runnable example package under `example/` showing the lint in action.
