@@ -20,7 +20,7 @@ melos:
 
   scripts:
     analyze:
-      run: dart run melos exec --fail-fast -- "dart analyze ."
+      run: dart run melos exec --fail-fast --concurrency 1 -- "dart analyze ."
       description: Run static analysis in all packages.
 
     test:

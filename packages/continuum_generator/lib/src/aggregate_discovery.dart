@@ -135,8 +135,16 @@ final class AggregateDiscovery {
     final typeValue = annotation.getField('type');
     final type = typeValue?.toStringValue();
 
-    // Determine if this is a creation event by checking for a static create method
-    final isCreationEvent = _hasCreateMethod(element, aggregateType);
+    // Determine if this is a creation event via explicit annotation flag.
+    final creationValue = annotation.getField('creation');
+    final bool isCreationEvent = creationValue?.toBoolValue() ?? false;
+
+    if (isCreationEvent) {
+      _validateCreationFactory(
+        aggregateType: aggregateType,
+        eventElement: element,
+      );
+    }
 
     return EventInfo(element: element, aggregateTypeName: aggregateTypeName, type: type, isCreationEvent: isCreationEvent);
   }
@@ -150,27 +158,75 @@ final class AggregateDiscovery {
     return null;
   }
 
-  /// Checks if the aggregate has a static create method for this event.
+  /// Validates that the aggregate declares the required creation factory.
   ///
-  /// Convention: A creation event should have a corresponding static method
-  /// named `create<EventName>` or the aggregate should have a factory that
-  /// accepts this event type.
-  bool _hasCreateMethod(ClassElement eventElement, DartType aggregateType) {
-    final aggregateElement = aggregateType.element;
-    if (aggregateElement is! ClassElement) return false;
-
-    // Look for static methods starting with 'create' that take this event type
-    for (final method in aggregateElement.methods) {
-      if (method.isStatic && method.displayName.startsWith('create')) {
-        // Check if the method has a parameter of this event type
-        for (final param in method.formalParameters) {
-          if (param.type.element == eventElement) {
-            return true;
-          }
-        }
-      }
+  /// Convention: a creation event `E` for aggregate `A` requires:
+  /// `static A createFromE(E event)`
+  void _validateCreationFactory({
+    required DartType aggregateType,
+    required ClassElement eventElement,
+  }) {
+    final Element? aggregateElement = aggregateType.element;
+    if (aggregateElement is! ClassElement) {
+      throw InvalidGenerationSourceError(
+        'Invalid @AggregateEvent(of: ...) type: expected a class type for the aggregate, got $aggregateType.',
+        element: eventElement,
+      );
     }
 
-    return false;
+    final String eventName = eventElement.name ?? eventElement.displayName;
+    if (eventName.isEmpty) {
+      throw InvalidGenerationSourceError(
+        'Creation event type has no name.',
+        element: eventElement,
+      );
+    }
+
+    final String expectedFactoryName = 'createFrom$eventName';
+
+    MethodElement? factoryMethod;
+    for (final MethodElement method in aggregateElement.methods) {
+      if (!method.isStatic) continue;
+      if (method.displayName != expectedFactoryName) continue;
+      factoryMethod = method;
+      break;
+    }
+
+    if (factoryMethod == null) {
+      throw InvalidGenerationSourceError(
+        'Creation event $eventName requires ${aggregateElement.displayName}.$expectedFactoryName($eventName event).',
+        element: aggregateElement,
+      );
+    }
+
+    if (factoryMethod.formalParameters.length != 1) {
+      throw InvalidGenerationSourceError(
+        '${aggregateElement.displayName}.$expectedFactoryName must take exactly one parameter of type $eventName.',
+        element: factoryMethod,
+      );
+    }
+
+    final FormalParameterElement parameter = factoryMethod.formalParameters.single;
+    if (parameter.isNamed || parameter.isOptionalPositional) {
+      throw InvalidGenerationSourceError(
+        '${aggregateElement.displayName}.$expectedFactoryName parameter must be a required positional $eventName.',
+        element: factoryMethod,
+      );
+    }
+
+    if (parameter.type.element != eventElement) {
+      throw InvalidGenerationSourceError(
+        '${aggregateElement.displayName}.$expectedFactoryName must accept a $eventName parameter.',
+        element: factoryMethod,
+      );
+    }
+
+    final typeSystem = aggregateElement.library.typeSystem;
+    if (!typeSystem.isSubtypeOf(factoryMethod.returnType, aggregateType)) {
+      throw InvalidGenerationSourceError(
+        '${aggregateElement.displayName}.$expectedFactoryName must return ${aggregateElement.displayName} (or a subtype).',
+        element: factoryMethod,
+      );
+    }
   }
 }

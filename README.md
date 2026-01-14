@@ -54,7 +54,7 @@ class ShoppingCart with _$ShoppingCartEventHandlers {
 }
 
 // Creation event (first event in stream)
-@AggregateEvent(of: ShoppingCart, type: 'cart.created')
+@AggregateEvent(of: ShoppingCart, type: 'cart.created', creation: true)
 class CartCreated implements ContinuumEvent {
   final String cartId;
 

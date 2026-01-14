@@ -4,7 +4,7 @@ import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 import '../account.dart';
 
 /// Event fired when a new account is opened.
-@AggregateEvent(of: Account, type: 'account.opened')
+@AggregateEvent(of: Account, type: 'account.opened', creation: true)
 class AccountOpened implements ContinuumEvent {
   AccountOpened({
     required this.accountId,
