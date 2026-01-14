@@ -9,6 +9,7 @@ workspace:
   - packages/continuum_generator
   - packages/continuum_store_memory
   - packages/continuum_store_hive
+  - packages/continuum_lints
 
 dev_dependencies:
   melos: ^7.3.0

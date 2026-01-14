@@ -116,3 +116,6 @@ lib/generated_plugin_registrant.dart
 
 **/.idea/
 **/*.iml
+
+# Any log file
+**/*.log

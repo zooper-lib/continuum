@@ -1,0 +1,38 @@
+include: package:lints/recommended.yaml
+
+formatter:
+  trailing_commas: preserve
+  page_width: 160
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_literals_to_create_immutables: true
+    prefer_single_quotes: true
+    always_specify_types: false
+    avoid_dynamic_calls: true
+    avoid_print: true
+    prefer_final_fields: true
+    prefer_final_locals: true
+    always_require_non_null_named_parameters: true
+    public_member_api_docs: false
+    directives_ordering: true
+    prefer_is_empty: true
+    prefer_is_not_empty: true
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/build/**"
+    - "**/generated/**"
+    - "**/mocks/**"
+    - "**/*.freezed.dart/**"
+
+  language:
+    strict-casts: false
+    strict-inference: false
+    strict-raw-types: false
+
+  strong-mode:
+    implicit-casts: false
+    implicit-dynamic: false

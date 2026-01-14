@@ -1,6 +1,6 @@
 name: continuum
 description: An event sourcing library for Dart with code generation support.
-version: 3.1.1
+version: 3.2.0
 repository: https://github.com/zooper/continuum
 homepage: https://zooper.dev
 
@@ -16,6 +16,7 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.4.0
+  custom_lint: ^0.8.1
   lints: ^6.0.0
   mockito: ^5.4.0
   test: ^1.25.6

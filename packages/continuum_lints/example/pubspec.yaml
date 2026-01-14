@@ -1,0 +1,19 @@
+name: continuum_lints_example
+publish_to: none
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  continuum:
+    path: ../../continuum
+
+dev_dependencies:
+  custom_lint: ^0.8.1
+  continuum_lints: ^3.2.0
+
+dependency_overrides:
+  continuum:
+    path: ../../continuum
+  continuum_lints:
+    path: ..
