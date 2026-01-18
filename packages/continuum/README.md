@@ -494,6 +494,208 @@ The `of` links the event to its aggregate. The `type` string identifies the even
 - [Memory store](../continuum_store_memory/example/lib/main.dart) - Event sourcing persistence
 - [Hive store](../continuum_store_hive/example/lib/main.dart) - Local database persistence
 
+## Projections (Read Models)
+
+Projections maintain **read models** that are automatically updated when events occur. This enables CQRS (Command Query Responsibility Segregation) patterns where you have optimized read views separate from your event-sourced aggregates.
+
+### Why Use Projections?
+
+1. **Query Efficiency**: Read models are optimized for specific queries without reconstructing aggregates.
+2. **Denormalization**: Combine data from multiple aggregates into a single view.
+3. **Performance**: Avoid replaying events for every read operation.
+
+### Single-Stream Projections
+
+Track state for a single aggregate stream (e.g., user profile):
+
+```dart
+/// Read model for a user's profile information.
+class UserProfile {
+  final String name;
+  final String email;
+  final DateTime lastUpdated;
+
+  const UserProfile({
+    required this.name,
+    required this.email,
+    required this.lastUpdated,
+  });
+
+  UserProfile copyWith({String? name, String? email, DateTime? lastUpdated}) {
+    return UserProfile(
+      name: name ?? this.name,
+      email: email ?? this.email,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+    );
+  }
+}
+
+/// Projection that maintains UserProfile read models.
+class UserProfileProjection extends SingleStreamProjection<UserProfile> {
+  @override
+  String get projectionName => 'user-profile';
+
+  @override
+  Set<Type> get handledEventTypes => {UserRegistered, EmailChanged, NameChanged};
+
+  @override
+  UserProfile createInitial() => const UserProfile(
+        name: '',
+        email: '',
+        lastUpdated: DateTime(1970),
+      );
+
+  @override
+  UserProfile apply(UserProfile current, ContinuumEvent event) {
+    return switch (event) {
+      UserRegistered e => UserProfile(
+          name: e.name,
+          email: e.email,
+          lastUpdated: e.occurredOn,
+        ),
+      EmailChanged e => current.copyWith(
+          email: e.newEmail,
+          lastUpdated: e.occurredOn,
+        ),
+      NameChanged e => current.copyWith(
+          name: e.newName,
+          lastUpdated: e.occurredOn,
+        ),
+      _ => current,
+    };
+  }
+}
+```
+
+### Multi-Stream Projections
+
+Aggregate data across multiple streams (e.g., statistics, dashboards):
+
+```dart
+/// Read model for system-wide user statistics.
+class UserStatistics {
+  final int totalUsers;
+  final int activeUsers;
+
+  const UserStatistics({
+    required this.totalUsers,
+    required this.activeUsers,
+  });
+}
+
+/// Projection that tracks statistics across all user streams.
+class UserStatisticsProjection extends MultiStreamProjection<UserStatistics, String> {
+  @override
+  String get projectionName => 'user-statistics';
+
+  @override
+  Set<Type> get handledEventTypes => {UserRegistered, UserDeactivated, UserReactivated};
+
+  @override
+  String extractKey(ContinuumEvent event, StreamId streamId) => 'global';
+
+  @override
+  UserStatistics createInitial() => const UserStatistics(totalUsers: 0, activeUsers: 0);
+
+  @override
+  UserStatistics apply(UserStatistics current, ContinuumEvent event) {
+    return switch (event) {
+      UserRegistered() => UserStatistics(
+          totalUsers: current.totalUsers + 1,
+          activeUsers: current.activeUsers + 1,
+        ),
+      UserDeactivated() => UserStatistics(
+          totalUsers: current.totalUsers,
+          activeUsers: current.activeUsers - 1,
+        ),
+      UserReactivated() => UserStatistics(
+          totalUsers: current.totalUsers,
+          activeUsers: current.activeUsers + 1,
+        ),
+      _ => current,
+    };
+  }
+}
+```
+
+### Projection Lifecycle
+
+Projections support two execution modes:
+
+#### Inline (Strongly Consistent)
+
+Projections execute during `saveChangesAsync()`. The read model is always up-to-date with the event store.
+
+```dart
+final registry = ProjectionRegistry();
+final userProfileStore = InMemoryReadModelStore<UserProfile, StreamId>();
+
+registry.registerInline(
+  UserProfileProjection(),
+  userProfileStore,
+);
+
+// Pass to EventSourcingStore
+final store = EventSourcingStore(
+  eventStore: InMemoryEventStore(),
+  aggregates: $aggregateList,
+  projections: registry, // Inline projections execute automatically
+);
+```
+
+#### Async (Eventually Consistent)
+
+Projections execute in the background after events are appended. Better for high-throughput scenarios.
+
+```dart
+final registry = ProjectionRegistry();
+final statisticsStore = InMemoryReadModelStore<UserStatistics, String>();
+
+registry.registerAsync(
+  UserStatisticsProjection(),
+  statisticsStore,
+);
+
+// Create background processor
+final processor = PollingProjectionProcessor(
+  eventStore: eventStore, // Must implement ProjectionEventStore
+  executor: AsyncProjectionExecutor(registry: registry),
+  positionStore: InMemoryProjectionPositionStore(),
+  pollInterval: Duration(seconds: 1),
+);
+
+// Start processing
+await processor.startAsync();
+
+// ... later
+await processor.stopAsync();
+```
+
+### Read Model Storage
+
+Projections store their state in `ReadModelStore` implementations:
+
+```dart
+// In-memory storage (for testing or volatile read models)
+final store = InMemoryReadModelStore<UserProfile, StreamId>();
+
+// Load a read model
+final profile = await store.loadAsync(userId);
+
+// Custom storage - implement the interface
+class PostgresReadModelStore<T, K> implements ReadModelStore<T, K> {
+  @override
+  Future<T?> loadAsync(K key) async { /* ... */ }
+
+  @override
+  Future<void> saveAsync(K key, T readModel) async { /* ... */ }
+
+  @override
+  Future<void> deleteAsync(K key) async { /* ... */ }
+}
+```
+
 ## Contributing
 
 See the [repository](https://github.com/zooper-lib/continuum) for contribution guidelines.
+

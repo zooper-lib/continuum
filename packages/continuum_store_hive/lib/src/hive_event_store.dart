@@ -12,7 +12,7 @@ import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 ///
 /// The store uses a composite key structure to efficiently query events
 /// by stream ID while maintaining per-stream ordering.
-final class HiveEventStore implements AtomicEventStore {
+final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
   /// Box suffix used for transaction-log metadata.
   static const String _transactionsBoxSuffix = '_transactions';
 
@@ -446,5 +446,43 @@ final class HiveEventStore implements AtomicEventStore {
       metadata: Map<String, dynamic>.from(map['metadata'] as Map),
       globalSequence: map['globalSequence'] as int?,
     );
+  }
+
+  @override
+  Future<List<StoredEvent>> loadEventsFromPositionAsync(
+    int fromGlobalSequence,
+    int limit,
+  ) async {
+    return _runExclusiveAsync<List<StoredEvent>>(() async {
+      // Collect all events from the box.
+      final List<StoredEvent> allEvents = <StoredEvent>[];
+
+      for (final String json in _eventsBox.values) {
+        final event = _deserializeEvent(json);
+        if (event.globalSequence != null && event.globalSequence! >= fromGlobalSequence) {
+          allEvents.add(event);
+        }
+      }
+
+      // Sort by global sequence.
+      allEvents.sort(
+        (a, b) => (a.globalSequence ?? 0).compareTo(b.globalSequence ?? 0),
+      );
+
+      // Return up to limit events.
+      return allEvents.take(limit).toList();
+    });
+  }
+
+  @override
+  Future<int?> getMaxGlobalSequenceAsync() async {
+    return _runExclusiveAsync<int?>(() async {
+      // The _globalSequence counter is one ahead of the max, so subtract 1.
+      // If _globalSequence is 0, no events have been stored.
+      if (_globalSequence == 0) {
+        return null;
+      }
+      return _globalSequence - 1;
+    });
   }
 }

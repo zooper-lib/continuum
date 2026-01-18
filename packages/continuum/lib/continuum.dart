@@ -31,5 +31,20 @@ export 'src/persistence/event_store.dart';
 export 'src/persistence/expected_version.dart';
 export 'src/persistence/generated_aggregate.dart';
 export 'src/persistence/json_event_serializer.dart';
+export 'src/persistence/projection_event_store.dart';
 export 'src/persistence/session.dart';
 export 'src/persistence/stored_event.dart';
+
+// Projection system
+export 'src/projections/async_projection_executor.dart';
+export 'src/projections/inline_projection_executor.dart';
+export 'src/projections/multi_stream_projection.dart';
+export 'src/projections/projection.dart';
+export 'src/projections/projection_lifecycle.dart';
+export 'src/projections/projection_position_store.dart';
+export 'src/projections/projection_processor.dart';
+export 'src/projections/projection_registration.dart';
+export 'src/projections/projection_registry.dart';
+export 'src/projections/read_model_store.dart';
+export 'src/projections/single_stream_projection.dart';
+

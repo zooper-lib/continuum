@@ -239,6 +239,88 @@ void main() {
         expect(store.eventCount, equals(2));
       });
     });
+
+    group('loadEventsFromPositionAsync', () {
+      test('should return empty list when no events exist', () async {
+        final events = await store.loadEventsFromPositionAsync(0, 100);
+        expect(events, isEmpty);
+      });
+
+      test('should return events from position', () async {
+        final s1 = const StreamId('stream-1');
+        final s2 = const StreamId('stream-2');
+
+        await store.appendEventsAsync(s1, ExpectedVersion.noStream, [
+          _createStoredEvent(s1, 0, 'e1'),
+        ]);
+        await store.appendEventsAsync(s2, ExpectedVersion.noStream, [
+          _createStoredEvent(s2, 0, 'e2'),
+        ]);
+
+        // Load from position 1 (skip first event).
+        final events = await store.loadEventsFromPositionAsync(1, 100);
+
+        expect(events.length, equals(1));
+        expect(events.first.globalSequence, equals(1));
+      });
+
+      test('should respect limit parameter', () async {
+        final s1 = const StreamId('stream-1');
+        await store.appendEventsAsync(s1, ExpectedVersion.noStream, [
+          _createStoredEvent(s1, 0, 'e1'),
+          _createStoredEvent(s1, 1, 'e2'),
+          _createStoredEvent(s1, 2, 'e3'),
+        ]);
+
+        final events = await store.loadEventsFromPositionAsync(0, 2);
+
+        expect(events.length, equals(2));
+        expect(events[0].globalSequence, equals(0));
+        expect(events[1].globalSequence, equals(1));
+      });
+
+      test('should order events by global sequence', () async {
+        final s1 = const StreamId('stream-1');
+        final s2 = const StreamId('stream-2');
+
+        await store.appendEventsAsync(s1, ExpectedVersion.noStream, [
+          _createStoredEvent(s1, 0, 'e1'),
+        ]);
+        await store.appendEventsAsync(s2, ExpectedVersion.noStream, [
+          _createStoredEvent(s2, 0, 'e2'),
+        ]);
+        await store.appendEventsAsync(s1, ExpectedVersion.exact(0), [
+          _createStoredEvent(s1, 1, 'e3'),
+        ]);
+
+        final events = await store.loadEventsFromPositionAsync(0, 100);
+
+        expect(events.length, equals(3));
+        expect(events[0].globalSequence, equals(0));
+        expect(events[1].globalSequence, equals(1));
+        expect(events[2].globalSequence, equals(2));
+      });
+    });
+
+    group('getMaxGlobalSequenceAsync', () {
+      test('should return null when no events', () async {
+        final maxSeq = await store.getMaxGlobalSequenceAsync();
+        expect(maxSeq, isNull);
+      });
+
+      test('should return max global sequence', () async {
+        final s1 = const StreamId('stream-1');
+        await store.appendEventsAsync(s1, ExpectedVersion.noStream, [
+          _createStoredEvent(s1, 0, 'e1'),
+          _createStoredEvent(s1, 1, 'e2'),
+          _createStoredEvent(s1, 2, 'e3'),
+        ]);
+
+        final maxSeq = await store.getMaxGlobalSequenceAsync();
+
+        expect(maxSeq, equals(2));
+      });
+    });
   });
 }
 

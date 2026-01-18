@@ -1,3 +1,5 @@
+import '../projections/inline_projection_executor.dart';
+import '../projections/projection_registry.dart';
 import 'event_serializer.dart';
 import 'event_serializer_registry.dart';
 import 'event_store.dart';
@@ -11,6 +13,9 @@ import 'session_impl.dart';
 /// Wires together the [EventStore] and generated aggregate registries
 /// to provide a complete event sourcing runtime. Sessions are created
 /// from this store to perform aggregate operations.
+///
+/// Optionally accepts a [ProjectionRegistry] to enable automatic
+/// inline projection execution during event persistence.
 ///
 /// ```dart
 /// final store = EventSourcingStore(
@@ -34,21 +39,29 @@ final class EventSourcingStore {
   /// Event applier registry for applying events to aggregates.
   final EventApplierRegistry _eventAppliers;
 
+  /// Optional executor for inline projections.
+  final InlineProjectionExecutor? _inlineProjectionExecutor;
+
   /// Creates an event sourcing store from generated aggregate bundles.
   ///
   /// This is the recommended constructor. Pass all your generated
   /// aggregate bundles (e.g., `$User`, `$Account`) and the store
   /// will automatically merge their registries.
   ///
+  /// Optionally provide a [projections] registry to enable automatic
+  /// inline projection execution when events are saved.
+  ///
   /// ```dart
   /// final store = EventSourcingStore(
   ///   eventStore: InMemoryEventStore(),
   ///   aggregates: [$User, $Account],
+  ///   projections: projectionRegistry, // Optional
   /// );
   /// ```
   factory EventSourcingStore({
     required EventStore eventStore,
     required List<GeneratedAggregate> aggregates,
+    ProjectionRegistry? projections,
   }) {
     // Merge all registries from the provided aggregates
     var serializerRegistry = const EventSerializerRegistry.empty();
@@ -61,11 +74,18 @@ final class EventSourcingStore {
       eventAppliers = eventAppliers.merge(aggregate.eventAppliers);
     }
 
+    // Create inline projection executor if projections are configured.
+    InlineProjectionExecutor? inlineProjectionExecutor;
+    if (projections != null && projections.hasInlineProjections) {
+      inlineProjectionExecutor = InlineProjectionExecutor(registry: projections);
+    }
+
     return EventSourcingStore._(
       eventStore: eventStore,
       serializer: JsonEventSerializer(registry: serializerRegistry),
       aggregateFactories: aggregateFactories,
       eventAppliers: eventAppliers,
+      inlineProjectionExecutor: inlineProjectionExecutor,
     );
   }
 
@@ -78,21 +98,28 @@ final class EventSourcingStore {
     required EventSerializer serializer,
     required AggregateFactoryRegistry aggregateFactories,
     required EventApplierRegistry eventAppliers,
+    InlineProjectionExecutor? inlineProjectionExecutor,
   }) : _eventStore = eventStore,
        _serializer = serializer,
        _aggregateFactories = aggregateFactories,
-       _eventAppliers = eventAppliers;
+       _eventAppliers = eventAppliers,
+       _inlineProjectionExecutor = inlineProjectionExecutor;
 
   /// Opens a new session for aggregate operations.
   ///
   /// Each session is independent and tracks its own loaded aggregates
   /// and pending events. Sessions should be short-lived.
+  ///
+  /// If the store was configured with projections, inline projections
+  /// will be automatically executed when [ContinuumSession.saveChangesAsync]
+  /// is called.
   ContinuumSession openSession() {
     return SessionImpl(
       eventStore: _eventStore,
       serializer: _serializer,
       aggregateFactories: _aggregateFactories,
       eventAppliers: _eventAppliers,
+      inlineProjectionExecutor: _inlineProjectionExecutor,
     );
   }
 }

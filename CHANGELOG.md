@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Projection System**: A comprehensive read-model projection framework with automatic event-driven updates.
+  - `Projection<TReadModel, TKey>`: Base class for event-driven read model maintenance.
+  - `SingleStreamProjection<TReadModel>`: Projections that follow a single aggregate stream.
+  - `MultiStreamProjection<TReadModel, TKey>`: Projections that aggregate across multiple streams.
+  - `ProjectionRegistry`: Central registry for projection registration and lookup.
+  - `ReadModelStore<TReadModel, TKey>`: Storage abstraction for read models with `InMemoryReadModelStore` implementation.
+  - `ProjectionPositionStore`: Tracks projection progress with `InMemoryProjectionPositionStore` implementation.
+  - `InlineProjectionExecutor`: Synchronous execution for strongly-consistent projections.
+  - `AsyncProjectionExecutor`: Asynchronous execution for eventually-consistent projections.
+  - `PollingProjectionProcessor`: Background processor for async projections.
+  - `ProjectionEventStore`: Interface for event stores that support projection queries.
+- `EventSourcingStore` now accepts an optional `projections` parameter to enable automatic inline projection execution.
+- `InMemoryEventStore` and `HiveEventStore` now implement `ProjectionEventStore` for projection support.
+
 ### Fixed
 
 - `continuum_missing_apply_handlers` no longer requires `apply<Event>(...)` handlers for creation events marked with `@AggregateEvent(creation: true)`.
