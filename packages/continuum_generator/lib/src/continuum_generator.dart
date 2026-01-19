@@ -7,14 +7,18 @@ import 'package:source_gen/source_gen.dart';
 
 import 'aggregate_discovery.dart';
 import 'code_emitter.dart';
+import 'projection_code_emitter.dart';
+import 'projection_discovery.dart';
 
 /// Generator for continuum event sourcing code.
 ///
-/// Scans for @Aggregate and @Event annotations and generates:
+/// Scans for @Aggregate, @AggregateEvent, and @Projection annotations and generates:
 /// - Event handler mixins for mutation events
 /// - Apply dispatchers and replay helpers
 /// - Creation dispatchers for aggregate instantiation
 /// - Event registry for persistence deserialization
+/// - Projection handler mixins and dispatchers
+/// - Projection bundles for registry configuration
 class ContinuumGenerator extends Generator {
   static const List<String> _generatedDartFileSuffixesToIgnore = <String>[
     '.freezed.dart',
@@ -22,37 +26,52 @@ class ContinuumGenerator extends Generator {
     '.mocks.dart',
   ];
 
-  final _discovery = AggregateDiscovery();
-  final _emitter = CodeEmitter();
+  final _aggregateDiscovery = AggregateDiscovery();
+  final _aggregateEmitter = CodeEmitter();
+  final _projectionDiscovery = ProjectionDiscovery();
+  final _projectionEmitter = ProjectionCodeEmitter();
 
   @override
   FutureOr<String?> generate(LibraryReader library, BuildStep buildStep) async {
-    // First: discover whether this library defines any aggregates.
-    final localAggregates = _discovery.discoverAggregates(library.element);
+    // Discover aggregates and projections in this library.
+    final localAggregates = _aggregateDiscovery.discoverAggregates(library.element);
+    final projections = _projectionDiscovery.discoverProjections(library.element);
 
-    // Skip if no aggregates found
-    if (localAggregates.isEmpty) {
+    // Skip if neither aggregates nor projections found.
+    if (localAggregates.isEmpty && projections.isEmpty) {
       return null;
     }
 
-    // Then: collect all libraries in the current package so we can discover
-    // events annotated as belonging to these aggregates, even when the aggregate
-    // library doesn't import the event library.
-    final candidateEventLibraries = await _collectPackageLibrariesAsync(buildStep);
+    final outputBuffer = StringBuffer();
 
-    // Re-run discovery with the wider candidate set.
-    final aggregates = _discovery.discoverAggregates(
-      library.element,
-      candidateEventLibraries: candidateEventLibraries,
-    );
+    // Generate aggregate code if any aggregates found.
+    if (localAggregates.isNotEmpty) {
+      // Collect all libraries in the current package so we can discover
+      // events annotated as belonging to these aggregates, even when the aggregate
+      // library doesn't import the event library.
+      final candidateEventLibraries = await _collectPackageLibrariesAsync(buildStep);
 
-    // Generate code for all aggregates
-    final output = _emitter.emit(aggregates);
+      // Re-run discovery with the wider candidate set.
+      final aggregates = _aggregateDiscovery.discoverAggregates(
+        library.element,
+        candidateEventLibraries: candidateEventLibraries,
+      );
+
+      // Generate code for all aggregates.
+      final aggregateOutput = _aggregateEmitter.emit(aggregates);
+      outputBuffer.writeln(aggregateOutput);
+    }
+
+    // Generate projection code if any projections found.
+    if (projections.isNotEmpty) {
+      final projectionOutput = _projectionEmitter.emit(projections);
+      outputBuffer.writeln(projectionOutput);
+    }
 
     // Return the generated code directly.
     // Note: Part files inherit imports from the main library file,
     // so no explicit imports are needed here.
-    return output;
+    return outputBuffer.toString();
   }
 
   /// Collects all resolvable Dart libraries in the current package.

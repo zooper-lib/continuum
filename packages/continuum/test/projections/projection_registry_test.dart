@@ -171,6 +171,76 @@ void main() {
       expect(registry.isEmpty, isFalse);
       expect(registry.isNotEmpty, isTrue);
     });
+
+    group('Generated projection support', () {
+      test('registerGeneratedInline registers with bundle metadata', () {
+        const bundle = GeneratedProjection(
+          projectionName: 'gen-inline',
+          schemaHash: 'abc123',
+          handledEventTypes: {_EventA, _EventB},
+        );
+        final projection = _CounterProjection('gen-inline', {_EventA, _EventB});
+        final store = InMemoryReadModelStore<int, StreamId>();
+
+        registry.registerGeneratedInline(bundle, projection, store);
+
+        expect(registry.length, equals(1));
+        expect(registry.hasInlineProjections, isTrue);
+        expect(registry.getSchemaHash('gen-inline'), equals('abc123'));
+      });
+
+      test('registerGeneratedAsync registers with bundle metadata', () {
+        const bundle = GeneratedProjection(
+          projectionName: 'gen-async',
+          schemaHash: 'def456',
+          handledEventTypes: {_EventA},
+        );
+        final projection = _CounterProjection('gen-async', {_EventA});
+        final store = InMemoryReadModelStore<int, StreamId>();
+
+        registry.registerGeneratedAsync(bundle, projection, store);
+
+        expect(registry.length, equals(1));
+        expect(registry.hasAsyncProjections, isTrue);
+        expect(registry.getSchemaHash('gen-async'), equals('def456'));
+      });
+
+      test('getSchemaHash returns empty string for manual registrations', () {
+        final projection = _CounterProjection('manual');
+        final store = InMemoryReadModelStore<int, StreamId>();
+
+        registry.registerInline(projection, store);
+
+        expect(registry.getSchemaHash('manual'), isEmpty);
+      });
+
+      test('getSchemaHash returns empty string for unknown projection', () {
+        expect(registry.getSchemaHash('unknown'), isEmpty);
+      });
+
+      test('registerGeneratedInline throws on duplicate name', () {
+        const bundle1 = GeneratedProjection(
+          projectionName: 'duplicate',
+          schemaHash: 'hash1',
+          handledEventTypes: {_EventA},
+        );
+        const bundle2 = GeneratedProjection(
+          projectionName: 'duplicate',
+          schemaHash: 'hash2',
+          handledEventTypes: {_EventB},
+        );
+        final projection1 = _CounterProjection('duplicate', {_EventA});
+        final projection2 = _CounterProjection('duplicate', {_EventB});
+        final store = InMemoryReadModelStore<int, StreamId>();
+
+        registry.registerGeneratedInline(bundle1, projection1, store);
+
+        expect(
+          () => registry.registerGeneratedInline(bundle2, projection2, store),
+          throwsStateError,
+        );
+      });
+    });
   });
 
   group('ProjectionLifecycle', () {

@@ -201,6 +201,7 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
             occurredOn: event.occurredOn,
             metadata: event.metadata,
             globalSequence: _globalSequence++,
+            domainEvent: event.domainEvent,
           );
 
           eventKeys.add(_eventKey(streamId, nextVersion));

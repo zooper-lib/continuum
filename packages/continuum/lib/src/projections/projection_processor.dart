@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../persistence/stored_event.dart';
 import 'async_projection_executor.dart';
+import 'projection_position.dart';
 import 'projection_position_store.dart';
 
 /// Abstraction for background projection processing.
@@ -162,7 +163,8 @@ final class PollingProjectionProcessor implements ProjectionProcessor {
   Future<ProcessingResult> _processBatchInternalAsync() async {
     // Load current position (null means start from beginning).
     final lastPosition = await _positionStore.loadPositionAsync(_positionKey);
-    final fromPosition = (lastPosition ?? -1) + 1;
+    final lastSequence = lastPosition?.lastProcessedSequence ?? -1;
+    final fromPosition = lastSequence + 1;
 
     // Load next batch of events.
     final events = await _eventLoader(fromPosition, _batchSize);
@@ -177,9 +179,14 @@ final class PollingProjectionProcessor implements ProjectionProcessor {
     // Update overall processor position to the last event's global sequence.
     final lastEvent = events.last;
     if (lastEvent.globalSequence != null) {
+      // Use the schema hash from the last position, or empty string for new projections.
+      final schemaHash = lastPosition?.schemaHash ?? '';
       await _positionStore.savePositionAsync(
         _positionKey,
-        lastEvent.globalSequence!,
+        ProjectionPosition(
+          lastProcessedSequence: lastEvent.globalSequence,
+          schemaHash: schemaHash,
+        ),
       );
     }
 

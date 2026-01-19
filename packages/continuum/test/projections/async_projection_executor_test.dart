@@ -97,7 +97,7 @@ void main() {
       await executor.processEventsAsync(events);
 
       final position = await positionStore.loadPositionAsync('counter');
-      expect(position, equals(12));
+      expect(position?.lastProcessedSequence, equals(12));
     });
 
     test('processEventsAsync skips inline projections', () async {
@@ -177,7 +177,7 @@ void main() {
       await executor.processEventsAsync([event]);
 
       final position = await executor.getPositionAsync('counter');
-      expect(position, equals(42));
+      expect(position?.lastProcessedSequence, equals(42));
     });
 
     test('getPositionAsync returns null for unprocessed projection', () async {
@@ -191,7 +191,10 @@ void main() {
     });
 
     test('resetPositionAsync clears projection position', () async {
-      await positionStore.savePositionAsync('counter', 100);
+      await positionStore.savePositionAsync(
+        'counter',
+        const ProjectionPosition(lastProcessedSequence: 100, schemaHash: 'test'),
+      );
       executor = AsyncProjectionExecutor(
         registry: registry,
         positionStore: positionStore,

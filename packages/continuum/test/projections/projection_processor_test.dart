@@ -67,7 +67,7 @@ void main() {
       await processor.processBatchAsync();
 
       final position = await positionStore.loadPositionAsync('_processor_position');
-      expect(position, equals(11));
+      expect(position?.lastProcessedSequence, equals(11));
     });
 
     test('processBatchAsync resumes from last position', () async {
@@ -79,7 +79,10 @@ void main() {
       ];
 
       // Set position to 1, so we should start from 2.
-      await positionStore.savePositionAsync('_processor_position', 1);
+      await positionStore.savePositionAsync(
+        '_processor_position',
+        const ProjectionPosition(lastProcessedSequence: 1, schemaHash: 'test'),
+      );
 
       processor = createProcessor();
       final result = await processor.processBatchAsync();
@@ -111,7 +114,7 @@ void main() {
       expect(result.processed, equals(3));
 
       final position = await positionStore.loadPositionAsync('_processor_position');
-      expect(position, equals(2)); // Last processed was index 2.
+      expect(position?.lastProcessedSequence, equals(2)); // Last processed was index 2.
     });
 
     test('startAsync and stopAsync control processor lifecycle', () async {

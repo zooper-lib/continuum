@@ -9,7 +9,7 @@ import 'read_model_store.dart';
 /// correctly route and process events.
 final class ProjectionRegistration<TReadModel, TKey> {
   /// The projection instance that processes events.
-  final Projection<TReadModel, TKey> projection;
+  final ProjectionBase<TReadModel, TKey> projection;
 
   /// The execution lifecycle (inline or async).
   final ProjectionLifecycle lifecycle;

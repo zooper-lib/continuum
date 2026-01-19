@@ -38,7 +38,7 @@ import 'projection.dart';
 ///   }
 /// }
 /// ```
-abstract class MultiStreamProjection<TReadModel, TKey> extends Projection<TReadModel, TKey> {
+abstract class MultiStreamProjection<TReadModel, TKey> extends ProjectionBase<TReadModel, TKey> {
   /// Extracts the grouping key from the event.
   ///
   /// Multiple streams may contribute events to the same key,

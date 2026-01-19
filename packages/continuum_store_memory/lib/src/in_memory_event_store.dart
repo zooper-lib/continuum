@@ -61,6 +61,7 @@ final class InMemoryEventStore implements AtomicEventStore, ProjectionEventStore
             occurredOn: event.occurredOn,
             metadata: event.metadata,
             globalSequence: _globalSequence++,
+            domainEvent: event.domainEvent,
           ),
         );
         nextVersion++;

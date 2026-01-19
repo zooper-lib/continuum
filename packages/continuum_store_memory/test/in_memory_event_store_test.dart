@@ -127,6 +127,25 @@ void main() {
         expect(events1[0].globalSequence, equals(0));
         expect(events2[0].globalSequence, equals(1));
       });
+
+      test('preserves StoredEvent.domainEvent when appending', () async {
+        final streamId = const StreamId('domain_event_stream');
+        final domainEvent = _TestDomainEvent(eventId: EventId.fromUlid());
+
+        final stored = StoredEvent.fromContinuumEvent(
+          continuumEvent: domainEvent,
+          streamId: streamId,
+          version: 0,
+          eventType: 'domain.test',
+          data: const {'k': 'v'},
+        );
+
+        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [stored]);
+
+        final loaded = await store.loadStreamAsync(streamId);
+        expect(loaded, hasLength(1));
+        expect(loaded.single.domainEvent, same(domainEvent));
+      });
     });
 
     group('appendEventsToStreamsAsync', () {
@@ -322,6 +341,25 @@ void main() {
       });
     });
   });
+}
+
+final class _TestDomainEvent implements ContinuumEvent {
+  _TestDomainEvent({
+    required EventId eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId,
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 
 /// Helper to create a stored event for testing.

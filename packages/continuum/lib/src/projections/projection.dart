@@ -8,7 +8,11 @@ import '../persistence/stored_event.dart';
 /// - Do NOT have side effects beyond updating the read model
 ///
 /// Subclasses define the specific read model type and key extraction logic.
-abstract class Projection<TReadModel, TKey> {
+///
+/// Note: This class is named `ProjectionBase` to avoid collision with the
+/// `@Projection()` annotation. Users should extend [SingleStreamProjection]
+/// or [MultiStreamProjection] instead of this class directly.
+abstract class ProjectionBase<TReadModel, TKey> {
   /// The set of event types this projection handles.
   ///
   /// Only events with runtime types in this set will be routed to this projection.

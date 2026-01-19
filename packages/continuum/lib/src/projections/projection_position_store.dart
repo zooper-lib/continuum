@@ -1,22 +1,29 @@
+import 'projection_position.dart';
+
 /// Abstraction for tracking async projection processing positions.
 ///
 /// Each async projection tracks the global sequence number of the last
-/// event it successfully processed. This enables resumption after restarts
-/// and ensures no events are missed or processed twice.
+/// event it successfully processed along with the schema hash. This enables
+/// resumption after restarts, ensures no events are missed or processed twice,
+/// and detects schema changes that require rebuilding.
 abstract interface class ProjectionPositionStore {
-  /// Loads the last processed position for a projection.
+  /// Loads the position for a projection.
   ///
-  /// Returns the global sequence number of the last successfully processed
-  /// event, or `null` if the projection has never processed any events
-  /// (indicating it should start from the beginning).
-  Future<int?> loadPositionAsync(String projectionName);
+  /// Returns the [ProjectionPosition] containing the last processed sequence
+  /// and schema hash, or `null` if the projection has never been tracked.
+  Future<ProjectionPosition?> loadPositionAsync(String projectionName);
 
   /// Saves the current position for a projection.
   ///
   /// Should be called after successfully processing an event to record
-  /// progress. The position is the global sequence number of the
-  /// processed event.
-  Future<void> savePositionAsync(String projectionName, int position);
+  /// progress. The [position] contains the global sequence number and
+  /// the current schema hash.
+  Future<void> savePositionAsync(String projectionName, ProjectionPosition position);
+
+  /// Resets the position for a projection, clearing all tracking data.
+  ///
+  /// Called when the projection schema changes and needs a full rebuild.
+  Future<void> resetPositionAsync(String projectionName);
 }
 
 /// In-memory implementation of [ProjectionPositionStore] for testing.
@@ -25,16 +32,21 @@ abstract interface class ProjectionPositionStore {
 /// instance is garbage collected.
 final class InMemoryProjectionPositionStore implements ProjectionPositionStore {
   /// Internal storage map.
-  final Map<String, int> _positions = {};
+  final Map<String, ProjectionPosition> _positions = {};
 
   @override
-  Future<int?> loadPositionAsync(String projectionName) async {
+  Future<ProjectionPosition?> loadPositionAsync(String projectionName) async {
     return _positions[projectionName];
   }
 
   @override
-  Future<void> savePositionAsync(String projectionName, int position) async {
+  Future<void> savePositionAsync(String projectionName, ProjectionPosition position) async {
     _positions[projectionName] = position;
+  }
+
+  @override
+  Future<void> resetPositionAsync(String projectionName) async {
+    _positions.remove(projectionName);
   }
 
   /// Returns the number of tracked projections.

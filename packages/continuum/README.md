@@ -398,7 +398,8 @@ Optionally, configure which rules are enabled (recommended to keep things explic
 custom_lint:
   enable_all_lint_rules: false
   rules:
-    - continuum_missing_apply_handlers
+    - continuum_missing_apply_handlers        # For @Aggregate classes
+    - continuum_missing_projection_handlers   # For @Projection classes
 ```
 
 ### CI usage
@@ -504,68 +505,93 @@ Projections maintain **read models** that are automatically updated when events 
 2. **Denormalization**: Combine data from multiple aggregates into a single view.
 3. **Performance**: Avoid replaying events for every read operation.
 
-### Single-Stream Projections
+### Quick Start with Code Generation
 
-Track state for a single aggregate stream (e.g., user profile):
+Like aggregates, projections use code generation to eliminate boilerplate:
 
 ```dart
+import 'package:continuum/continuum.dart';
+
+part 'user_profile_projection.g.dart';
+
 /// Read model for a user's profile information.
 class UserProfile {
   final String name;
   final String email;
+  final bool isActive;
   final DateTime lastUpdated;
 
   const UserProfile({
     required this.name,
     required this.email,
+    required this.isActive,
     required this.lastUpdated,
   });
 
-  UserProfile copyWith({String? name, String? email, DateTime? lastUpdated}) {
+  UserProfile copyWith({String? name, String? email, bool? isActive, DateTime? lastUpdated}) {
     return UserProfile(
       name: name ?? this.name,
       email: email ?? this.email,
+      isActive: isActive ?? this.isActive,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
 }
 
 /// Projection that maintains UserProfile read models.
-class UserProfileProjection extends SingleStreamProjection<UserProfile> {
-  @override
-  String get projectionName => 'user-profile';
+@Projection(
+  name: 'user-profile',
+  events: [UserRegistered, EmailChanged, UserDeactivated],
+)
+class UserProfileProjection
+    extends SingleStreamProjection<UserProfile>
+    with _$UserProfileProjectionHandlers {
 
   @override
-  Set<Type> get handledEventTypes => {UserRegistered, EmailChanged, NameChanged};
-
-  @override
-  UserProfile createInitial() => const UserProfile(
+  UserProfile createInitial(StreamId streamId) => UserProfile(
         name: '',
         email: '',
-        lastUpdated: DateTime(1970),
+        isActive: true,
+        lastUpdated: DateTime.utc(1970),
       );
 
   @override
-  UserProfile apply(UserProfile current, ContinuumEvent event) {
-    return switch (event) {
-      UserRegistered e => UserProfile(
-          name: e.name,
-          email: e.email,
-          lastUpdated: e.occurredOn,
-        ),
-      EmailChanged e => current.copyWith(
-          email: e.newEmail,
-          lastUpdated: e.occurredOn,
-        ),
-      NameChanged e => current.copyWith(
-          name: e.newName,
-          lastUpdated: e.occurredOn,
-        ),
-      _ => current,
-    };
+  UserProfile applyUserRegistered(UserProfile current, UserRegistered event) {
+    return UserProfile(
+      name: event.name,
+      email: event.email,
+      isActive: true,
+      lastUpdated: event.occurredOn,
+    );
+  }
+
+  @override
+  UserProfile applyEmailChanged(UserProfile current, EmailChanged event) {
+    return current.copyWith(
+      email: event.newEmail,
+      lastUpdated: event.occurredOn,
+    );
+  }
+
+  @override
+  UserProfile applyUserDeactivated(UserProfile current, UserDeactivated event) {
+    return current.copyWith(
+      isActive: false,
+      lastUpdated: event.occurredOn,
+    );
   }
 }
 ```
+
+The `@Projection` annotation declares:
+- `name`: Unique identifier for position tracking (use stable names)
+- `events`: List of event types this projection handles
+
+The generator creates:
+- `_$UserProfileProjectionHandlers` mixin with `handledEventTypes`, `projectionName`, and `apply()`
+- Abstract `apply<EventName>()` methods for each event type
+- `$UserProfileProjection` bundle for registration
+- `$projectionList` in `lib/continuum.g.dart` with all projections
 
 ### Multi-Stream Projections
 
@@ -577,43 +603,48 @@ class UserStatistics {
   final int totalUsers;
   final int activeUsers;
 
-  const UserStatistics({
-    required this.totalUsers,
-    required this.activeUsers,
-  });
+  const UserStatistics({required this.totalUsers, required this.activeUsers});
 }
 
 /// Projection that tracks statistics across all user streams.
-class UserStatisticsProjection extends MultiStreamProjection<UserStatistics, String> {
+@Projection(
+  name: 'user-statistics',
+  events: [UserRegistered, UserDeactivated, UserReactivated],
+)
+class UserStatisticsProjection
+    extends MultiStreamProjection<UserStatistics, String>
+    with _$UserStatisticsProjectionHandlers {
+
+  // Multi-stream projections require custom key extraction
   @override
-  String get projectionName => 'user-statistics';
+  String extractKey(StoredEvent event) => 'global';
 
   @override
-  Set<Type> get handledEventTypes => {UserRegistered, UserDeactivated, UserReactivated};
+  UserStatistics createInitial(String key) =>
+      const UserStatistics(totalUsers: 0, activeUsers: 0);
 
   @override
-  String extractKey(ContinuumEvent event, StreamId streamId) => 'global';
+  UserStatistics applyUserRegistered(UserStatistics current, UserRegistered event) {
+    return UserStatistics(
+      totalUsers: current.totalUsers + 1,
+      activeUsers: current.activeUsers + 1,
+    );
+  }
 
   @override
-  UserStatistics createInitial() => const UserStatistics(totalUsers: 0, activeUsers: 0);
+  UserStatistics applyUserDeactivated(UserStatistics current, UserDeactivated event) {
+    return UserStatistics(
+      totalUsers: current.totalUsers,
+      activeUsers: current.activeUsers - 1,
+    );
+  }
 
   @override
-  UserStatistics apply(UserStatistics current, ContinuumEvent event) {
-    return switch (event) {
-      UserRegistered() => UserStatistics(
-          totalUsers: current.totalUsers + 1,
-          activeUsers: current.activeUsers + 1,
-        ),
-      UserDeactivated() => UserStatistics(
-          totalUsers: current.totalUsers,
-          activeUsers: current.activeUsers - 1,
-        ),
-      UserReactivated() => UserStatistics(
-          totalUsers: current.totalUsers,
-          activeUsers: current.activeUsers + 1,
-        ),
-      _ => current,
-    };
+  UserStatistics applyUserReactivated(UserStatistics current, UserReactivated event) {
+    return UserStatistics(
+      totalUsers: current.totalUsers,
+      activeUsers: current.activeUsers + 1,
+    );
   }
 }
 ```
@@ -671,6 +702,15 @@ await processor.startAsync();
 await processor.stopAsync();
 ```
 
+### Schema Change Detection
+
+When you modify a projection's event list, the generated `schemaHash` changes. On startup:
+1. The system compares stored schema hash with current
+2. If different, the projection is marked stale and rebuilds from scratch
+3. Read models may return with `isStale: true` during rebuild
+
+This ensures projections always reflect their current event definitions.
+
 ### Read Model Storage
 
 Projections store their state in `ReadModelStore` implementations:
@@ -694,6 +734,18 @@ class PostgresReadModelStore<T, K> implements ReadModelStore<T, K> {
   Future<void> deleteAsync(K key) async { /* ... */ }
 }
 ```
+
+### Lint Support
+
+The `continuum_lints` package provides editor-time checks for projections:
+
+```yaml
+custom_lint:
+  rules:
+    - continuum_missing_projection_handlers
+```
+
+This rule detects missing `apply<EventName>` implementations in `@Projection` classes and offers quick-fixes to generate stubs.
 
 ## Contributing
 

@@ -32,7 +32,7 @@ import 'projection.dart';
 ///   }
 /// }
 /// ```
-abstract class SingleStreamProjection<TReadModel> extends Projection<TReadModel, StreamId> {
+abstract class SingleStreamProjection<TReadModel> extends ProjectionBase<TReadModel, StreamId> {
   /// Extracts the stream ID from the event.
   ///
   /// For single-stream projections, the key is always the event's stream ID,

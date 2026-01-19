@@ -1,4 +1,5 @@
 import '../persistence/stored_event.dart';
+import 'projection_position.dart';
 import 'projection_position_store.dart';
 import 'projection_registration.dart';
 import 'projection_registry.dart';
@@ -33,8 +34,13 @@ final class AsyncProjectionExecutor {
   /// Events must have a non-null [StoredEvent.globalSequence] for
   /// position tracking to work correctly.
   ///
+  /// The [schemaHash] is used to track schema versions and detect changes.
+  ///
   /// Returns a [ProcessingResult] indicating success/failure counts.
-  Future<ProcessingResult> processEventsAsync(List<StoredEvent> events) async {
+  Future<ProcessingResult> processEventsAsync(
+    List<StoredEvent> events, {
+    String schemaHash = '',
+  }) async {
     if (!_registry.hasAsyncProjections || events.isEmpty) {
       return const ProcessingResult(processed: 0, failed: 0);
     }
@@ -43,7 +49,7 @@ final class AsyncProjectionExecutor {
     var failed = 0;
 
     for (final event in events) {
-      final result = await _processEventAsync(event);
+      final result = await _processEventAsync(event, schemaHash: schemaHash);
       processed += result.processed;
       failed += result.failed;
     }
@@ -52,7 +58,10 @@ final class AsyncProjectionExecutor {
   }
 
   /// Processes a single event through all matching async projections.
-  Future<ProcessingResult> _processEventAsync(StoredEvent event) async {
+  Future<ProcessingResult> _processEventAsync(
+    StoredEvent event, {
+    String schemaHash = '',
+  }) async {
     final projections = _registry.asyncProjections;
     var processed = 0;
     var failed = 0;
@@ -64,9 +73,13 @@ final class AsyncProjectionExecutor {
 
         // Update position after successful processing.
         if (event.globalSequence != null) {
+          final position = ProjectionPosition(
+            lastProcessedSequence: event.globalSequence,
+            schemaHash: schemaHash,
+          );
           await _positionStore.savePositionAsync(
             registration.projectionName,
-            event.globalSequence!,
+            position,
           );
         }
       } catch (error) {
@@ -104,7 +117,7 @@ final class AsyncProjectionExecutor {
   /// Gets the last processed position for a projection.
   ///
   /// Returns `null` if the projection has never processed any events.
-  Future<int?> getPositionAsync(String projectionName) async {
+  Future<ProjectionPosition?> getPositionAsync(String projectionName) async {
     return _positionStore.loadPositionAsync(projectionName);
   }
 
@@ -112,11 +125,7 @@ final class AsyncProjectionExecutor {
   ///
   /// Useful for rebuilding a projection's read models from scratch.
   Future<void> resetPositionAsync(String projectionName) async {
-    final positionStore = _positionStore;
-    if (positionStore is InMemoryProjectionPositionStore) {
-      positionStore.remove(projectionName);
-    }
-    // For other implementations, setting position to -1 or similar would work.
+    await _positionStore.resetPositionAsync(projectionName);
   }
 }
 

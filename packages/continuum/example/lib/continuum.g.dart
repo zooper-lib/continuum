@@ -5,8 +5,8 @@
 import 'package:continuum/continuum.dart';
 
 import 'abstract_interface_aggregates.dart';
+import 'domain/projections/user_profile_projection.dart';
 import 'domain/user.dart';
-import 'abstract_interface_aggregates.dart';
 
 /// All discovered aggregates in this package.
 ///
@@ -23,4 +23,17 @@ final List<GeneratedAggregate> $aggregateList = [
   $AbstractUserBase,
   $User,
   $UserContract,
+];
+
+/// All discovered projections in this package.
+///
+/// Use this list to register all projections with the registry.
+///
+/// ```dart
+/// for (final bundle in $projectionList) {
+///   // Register with appropriate lifecycle and store
+/// }
+/// ```
+final List<GeneratedProjection> $projectionList = [
+  $UserProfileProjection,
 ];

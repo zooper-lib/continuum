@@ -1,3 +1,4 @@
+import 'generated_projection.dart';
 import 'projection.dart';
 import 'projection_lifecycle.dart';
 import 'projection_registration.dart';
@@ -13,6 +14,14 @@ import 'read_model_store.dart';
 /// ```dart
 /// final registry = ProjectionRegistry();
 ///
+/// // Using generated projection bundles (recommended):
+/// registry.registerGeneratedInline(
+///   $UserProfileProjection,
+///   userProfileProjection,
+///   userProfileStore,
+/// );
+///
+/// // Or using legacy manual registration:
 /// registry.registerInline(
 ///   userProfileProjection,
 ///   userProfileStore,
@@ -30,6 +39,47 @@ final class ProjectionRegistry {
   /// Index of event type → projection names for fast lookup.
   final Map<Type, Set<String>> _eventTypeIndex = {};
 
+  /// Generated projection bundles indexed by projection name.
+  final Map<String, GeneratedProjection> _generatedBundles = {};
+
+  /// Registers a projection for inline execution using generated metadata.
+  ///
+  /// Uses the [GeneratedProjection] bundle for event types and schema tracking.
+  /// This is the recommended approach for projections using code generation.
+  ///
+  /// Throws [StateError] if a projection with the same name is already registered.
+  void registerGeneratedInline<TReadModel, TKey>(
+    GeneratedProjection bundle,
+    ProjectionBase<TReadModel, TKey> projection,
+    ReadModelStore<TReadModel, TKey> readModelStore,
+  ) {
+    _registerGenerated(
+      bundle: bundle,
+      projection: projection,
+      readModelStore: readModelStore,
+      lifecycle: ProjectionLifecycle.inline,
+    );
+  }
+
+  /// Registers a projection for async execution using generated metadata.
+  ///
+  /// Uses the [GeneratedProjection] bundle for event types and schema tracking.
+  /// This is the recommended approach for projections using code generation.
+  ///
+  /// Throws [StateError] if a projection with the same name is already registered.
+  void registerGeneratedAsync<TReadModel, TKey>(
+    GeneratedProjection bundle,
+    ProjectionBase<TReadModel, TKey> projection,
+    ReadModelStore<TReadModel, TKey> readModelStore,
+  ) {
+    _registerGenerated(
+      bundle: bundle,
+      projection: projection,
+      readModelStore: readModelStore,
+      lifecycle: ProjectionLifecycle.async,
+    );
+  }
+
   /// Registers a projection for inline (synchronous) execution.
   ///
   /// Inline projections are executed during `saveChangesAsync()` as part
@@ -37,7 +87,7 @@ final class ProjectionRegistry {
   ///
   /// Throws [StateError] if a projection with the same name is already registered.
   void registerInline<TReadModel, TKey>(
-    Projection<TReadModel, TKey> projection,
+    ProjectionBase<TReadModel, TKey> projection,
     ReadModelStore<TReadModel, TKey> readModelStore,
   ) {
     _register(
@@ -54,7 +104,7 @@ final class ProjectionRegistry {
   ///
   /// Throws [StateError] if a projection with the same name is already registered.
   void registerAsync<TReadModel, TKey>(
-    Projection<TReadModel, TKey> projection,
+    ProjectionBase<TReadModel, TKey> projection,
     ReadModelStore<TReadModel, TKey> readModelStore,
   ) {
     _register(
@@ -64,9 +114,43 @@ final class ProjectionRegistry {
     );
   }
 
-  /// Internal registration method.
+  /// Internal registration method for generated projections.
+  void _registerGenerated<TReadModel, TKey>({
+    required GeneratedProjection bundle,
+    required ProjectionBase<TReadModel, TKey> projection,
+    required ReadModelStore<TReadModel, TKey> readModelStore,
+    required ProjectionLifecycle lifecycle,
+  }) {
+    final name = bundle.projectionName;
+
+    // Prevent duplicate registration.
+    if (_registrations.containsKey(name)) {
+      throw StateError(
+        'Projection "$name" is already registered. '
+        'Each projection must have a unique name.',
+      );
+    }
+
+    // Store the generated bundle for schema tracking.
+    _generatedBundles[name] = bundle;
+
+    // Store the registration (cast to Object to store heterogeneous types).
+    final registration = ProjectionRegistration<TReadModel, TKey>(
+      projection: projection,
+      lifecycle: lifecycle,
+      readModelStore: readModelStore,
+    );
+    _registrations[name] = registration as ProjectionRegistration<Object, Object>;
+
+    // Index by event type for fast lookup using generated bundle's types.
+    for (final eventType in bundle.handledEventTypes) {
+      _eventTypeIndex.putIfAbsent(eventType, () => {}).add(name);
+    }
+  }
+
+  /// Internal registration method for legacy (non-generated) projections.
   void _register<TReadModel, TKey>({
-    required Projection<TReadModel, TKey> projection,
+    required ProjectionBase<TReadModel, TKey> projection,
     required ReadModelStore<TReadModel, TKey> readModelStore,
     required ProjectionLifecycle lifecycle,
   }) {
@@ -145,4 +229,20 @@ final class ProjectionRegistry {
 
   /// Returns whether any async projections are registered.
   bool get hasAsyncProjections => asyncProjections.isNotEmpty;
+
+  /// Gets the generated bundle for a projection, if registered with one.
+  ///
+  /// Returns null for projections registered without a generated bundle
+  /// (using the legacy [registerInline] or [registerAsync] methods).
+  GeneratedProjection? getGeneratedBundle(String projectionName) {
+    return _generatedBundles[projectionName];
+  }
+
+  /// Gets the schema hash for a projection.
+  ///
+  /// Returns the schema hash from the generated bundle if available,
+  /// or an empty string for projections registered without a bundle.
+  String getSchemaHash(String projectionName) {
+    return _generatedBundles[projectionName]?.schemaHash ?? '';
+  }
 }
