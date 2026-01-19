@@ -62,7 +62,19 @@ final class AsyncProjectionExecutor {
     StoredEvent event, {
     String schemaHash = '',
   }) async {
-    final projections = _registry.asyncProjections;
+    final domainEvent = event.domainEvent;
+    if (domainEvent == null) {
+      // Without a deserialized domain event we cannot route by runtime type.
+      // Count this as a failure for all async projections.
+      return ProcessingResult(
+        processed: 0,
+        failed: _registry.asyncProjections.length,
+      );
+    }
+
+    final projections = _registry.getAsyncProjectionsForEventType(
+      domainEvent.runtimeType,
+    );
     var processed = 0;
     var failed = 0;
 

@@ -142,6 +142,31 @@ void main() {
         throwsA(isA<StateError>()),
       );
     });
+
+    test('executeAsync routes events only to matching projections', () async {
+      // Arrange: Two projections that handle different event types.
+      final storeA = InMemoryReadModelStore<int, StreamId>();
+      final storeB = InMemoryReadModelStore<int, StreamId>();
+      registry.registerInline(_CounterProjectionForA(), storeA);
+      registry.registerInline(_CounterProjectionForB(), storeB);
+      executor = InlineProjectionExecutor(registry: registry);
+
+      final storedEventA = StoredEvent.fromContinuumEvent(
+        continuumEvent: _TestEventA(eventId: EventId.fromUlid()),
+        streamId: const StreamId('stream-1'),
+        version: 0,
+        eventType: 'test.a',
+        data: const <String, dynamic>{},
+      );
+
+      // Act.
+      await executor.executeAsync([storedEventA]);
+
+      // Assert: Only the matching projection should be updated.
+      // This matters because unrelated projections must not mutate read models.
+      expect(await storeA.loadAsync(const StreamId('stream-1')), equals(1));
+      expect(await storeB.loadAsync(const StreamId('stream-1')), isNull);
+    });
   });
 }
 
@@ -153,14 +178,14 @@ StoredEvent _createEvent({
   required String streamId,
   int version = 0,
 }) {
-  return StoredEvent(
-    eventId: EventId('evt-${_eventCounter++}'),
+  final continuumEvent = _TestEvent(eventId: EventId('evt-${_eventCounter++}'));
+
+  return StoredEvent.fromContinuumEvent(
+    continuumEvent: continuumEvent,
     streamId: StreamId(streamId),
     version: version,
     eventType: 'test.counter_incremented',
-    data: const {},
-    occurredOn: DateTime.now(),
-    metadata: const {},
+    data: const <String, dynamic>{},
   );
 }
 
@@ -196,7 +221,78 @@ class _CounterProjection extends SingleStreamProjection<_CounterReadModel> {
   }
 }
 
-class _TestEvent {}
+final class _TestEvent implements ContinuumEvent {
+  _TestEvent({
+    required EventId eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : id = eventId,
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
+}
+
+final class _TestEventA implements ContinuumEvent {
+  _TestEventA({required EventId eventId}) : id = eventId;
+
+  @override
+  final EventId id;
+
+  @override
+  DateTime get occurredOn => DateTime.now();
+
+  @override
+  Map<String, Object?> get metadata => const <String, Object?>{};
+}
+
+final class _TestEventB implements ContinuumEvent {
+  _TestEventB({required EventId eventId}) : id = eventId;
+
+  @override
+  final EventId id;
+
+  @override
+  DateTime get occurredOn => DateTime.now();
+
+  @override
+  Map<String, Object?> get metadata => const <String, Object?>{};
+}
+
+final class _CounterProjectionForA extends SingleStreamProjection<int> {
+  @override
+  Set<Type> get handledEventTypes => const {_TestEventA};
+
+  @override
+  String get projectionName => 'counter-a';
+
+  @override
+  int createInitial(StreamId streamId) => 0;
+
+  @override
+  int apply(int current, StoredEvent event) => current + 1;
+}
+
+final class _CounterProjectionForB extends SingleStreamProjection<int> {
+  @override
+  Set<Type> get handledEventTypes => const {_TestEventB};
+
+  @override
+  String get projectionName => 'counter-b';
+
+  @override
+  int createInitial(StreamId streamId) => 0;
+
+  @override
+  int apply(int current, StoredEvent event) => current + 1;
+}
 
 class _FailingProjection extends SingleStreamProjection<int> {
   @override

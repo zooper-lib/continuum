@@ -47,33 +47,21 @@ final class InlineProjectionExecutor {
 
   /// Processes a single event through all matching inline projections.
   Future<void> _processEventAsync(StoredEvent event) async {
-    // Look up projections by the stored event type string.
-    // Since we don't have the runtime Type, we need to check all inline projections.
-    final projections = _registry.inlineProjections;
+    final domainEvent = event.domainEvent;
+    if (domainEvent == null) {
+      throw StateError(
+        'StoredEvent.domainEvent is null. '
+        'Projections require deserialized domain events.',
+      );
+    }
+
+    final projections = _registry.getInlineProjectionsForEventType(
+      domainEvent.runtimeType,
+    );
 
     for (final registration in projections) {
-      // Check if this projection handles this event type by checking the eventType string.
-      // Since we store event type as string, we need the projection to declare string-based matching
-      // or we use the registered Type set. For now, we'll iterate and let the projection decide.
-      if (_shouldProcess(registration, event)) {
-        await _applyEventToProjectionAsync(registration, event);
-      }
+      await _applyEventToProjectionAsync(registration, event);
     }
-  }
-
-  /// Checks if a projection should process the given event.
-  ///
-  /// This is a temporary implementation. In practice, projections should
-  /// declare which event type strings they handle, or the registry should
-  /// maintain a mapping from event type strings to projections.
-  bool _shouldProcess(
-    ProjectionRegistration<Object, Object> registration,
-    StoredEvent event,
-  ) {
-    // For now, always process. The projection's apply method should be
-    // designed to handle only events it cares about.
-    // A more sophisticated implementation would use event type string matching.
-    return true;
   }
 
   /// Applies an event to a projection, updating its read model.

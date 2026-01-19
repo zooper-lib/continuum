@@ -51,6 +51,27 @@ void main() {
         throwsA(isA<StateError>()),
       );
     });
+
+    test('apply throws UnsupportedEventException for unsupported domainEvent type', () {
+      // Arrange: A projection that supports only A and B.
+      final projection = _GeneratedStyleProjection();
+
+      final eventC = _TestEventC(eventId: EventId.fromUlid());
+      final storedC = StoredEvent.fromContinuumEvent(
+        continuumEvent: eventC,
+        streamId: const StreamId('s1'),
+        version: 0,
+        eventType: 'test.c',
+        data: const {'c': 1},
+      );
+
+      // Act/Assert: Unsupported events must fail fast.
+      // This matters because applying the wrong event type is a programming error.
+      expect(
+        () => projection.apply(0, storedC),
+        throwsA(isA<UnsupportedEventException>()),
+      );
+    });
   });
 }
 
@@ -116,6 +137,25 @@ final class _TestEventA implements ContinuumEvent {
 
 final class _TestEventB implements ContinuumEvent {
   _TestEventB({
+    required EventId eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId,
+       occurredOn = occurredOn ?? DateTime.now(),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
+}
+
+final class _TestEventC implements ContinuumEvent {
+  _TestEventC({
     required EventId eventId,
     DateTime? occurredOn,
     Map<String, Object?> metadata = const {},

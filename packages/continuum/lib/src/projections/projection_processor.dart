@@ -174,13 +174,22 @@ final class PollingProjectionProcessor implements ProjectionProcessor {
     }
 
     // Process events through the executor.
-    final result = await _executor.processEventsAsync(events);
+    // Use the current processor schema hash so projection positions record it.
+    final schemaHash = lastPosition?.schemaHash ?? '';
+    final result = await _executor.processEventsAsync(
+      events,
+      schemaHash: schemaHash,
+    );
+
+    // Do not advance the processor position if anything failed.
+    // This matters because advancing would permanently skip retries.
+    if (result.failed != 0) {
+      return result;
+    }
 
     // Update overall processor position to the last event's global sequence.
     final lastEvent = events.last;
     if (lastEvent.globalSequence != null) {
-      // Use the schema hash from the last position, or empty string for new projections.
-      final schemaHash = lastPosition?.schemaHash ?? '';
       await _positionStore.savePositionAsync(
         _positionKey,
         ProjectionPosition(
