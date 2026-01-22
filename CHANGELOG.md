@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `continuum_missing_apply_handlers` no longer requires `apply<Event>(...)` handlers for creation events marked with `@AggregateEvent(creation: true)`.
 - Fix `ContinuumEvent` contract so core compilation succeeds (restoring required `id`, `occurredOn`, and `metadata` fields).
 - Fix `ContinuumEvent.metadata` typing to match examples/generator fixtures (`Map<String, Object?>`).
+- Stabilize `continuum_generator` tests in CI by falling back to `.dart_tool/package_config.json` when `Isolate.packageConfig` is unavailable.
+- Run `melos run test` with `--concurrency 1` to reduce workspace test flakiness.
 
 ## [4.0.0] - 2026-01-14
 

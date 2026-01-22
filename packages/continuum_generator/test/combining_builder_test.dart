@@ -183,6 +183,11 @@ class NotAnAggregate {}
   });
 }
 
+/// Attempts to locate the workspace `.dart_tool/package_config.json` file.
+///
+/// CI and workspace runners can launch `dart test` in ways where
+/// `Isolate.packageConfig` is unavailable. In those cases, build_test still
+/// needs a real package config to resolve `package:` imports.
 Uri? _tryFindPackageConfigUriFromWorkingDirectory() {
   Directory currentDirectory = Directory.current;
   while (true) {
