@@ -1,6 +1,6 @@
 name: continuum_lints
 description: Custom lint rules for continuum-based projects.
-version: 4.0.1
+version: 4.1.0
 repository: https://github.com/zooper/continuum
 homepage: https://zooper.dev
 

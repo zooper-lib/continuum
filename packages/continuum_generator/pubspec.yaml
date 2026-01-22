@@ -1,6 +1,6 @@
 name: continuum_generator
 description: Code generator for the continuum event sourcing library.
-version: 4.0.1
+version: 4.1.0
 repository: https://github.com/zooper/continuum
 homepage: https://zooper.dev
 

@@ -1,6 +1,5 @@
 name: continuum_store_hive_example
 description: Example demonstrating the Continuum Hive event store.
-version: 1.0.0
 publish_to: none
 
 environment:
