@@ -1,6 +1,5 @@
 name: continuum_example
 description: Example demonstrating the Continuum event sourcing library.
-version: 1.0.0
 publish_to: none
 
 environment:

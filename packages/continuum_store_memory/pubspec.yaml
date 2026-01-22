@@ -1,6 +1,6 @@
 name: continuum_store_memory
 description: In-memory EventStore implementation for the continuum event sourcing library.
-version: 4.0.1
+version: 4.1.0
 repository: https://github.com/zooper/continuum
 homepage: https://zooper.dev
 
