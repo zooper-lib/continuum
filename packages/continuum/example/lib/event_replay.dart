@@ -23,7 +23,7 @@ void main() {
   print('Event history:');
   final events = <ContinuumEvent>[
     UserRegistered(
-      userId: 'user-789',
+      userId: const UserId('user-789'),
       email: 'carol@example.com',
       name: 'Carol White',
     ),

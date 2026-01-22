@@ -28,7 +28,7 @@ void main() {
   print('Step 1: User enters basic info');
   final draftUser = User.createFromUserRegistered(
     UserRegistered(
-      userId: 'draft',
+      userId: const UserId('draft'),
       name: 'Draft User',
       email: 'step1@example.com',
     ),

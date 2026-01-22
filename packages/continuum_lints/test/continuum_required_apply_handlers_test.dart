@@ -89,7 +89,6 @@ import 'package:continuum/continuum.dart';
 
 part 'domain.g.dart';
 
-@Aggregate()
 class User with _$UserEventHandlers {
   const User();
 }

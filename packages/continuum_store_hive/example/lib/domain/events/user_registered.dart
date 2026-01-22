@@ -1,5 +1,4 @@
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 import '../user.dart';
 
@@ -19,16 +18,16 @@ class UserRegistered implements ContinuumEvent {
 
   factory UserRegistered.fromJson(Map<String, dynamic> json) {
     return UserRegistered(
-      userId: json['userId'] as String,
+      userId: UserId(json['userId'] as String),
       email: json['email'] as String,
       name: json['name'] as String,
-      eventId: EventId(json['eventId'] as String),
+      eventId: EventId.fromJson(json['eventId'] as String),
       occurredOn: DateTime.parse(json['occurredOn'] as String),
-      metadata: Map<String, Object?>.unmodifiable(json['metadata'] as Map<String, Object?>),
+      metadata: Map<String, Object?>.from(json['metadata'] as Map),
     );
   }
 
-  final String userId;
+  final UserId userId;
   final String email;
   final String name;
 
@@ -42,11 +41,8 @@ class UserRegistered implements ContinuumEvent {
   final Map<String, Object?> metadata;
 
   Map<String, dynamic> toJson() => {
-    'userId': userId,
+    'userId': userId.value,
     'email': email,
     'name': name,
-    'eventId': id,
-    'occurredOn': occurredOn.toIso8601String(),
-    'metadata': metadata,
   };
 }

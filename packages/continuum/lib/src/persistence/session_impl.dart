@@ -3,6 +3,7 @@ import '../exceptions/invalid_creation_event_exception.dart';
 import '../exceptions/stream_not_found_exception.dart';
 import '../exceptions/unsupported_event_exception.dart';
 import '../identity/stream_id.dart';
+import '../projections/inline_projection_executor.dart';
 import 'atomic_event_store.dart';
 import 'event_serializer.dart';
 import 'event_sourcing_store.dart';
@@ -51,6 +52,12 @@ final class SessionImpl implements ContinuumSession {
   final AggregateFactoryRegistry _aggregateFactories;
   final EventApplierRegistry _eventAppliers;
 
+  /// Optional executor for inline projections.
+  ///
+  /// If provided, inline projections are executed after events are persisted
+  /// during [saveChangesAsync].
+  final InlineProjectionExecutor? _inlineProjectionExecutor;
+
   /// Tracked streams keyed by stream ID.
   final Map<StreamId, _StreamState> _streams = {};
 
@@ -60,10 +67,12 @@ final class SessionImpl implements ContinuumSession {
     required EventSerializer serializer,
     required AggregateFactoryRegistry aggregateFactories,
     required EventApplierRegistry eventAppliers,
+    InlineProjectionExecutor? inlineProjectionExecutor,
   }) : _eventStore = eventStore,
        _serializer = serializer,
        _aggregateFactories = aggregateFactories,
-       _eventAppliers = eventAppliers;
+       _eventAppliers = eventAppliers,
+       _inlineProjectionExecutor = inlineProjectionExecutor;
 
   @override
   Future<TAggregate> loadAsync<TAggregate>(StreamId streamId) async {
@@ -224,6 +233,9 @@ final class SessionImpl implements ContinuumSession {
 
     if (pendingEntries.isEmpty) return;
 
+    // Collect all stored events for inline projection execution.
+    final allStoredEvents = <StoredEvent>[];
+
     // If the store supports atomic multi-stream writes, use it for true
     // all-or-nothing semantics when saving across multiple streams.
     if (pendingEntries.length > 1 && _eventStore is AtomicEventStore) {
@@ -241,15 +253,15 @@ final class SessionImpl implements ContinuumSession {
 
         for (final event in state.pendingEvents) {
           final serialized = _serializer.serialize(event);
-          storedEvents.add(
-            StoredEvent.fromContinuumEvent(
-              continuumEvent: event,
-              streamId: streamId,
-              version: nextVersion,
-              eventType: serialized.eventType,
-              data: serialized.data,
-            ),
+          final storedEvent = StoredEvent.fromContinuumEvent(
+            continuumEvent: event,
+            streamId: streamId,
+            version: nextVersion,
+            eventType: serialized.eventType,
+            data: serialized.data,
           );
+          storedEvents.add(storedEvent);
+          allStoredEvents.add(storedEvent);
           nextVersion++;
         }
 
@@ -261,6 +273,11 @@ final class SessionImpl implements ContinuumSession {
       }
 
       await (_eventStore).appendEventsToStreamsAsync(batches);
+
+      // Execute inline projections after successful persistence.
+      if (_inlineProjectionExecutor != null) {
+        await _inlineProjectionExecutor.executeAsync(allStoredEvents);
+      }
 
       for (final entry in pendingEntries) {
         final streamId = entry.key;
@@ -287,15 +304,15 @@ final class SessionImpl implements ContinuumSession {
 
       for (final event in state.pendingEvents) {
         final serialized = _serializer.serialize(event);
-        storedEvents.add(
-          StoredEvent.fromContinuumEvent(
-            continuumEvent: event,
-            streamId: streamId,
-            version: nextVersion,
-            eventType: serialized.eventType,
-            data: serialized.data,
-          ),
+        final storedEvent = StoredEvent.fromContinuumEvent(
+          continuumEvent: event,
+          streamId: streamId,
+          version: nextVersion,
+          eventType: serialized.eventType,
+          data: serialized.data,
         );
+        storedEvents.add(storedEvent);
+        allStoredEvents.add(storedEvent);
         nextVersion++;
       }
 
@@ -306,6 +323,11 @@ final class SessionImpl implements ContinuumSession {
         aggregateType: state.aggregateType,
         loadedVersion: nextVersion - 1,
       );
+    }
+
+    // Execute inline projections after successful persistence.
+    if (_inlineProjectionExecutor != null) {
+      await _inlineProjectionExecutor.executeAsync(allStoredEvents);
     }
   }
 

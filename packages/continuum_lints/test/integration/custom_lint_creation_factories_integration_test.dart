@@ -135,6 +135,7 @@ String _fixturePubspecYaml() {
       '  sdk: ">=3.10.0 <4.0.0"\n'
       '\n'
       'dependencies:\n'
+      '  bounded: ^1.0.0\n'
       '  continuum:\n'
       '    path: ${_workspacePath('packages/continuum')}\n'
       '\n'
@@ -164,13 +165,16 @@ String _fixtureCustomLintYaml() {
 
 String _fixtureMainDart() {
   return r''
+  "import 'package:bounded/bounded.dart';\n"
       "import 'package:continuum/continuum.dart';\n"
-      "import 'package:zooper_flutter_core/zooper_flutter_core.dart';\n"
       '\n'
-      '@Aggregate()\n'
-      'class AudioFile {\n'
-      '  const AudioFile();\n'
-      '}\n'
+  'final class AudioFileId extends TypedIdentity<String> {\n'
+  '  const AudioFileId(super.value);\n'
+  '}\n'
+  '\n'
+  'class AudioFile extends AggregateRoot<AudioFileId> {\n'
+  '  AudioFile(super.id);\n'
+  '}\n'
       '\n'
       '@AggregateEvent(of: AudioFile, creation: true)\n'
       'class AudioFileCreated implements ContinuumEvent {\n'

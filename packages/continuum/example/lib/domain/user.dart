@@ -1,3 +1,4 @@
+import 'package:bounded/bounded.dart';
 import 'package:continuum/continuum.dart';
 
 import 'events/email_changed.dart';
@@ -6,25 +7,27 @@ import 'events/user_registered.dart';
 
 part 'user.g.dart';
 
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
 /// A User aggregate demonstrating event sourcing.
 ///
 /// Users are created via registration, can update their email,
 /// and can be deactivated. Each state change is an event.
-@Aggregate()
-class User with _$UserEventHandlers {
-  final String id;
+class User extends AggregateRoot<UserId> with _$UserEventHandlers {
   String email;
   String name;
   bool isActive;
   DateTime? deactivatedAt;
 
   User._({
-    required this.id,
+    required UserId id,
     required this.email,
     required this.name,
     required this.isActive,
     required this.deactivatedAt,
-  });
+  }) : super(id);
 
   /// Creates a user from the registration event.
   static User createFromUserRegistered(UserRegistered event) {

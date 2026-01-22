@@ -16,6 +16,9 @@
 ///   store_atomic_saves.dart         - Atomic multi-stream saves
 ///   store_atomic_rollback.dart      - Atomic rollback on conflict
 ///
+/// PROJECTIONS (Read Models):
+///   projection_example.dart         - Projection with code generation
+///
 /// HYBRID MODE (Frontend Events + Backend State):
 ///   hybrid_optimistic_creation.dart - Optimistic user creation
 ///   hybrid_profile_edit.dart        - Instant feedback when editing
@@ -45,6 +48,9 @@ void main() {
   print('  store_handling_conflicts.dart   - Conflict detection');
   print('  store_atomic_saves.dart         - Atomic multi-stream saves');
   print('  store_atomic_rollback.dart      - Atomic rollback on conflict');
+  print('');
+  print('PROJECTIONS (Read Models):');
+  print('  projection_example.dart         - Projection with code generation');
   print('');
   print('HYBRID MODE (Frontend Events + Backend State):');
   print('  hybrid_optimistic_creation.dart - Optimistic user creation');

@@ -18,7 +18,7 @@ void main() {
   // Start with a user
   final user = User.createFromUserRegistered(
     UserRegistered(
-      userId: 'user-456',
+      userId: const UserId('user-456'),
       email: 'bob@example.com',
       name: 'Bob Johnson',
     ),

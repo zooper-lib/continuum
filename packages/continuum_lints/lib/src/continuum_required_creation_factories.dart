@@ -2,7 +2,7 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 
-/// Computes which creation factory methods an `@Aggregate()` class is missing.
+/// Computes which creation factory methods an aggregate root is missing.
 ///
 /// A creation event `E` for aggregate `A` requires a matching static factory:
 /// `static A createFromE(E event)`.
