@@ -1,5 +1,4 @@
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 import '../account.dart';
 
@@ -27,7 +26,12 @@ class FundsDeposited implements ContinuumEvent {
   final Map<String, Object?> metadata;
 
   factory FundsDeposited.fromJson(Map<String, dynamic> json) {
-    return FundsDeposited(eventId: EventId(json['eventId'] as String), amount: json['amount'] as int);
+    return FundsDeposited(
+      eventId: EventId.fromJson(json['eventId'] as String),
+      occurredOn: DateTime.parse(json['occurredOn'] as String),
+      metadata: Map<String, Object?>.from(json['metadata'] as Map),
+      amount: json['amount'] as int,
+    );
   }
 
   Map<String, dynamic> toJson() => {'amount': amount};

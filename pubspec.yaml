@@ -24,7 +24,7 @@ melos:
       description: Run static analysis in all packages.
 
     test:
-      run: dart run melos exec --fail-fast -- "dart test"
+      run: dart run melos exec --fail-fast --concurrency 1 -- "dart test"
       description: Run all package tests.
       packageFilters:
         dirExists: test

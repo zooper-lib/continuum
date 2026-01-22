@@ -1,6 +1,5 @@
 import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 /// Test event for stored event testing.
 final class TestStoredEvent implements ContinuumEvent {

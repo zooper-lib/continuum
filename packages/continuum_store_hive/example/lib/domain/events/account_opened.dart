@@ -1,5 +1,4 @@
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 import '../account.dart';
 
@@ -18,13 +17,15 @@ class AccountOpened implements ContinuumEvent {
 
   factory AccountOpened.fromJson(Map<String, dynamic> json) {
     return AccountOpened(
-      eventId: EventId(json['eventId'] as String),
-      accountId: json['accountId'] as String,
+      eventId: EventId.fromJson(json['eventId'] as String),
+      occurredOn: DateTime.parse(json['occurredOn'] as String),
+      metadata: Map<String, Object?>.from(json['metadata'] as Map),
+      accountId: AccountId(json['accountId'] as String),
       ownerId: json['ownerId'] as String,
     );
   }
 
-  final String accountId;
+  final AccountId accountId;
   final String ownerId;
 
   @override
@@ -37,7 +38,7 @@ class AccountOpened implements ContinuumEvent {
   final Map<String, Object?> metadata;
 
   Map<String, dynamic> toJson() => {
-    'accountId': accountId,
+    'accountId': accountId.value,
     'ownerId': ownerId,
   };
 }

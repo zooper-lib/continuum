@@ -7,7 +7,7 @@ import 'package:continuum/continuum.dart';
 ///
 /// Thread-safety: This implementation is not thread-safe. For concurrent
 /// access, external synchronization is required.
-final class InMemoryEventStore implements AtomicEventStore {
+final class InMemoryEventStore implements AtomicEventStore, ProjectionEventStore {
   /// Internal storage of events by stream ID.
   final Map<StreamId, List<StoredEvent>> _streams = {};
 
@@ -61,6 +61,7 @@ final class InMemoryEventStore implements AtomicEventStore {
             occurredOn: event.occurredOn,
             metadata: event.metadata,
             globalSequence: _globalSequence++,
+            domainEvent: event.domainEvent,
           ),
         );
         nextVersion++;
@@ -124,4 +125,38 @@ final class InMemoryEventStore implements AtomicEventStore {
 
   /// Returns the total number of events across all streams.
   int get eventCount => _streams.values.fold(0, (sum, events) => sum + events.length);
+
+  @override
+  Future<List<StoredEvent>> loadEventsFromPositionAsync(
+    int fromGlobalSequence,
+    int limit,
+  ) async {
+    // Collect all events with globalSequence >= fromGlobalSequence.
+    final List<StoredEvent> allEvents = _streams.values.expand((events) => events).where((event) => (event.globalSequence ?? 0) >= fromGlobalSequence).toList();
+
+    // Sort by global sequence.
+    allEvents.sort((a, b) => (a.globalSequence ?? 0).compareTo(b.globalSequence ?? 0));
+
+    // Return up to limit events.
+    return allEvents.take(limit).toList();
+  }
+
+  @override
+  Future<int?> getMaxGlobalSequenceAsync() async {
+    if (_streams.isEmpty) {
+      return null;
+    }
+
+    int? maxSequence;
+    for (final events in _streams.values) {
+      for (final event in events) {
+        if (event.globalSequence != null) {
+          if (maxSequence == null || event.globalSequence! > maxSequence) {
+            maxSequence = event.globalSequence;
+          }
+        }
+      }
+    }
+    return maxSequence;
+  }
 }

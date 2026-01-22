@@ -5,8 +5,8 @@
 /// `interface class`.
 library;
 
+import 'package:bounded/bounded.dart';
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 part 'abstract_interface_aggregates.g.dart';
 
@@ -25,7 +25,7 @@ void _runAbstractAggregateExample() {
   print('ABSTRACT AGGREGATE');
 
   final user = AbstractUser(
-    id: 'abstract-user-1',
+    id: const AbstractUserId('abstract-user-1'),
     email: 'alice@example.com',
     name: 'Alice',
   );
@@ -43,10 +43,10 @@ void _runAbstractAggregateExample() {
 }
 
 void _runInterfaceAggregateExample() {
-  print('INTERFACE AGGREGATE');
+  print('CONCRETE AGGREGATE');
 
-  final user = ContractUser(
-    id: 'contract-user-1',
+  final user = UserContract(
+    id: const UserContractId('contract-user-1'),
     displayName: 'Bob',
   );
 
@@ -62,20 +62,22 @@ void _runInterfaceAggregateExample() {
   print('  ✓ Event dispatch works via UserContract');
 }
 
+final class AbstractUserId extends TypedIdentity<String> {
+  const AbstractUserId(super.value);
+}
+
 /// An abstract aggregate base type.
 ///
 /// The generator produces:
 /// - `mixin _$AbstractUserBaseEventHandlers`
 /// - `extension $AbstractUserBaseEventDispatch on AbstractUserBase`
-@Aggregate()
-abstract class AbstractUserBase with _$AbstractUserBaseEventHandlers {
+abstract class AbstractUserBase extends AggregateRoot<AbstractUserId> with _$AbstractUserBaseEventHandlers {
   AbstractUserBase({
-    required this.id,
+    required AbstractUserId id,
     required this.email,
     required this.name,
-  });
+  }) : super(id);
 
-  final String id;
   String email;
   final String name;
 }
@@ -94,28 +96,17 @@ class AbstractUser extends AbstractUserBase {
   }
 }
 
-/// An interface aggregate type.
-///
-/// The generator produces:
-/// - `mixin _$UserContractEventHandlers`
-/// - `extension $UserContractEventDispatch on UserContract`
-@Aggregate()
-abstract interface class UserContract with _$UserContractEventHandlers {
-  String get id;
-  String get displayName;
+final class UserContractId extends TypedIdentity<String> {
+  const UserContractId(super.value);
 }
 
 /// A concrete implementation of the interface aggregate.
-class ContractUser with _$UserContractEventHandlers implements UserContract {
-  ContractUser({
-    required this.id,
+class UserContract extends AggregateRoot<UserContractId> with _$UserContractEventHandlers {
+  UserContract({
+    required UserContractId id,
     required this.displayName,
-  });
+  }) : super(id);
 
-  @override
-  final String id;
-
-  @override
   String displayName;
 
   @override
@@ -158,7 +149,7 @@ class AbstractUserEmailChanged implements ContinuumEvent {
 
   Map<String, dynamic> toJson() => {
     'newEmail': newEmail,
-    'eventId': id.toString(),
+    'eventId': id.value,
     'occurredOn': occurredOn.toIso8601String(),
     'metadata': metadata,
   };
@@ -198,7 +189,7 @@ class ContractUserRenamed implements ContinuumEvent {
 
   Map<String, dynamic> toJson() => {
     'newDisplayName': newDisplayName,
-    'eventId': id.toString(),
+    'eventId': id.value,
     'occurredOn': occurredOn.toIso8601String(),
     'metadata': metadata,
   };

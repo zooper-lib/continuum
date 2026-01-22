@@ -7,14 +7,19 @@ import 'package:test/test.dart';
 
 void main() {
   group('AggregateDiscovery', () {
-    test('discovers abstract classes annotated with @Aggregate', () async {
+    test('discovers abstract aggregate roots', () async {
       // Arrange
       final inputs = <String, String>{
         'continuum_generator|lib/domain.dart': r"""
-import 'package:continuum/src/annotations/aggregate.dart';
+import 'package:bounded/bounded.dart';
 
-@Aggregate()
-abstract class UserBase {}
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
+abstract class UserBase extends AggregateRoot<UserId> {
+  UserBase(super.id);
+}
 """,
       };
 
@@ -37,20 +42,39 @@ abstract class UserBase {}
       expect(aggregates.single.name, 'UserBase');
     });
 
-    test('associates @AggregateEvent events to abstract aggregates', () async {
+    test('associates @AggregateEvent events to abstract aggregate roots', () async {
       // Arrange
       final inputs = <String, String>{
         'continuum_generator|lib/domain.dart': r"""
-import 'package:continuum/src/annotations/aggregate.dart';
-import 'package:continuum/src/annotations/aggregate_event.dart';
-import 'package:continuum/src/events/continuum_event.dart';
+import 'package:bounded/bounded.dart';
+import 'package:continuum/continuum.dart';
 
-@Aggregate()
-abstract class UserBase {}
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
+abstract class UserBase extends AggregateRoot<UserId> {
+  UserBase(super.id);
+}
 
 @AggregateEvent(of: UserBase)
 class EmailChanged implements ContinuumEvent {
-  const EmailChanged();
+  EmailChanged({
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime(2020, 1, 1),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 """,
       };
@@ -78,14 +102,19 @@ class EmailChanged implements ContinuumEvent {
       );
     });
 
-    test('discovers interface classes annotated with @Aggregate', () async {
+    test('discovers concrete aggregate roots', () async {
       // Arrange
       final inputs = <String, String>{
         'continuum_generator|lib/contracts.dart': r"""
-import 'package:continuum/src/annotations/aggregate.dart';
+import 'package:bounded/bounded.dart';
 
-@Aggregate()
-interface class UserContract {}
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
+class UserContract extends AggregateRoot<UserId> {
+  UserContract(super.id);
+}
 """,
       };
 
@@ -108,20 +137,39 @@ interface class UserContract {}
       expect(aggregates.single.name, 'UserContract');
     });
 
-    test('associates @AggregateEvent events to interface aggregates', () async {
+    test('associates @AggregateEvent events to concrete aggregate roots', () async {
       // Arrange
       final inputs = <String, String>{
         'continuum_generator|lib/contracts.dart': r"""
-import 'package:continuum/src/annotations/aggregate.dart';
-import 'package:continuum/src/annotations/aggregate_event.dart';
-import 'package:continuum/src/events/continuum_event.dart';
+import 'package:bounded/bounded.dart';
+import 'package:continuum/continuum.dart';
 
-@Aggregate()
-interface class UserContract {}
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
+class UserContract extends AggregateRoot<UserId> {
+  UserContract(super.id);
+}
 
 @AggregateEvent(of: UserContract)
 class UserRenamed implements ContinuumEvent {
-  const UserRenamed();
+  UserRenamed({
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime(2020, 1, 1),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 """,
       };
@@ -153,20 +201,39 @@ class UserRenamed implements ContinuumEvent {
       // Arrange
       final inputs = <String, String>{
         'continuum_generator|lib/audio_file.dart': r"""
-import 'package:continuum/src/annotations/aggregate.dart';
+import 'package:bounded/bounded.dart';
 
-@Aggregate()
-abstract class AudioFile {}
+final class AudioFileId extends TypedIdentity<String> {
+  const AudioFileId(super.value);
+}
+
+abstract class AudioFile extends AggregateRoot<AudioFileId> {
+  AudioFile(super.id);
+}
 """,
         'continuum_generator|lib/audio_file_deleted_event.dart': r"""
-import 'package:continuum/src/annotations/aggregate_event.dart';
-import 'package:continuum/src/events/continuum_event.dart';
+import 'package:continuum/continuum.dart';
 
 import 'audio_file.dart';
 
 @AggregateEvent(of: AudioFile)
 class AudioFileDeletedEvent implements ContinuumEvent {
-  const AudioFileDeletedEvent();
+  AudioFileDeletedEvent({
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime(2020, 1, 1),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 """,
       };
@@ -200,27 +267,62 @@ class AudioFileDeletedEvent implements ContinuumEvent {
       // Arrange
       final inputs = <String, String>{
         'continuum_generator|lib/domain.dart': r"""
-import 'package:continuum/src/annotations/aggregate.dart';
-import 'package:continuum/src/annotations/aggregate_event.dart';
-import 'package:continuum/src/events/continuum_event.dart';
+import 'package:bounded/bounded.dart';
+import 'package:continuum/continuum.dart';
 
-@Aggregate()
-class User {
-  const User();
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
+class User extends AggregateRoot<UserId> {
+  User(super.id);
 
   static User createFromUserRegistered(UserRegistered event) {
-    return const User();
+    return User(event.userId);
   }
 }
 
 @AggregateEvent(of: User, creation: true)
 class UserRegistered implements ContinuumEvent {
-  const UserRegistered();
+  UserRegistered(
+    this.userId, {
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime(2020, 1, 1),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final UserId userId;
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 
 @AggregateEvent(of: User)
 class UserRenamed implements ContinuumEvent {
-  const UserRenamed();
+  UserRenamed({
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime(2020, 1, 1),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 """,
       };
@@ -258,18 +360,35 @@ class UserRenamed implements ContinuumEvent {
       // Arrange
       final inputs = <String, String>{
         'continuum_generator|lib/domain.dart': r"""
-import 'package:continuum/src/annotations/aggregate.dart';
-import 'package:continuum/src/annotations/aggregate_event.dart';
-import 'package:continuum/src/events/continuum_event.dart';
+import 'package:bounded/bounded.dart';
+import 'package:continuum/continuum.dart';
 
-@Aggregate()
-class User {
-  const User();
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
+class User extends AggregateRoot<UserId> {
+  User(super.id);
 }
 
 @AggregateEvent(of: User, creation: true)
 class UserRegistered implements ContinuumEvent {
-  const UserRegistered();
+  UserRegistered({
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime(2020, 1, 1),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
 }
 """,
       };

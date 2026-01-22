@@ -1,5 +1,4 @@
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 import '../user.dart';
 
@@ -41,7 +40,7 @@ class UserDeactivated implements ContinuumEvent {
   Map<String, dynamic> toJson() => {
     'deactivatedAt': deactivatedAt.toIso8601String(),
     'reason': reason,
-    'eventId': id.toString(),
+    'eventId': id.value,
     'occurredOn': occurredOn.toIso8601String(),
     'metadata': metadata,
   };

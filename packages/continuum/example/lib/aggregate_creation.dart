@@ -17,7 +17,7 @@ void main() {
   // The creation event captures all the data needed to initialize the aggregate.
   final user = User.createFromUserRegistered(
     UserRegistered(
-      userId: 'user-123',
+      userId: const UserId('user-123'),
       email: 'alice@example.com',
       name: 'Alice Smith',
     ),
