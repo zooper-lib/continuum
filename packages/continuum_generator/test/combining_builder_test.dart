@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:isolate';
 
 import 'package:build/build.dart';
@@ -11,12 +12,20 @@ void main() {
   late TestReaderWriter readerWriter;
 
   setUpAll(() async {
-    final uri = await Isolate.packageConfig;
-    if (uri == null) {
-      throw StateError('Missing Isolate.packageConfig; cannot run build_test in a pub workspace.');
+    // In some CI environments (notably when running tests via workspace tooling),
+    // `Isolate.packageConfig` can be null. Fall back to locating the
+    // `.dart_tool/package_config.json` file relative to the working directory.
+    Uri? packageConfigUri = await Isolate.packageConfig;
+    packageConfigUri ??= _tryFindPackageConfigUriFromWorkingDirectory();
+
+    if (packageConfigUri == null) {
+      throw StateError(
+        'Missing package config. `Isolate.packageConfig` was null and no '
+        '`.dart_tool/package_config.json` could be found from `${Directory.current.path}`.',
+      );
     }
 
-    packageConfig = await loadPackageConfigUri(uri);
+    packageConfig = await loadPackageConfigUri(packageConfigUri);
   });
 
   setUp(() async {
@@ -172,4 +181,21 @@ class NotAnAggregate {}
       );
     });
   });
+}
+
+Uri? _tryFindPackageConfigUriFromWorkingDirectory() {
+  Directory currentDirectory = Directory.current;
+  while (true) {
+    final Uri candidateUri = currentDirectory.uri.resolve('.dart_tool/package_config.json');
+    if (File.fromUri(candidateUri).existsSync()) {
+      return candidateUri;
+    }
+
+    final Directory parentDirectory = currentDirectory.parent;
+    if (parentDirectory.path == currentDirectory.path) {
+      return null;
+    }
+
+    currentDirectory = parentDirectory;
+  }
 }
