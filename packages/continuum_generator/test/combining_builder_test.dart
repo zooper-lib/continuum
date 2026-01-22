@@ -1,22 +1,31 @@
+import 'dart:isolate';
+
 import 'package:build/build.dart';
 import 'package:build_test/build_test.dart';
 import 'package:continuum_generator/builder.dart';
+import 'package:package_config/package_config.dart';
 import 'package:test/test.dart';
 
-const _aggregateAnnotationSource = '''
-/// Marks a class as an event-sourced aggregate root.
-///
-/// When the generator scans the library, classes annotated with `@Aggregate()`
-/// are treated as aggregate candidates for code generation.
-class Aggregate {
-  /// Creates an aggregate annotation.
-  const Aggregate();
-}
-''';
-
 void main() {
+  late final PackageConfig packageConfig;
+  late TestReaderWriter readerWriter;
+
+  setUpAll(() async {
+    final uri = await Isolate.packageConfig;
+    if (uri == null) {
+      throw StateError('Missing Isolate.packageConfig; cannot run build_test in a pub workspace.');
+    }
+
+    packageConfig = await loadPackageConfigUri(uri);
+  });
+
+  setUp(() async {
+    readerWriter = TestReaderWriter(rootPackage: 'continuum_generator');
+    await readerWriter.testing.loadIsolateSources();
+  });
+
   group('CombiningBuilder', () {
-    test('generates lib/continuum.g.dart for @Aggregate classes', () async {
+    test('generates lib/continuum.g.dart for aggregate roots', () async {
       // Arrange: Provide a synthetic `$lib$` input and a single annotated
       // aggregate. This verifies the happy path where at least one aggregate
       // exists and a combining output should be produced.
@@ -27,15 +36,21 @@ void main() {
       await testBuilder(
         builder,
         {
-          'continuum|lib/src/annotations/aggregate.dart': _aggregateAnnotationSource,
           'continuum_generator|lib/user.dart': """
-import 'package:continuum/src/annotations/aggregate.dart';
+import 'package:bounded/bounded.dart';
 
-@Aggregate()
-class User {}
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
+class User extends AggregateRoot<UserId> {
+  User(super.id);
+}
 """,
         },
         rootPackage: 'continuum_generator',
+        packageConfig: packageConfig,
+        readerWriter: readerWriter,
         outputs: {
           'continuum_generator|lib/continuum.g.dart': decodedMatches(
             allOf(
@@ -59,12 +74,16 @@ class User {}
       await testBuilder(
         builder,
         {
-          'continuum|lib/src/annotations/aggregate.dart': _aggregateAnnotationSource,
           'continuum_generator|lib/user.dart': """
-import 'package:continuum/src/annotations/aggregate.dart';
+import 'package:bounded/bounded.dart';
 
-@Aggregate()
-class User {}
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
+class User extends AggregateRoot<UserId> {
+  User(super.id);
+}
 """,
           'continuum_generator|lib/repository_error.dart': """
 part 'repository_error.freezed.dart';
@@ -78,6 +97,8 @@ part of 'repository_error.dart';
 """,
         },
         rootPackage: 'continuum_generator',
+        packageConfig: packageConfig,
+        readerWriter: readerWriter,
         outputs: {
           'continuum_generator|lib/continuum.g.dart': decodedMatches(
             allOf(
@@ -98,12 +119,16 @@ part of 'repository_error.dart';
       await testBuilder(
         builder,
         {
-          'continuum|lib/src/annotations/aggregate.dart': _aggregateAnnotationSource,
           'continuum_generator|lib/user.dart': """
-import 'package:continuum/src/annotations/aggregate.dart';
+import 'package:bounded/bounded.dart';
 
-@Aggregate()
-class User {}
+final class UserId extends TypedIdentity<String> {
+  const UserId(super.value);
+}
+
+class User extends AggregateRoot<UserId> {
+  User(super.id);
+}
 """,
           'continuum_generator|lib/odd_library.dart': """
 part 'odd_part.dart';
@@ -117,6 +142,8 @@ class OddPart {}
 """,
         },
         rootPackage: 'continuum_generator',
+        packageConfig: packageConfig,
+        readerWriter: readerWriter,
         outputs: {
           'continuum_generator|lib/continuum.g.dart': decodedMatches(
             contains(r'  $User,'),
@@ -126,7 +153,7 @@ class OddPart {}
     });
 
     test('does not generate output when no aggregates exist', () async {
-      // Arrange: If no `@Aggregate()` classes exist, emitting an empty
+      // Arrange: If no aggregate roots exist, emitting an empty
       // `continuum.g.dart` would be surprising for users.
       final builder = continuumCombiningBuilder(const BuilderOptions({}));
 
@@ -139,6 +166,8 @@ class NotAnAggregate {}
 ''',
         },
         rootPackage: 'continuum_generator',
+        packageConfig: packageConfig,
+        readerWriter: readerWriter,
         outputs: const {},
       );
     });

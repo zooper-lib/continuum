@@ -1,5 +1,4 @@
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 import '../user.dart';
 
@@ -37,7 +36,7 @@ class EmailChanged implements ContinuumEvent {
 
   Map<String, dynamic> toJson() => {
     'newEmail': newEmail,
-    'eventId': id.toString(),
+    'eventId': id.value,
     'occurredOn': occurredOn.toIso8601String(),
     'metadata': metadata,
   };

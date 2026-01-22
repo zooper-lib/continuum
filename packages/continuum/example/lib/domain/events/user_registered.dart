@@ -1,11 +1,10 @@
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 import '../user.dart';
 
 /// Event fired when a new user registers.
 @AggregateEvent(of: User, type: 'user.registered', creation: true)
-class UserRegistered implements ContinuumEvent {
+final class UserRegistered implements ContinuumEvent {
   UserRegistered({
     required this.userId,
     required this.email,
@@ -17,7 +16,7 @@ class UserRegistered implements ContinuumEvent {
        occurredOn = occurredOn ?? DateTime.now(),
        metadata = Map<String, Object?>.unmodifiable(metadata);
 
-  final String userId;
+  final UserId userId;
   final String email;
   final String name;
 
@@ -32,7 +31,7 @@ class UserRegistered implements ContinuumEvent {
 
   factory UserRegistered.fromJson(Map<String, dynamic> json) {
     return UserRegistered(
-      userId: json['userId'] as String,
+      userId: UserId(json['userId'] as String),
       email: json['email'] as String,
       name: json['name'] as String,
       eventId: EventId.fromJson(json['eventId'] as String),
@@ -42,10 +41,10 @@ class UserRegistered implements ContinuumEvent {
   }
 
   Map<String, dynamic> toJson() => {
-    'userId': userId,
+    'userId': userId.value,
     'email': email,
     'name': name,
-    'eventId': id.toString(),
+    'eventId': id.value,
     'occurredOn': occurredOn.toIso8601String(),
     'metadata': metadata,
   };

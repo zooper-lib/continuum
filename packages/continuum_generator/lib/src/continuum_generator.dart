@@ -12,7 +12,8 @@ import 'projection_discovery.dart';
 
 /// Generator for continuum event sourcing code.
 ///
-/// Scans for @Aggregate, @AggregateEvent, and @Projection annotations and generates:
+/// Scans for aggregate roots (types extending `bounded.AggregateRoot`) and for
+/// `@AggregateEvent` / `@Projection` annotations and generates:
 /// - Event handler mixins for mutation events
 /// - Apply dispatchers and replay helpers
 /// - Creation dispatchers for aggregate instantiation

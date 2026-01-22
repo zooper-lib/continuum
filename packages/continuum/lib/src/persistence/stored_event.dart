@@ -79,7 +79,7 @@ final class StoredEvent {
       eventType: eventType,
       data: data,
       occurredOn: continuumEvent.occurredOn,
-      metadata: continuumEvent.metadata,
+      metadata: Map<String, dynamic>.from(continuumEvent.metadata),
       globalSequence: globalSequence,
       domainEvent: continuumEvent,
     );

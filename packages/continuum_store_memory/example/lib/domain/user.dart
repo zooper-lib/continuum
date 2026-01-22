@@ -1,3 +1,4 @@
+import 'package:bounded/bounded.dart';
 import 'package:continuum/continuum.dart';
 
 import 'events/email_changed.dart';
@@ -10,28 +11,47 @@ export 'events/user_registered.dart';
 
 part 'user.g.dart';
 
+/// A strongly-typed user identifier.
+final class UserId extends TypedIdentity<String> {
+  /// Creates a user identifier from a stable string value.
+  const UserId(super.value);
+}
+
 /// A User aggregate demonstrating event sourcing with in-memory persistence.
-@Aggregate()
-class User with _$UserEventHandlers {
-  final String id;
+class User extends AggregateRoot<UserId> with _$UserEventHandlers {
   String email;
   String name;
   bool isActive;
   DateTime? deactivatedAt;
 
-  User._({required this.id, required this.email, required this.name, required this.isActive, required this.deactivatedAt});
+  User._({
+    required UserId id,
+    required this.email,
+    required this.name,
+    required this.isActive,
+    required this.deactivatedAt,
+  }) : super(id);
 
   static User createFromUserRegistered(UserRegistered event) {
-    return User._(id: event.userId, email: event.email, name: event.name, isActive: true, deactivatedAt: null);
+    // WHY: Creation events define the initial state of a new aggregate.
+    return User._(
+      id: event.userId,
+      email: event.email,
+      name: event.name,
+      isActive: true,
+      deactivatedAt: null,
+    );
   }
 
   @override
   void applyEmailChanged(EmailChanged event) {
+    // WHY: Mutation events update state during replay and live operations.
     email = event.newEmail;
   }
 
   @override
   void applyUserDeactivated(UserDeactivated event) {
+    // WHY: Deactivation is a state transition derived from events.
     isActive = false;
     deactivatedAt = event.deactivatedAt;
   }

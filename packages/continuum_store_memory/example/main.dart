@@ -31,7 +31,7 @@ void main() async {
   // Events are stored in memory only - lost when the process exits
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList, // Auto-generated from @Aggregate classes
+    aggregates: $aggregateList, // Auto-generated from AggregateRoot classes
   );
 
   print('Creating a user...');
@@ -42,7 +42,7 @@ void main() async {
   final user = session.startStream<User>(
     userId,
     UserRegistered(
-      userId: 'user-001',
+      userId: const UserId('user-001'),
       email: 'alice@example.com',
       name: 'Alice',
     ),

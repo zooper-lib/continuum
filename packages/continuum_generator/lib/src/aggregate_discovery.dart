@@ -5,8 +5,8 @@ import 'package:source_gen/source_gen.dart';
 import 'models/aggregate_info.dart';
 import 'models/event_info.dart';
 
-/// Type checker for the @Aggregate annotation.
-const _aggregateChecker = TypeChecker.fromUrl('package:continuum/src/annotations/aggregate.dart#Aggregate');
+/// Type checker for bounded's AggregateRoot base class.
+const _aggregateRootChecker = TypeChecker.fromUrl('package:bounded/src/aggregate_root.dart#AggregateRoot');
 
 /// Type checker for the @AggregateEvent annotation.
 const _eventChecker = TypeChecker.fromUrl('package:continuum/src/annotations/aggregate_event.dart#AggregateEvent');
@@ -16,7 +16,8 @@ const _continuumEventChecker = TypeChecker.fromUrl('package:continuum/src/events
 
 /// Discovers aggregates and events from library elements.
 ///
-/// Scans a library for classes annotated with `@Aggregate()` and `@AggregateEvent()`
+/// Scans a library for classes that extend/implement `AggregateRoot` and
+/// events annotated with `@AggregateEvent()`
 /// and builds the mapping between aggregates and their events.
 ///
 /// Events can be defined in the same file OR in separate imported files.
@@ -45,9 +46,11 @@ final class AggregateDiscovery {
     final aggregates = <String, AggregateInfo>{};
     final pendingEvents = <EventInfo>[];
 
-    // First pass: discover all aggregates in THIS library
+    // First pass: discover all aggregates in THIS library.
+    //
+    // Aggregates are discovered by being assignable to bounded's AggregateRoot.
     for (final element in library.classes) {
-      if (_aggregateChecker.hasAnnotationOf(element)) {
+      if (_aggregateRootChecker.isAssignableFrom(element)) {
         final aggregateName = element.name ?? element.displayName;
         if (aggregateName.isEmpty) continue;
         aggregates[aggregateName] = AggregateInfo(element: element);

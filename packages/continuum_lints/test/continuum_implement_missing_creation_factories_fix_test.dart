@@ -22,12 +22,15 @@ void main() {
         final File dartFile = File('${tempDirectory.path}/domain.dart');
 
         await dartFile.writeAsString(r'''
+import 'package:bounded/bounded.dart';
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
-@Aggregate()
-class AudioFile {
-  const AudioFile();
+final class AudioFileId extends TypedIdentity<String> {
+  const AudioFileId(super.value);
+}
+
+class AudioFile extends AggregateRoot<AudioFileId> {
+  AudioFile(super.id);
 }
 
 @AggregateEvent(of: AudioFile, creation: true)

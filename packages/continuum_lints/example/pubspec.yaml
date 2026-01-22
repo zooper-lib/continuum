@@ -5,6 +5,8 @@ environment:
   sdk: ^3.10.4
 
 dependencies:
+  zooper_flutter_core: ^2.0.0
+  bounded: ^1.0.0
   continuum:
     path: ../../continuum
 

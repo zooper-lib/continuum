@@ -22,9 +22,14 @@ void main() {
         final File dartFile = File('${tempDirectory.path}/domain.dart');
 
         await dartFile.writeAsString(r'''
+import 'package:bounded/bounded.dart';
 import 'package:continuum/continuum.dart';
 
-sealed class AudioFileDeletedEvent implements ContinuumEvent {
+final class AudioFileId extends TypedIdentity<String> {
+  const AudioFileId(super.value);
+}
+
+abstract class AudioFileDeletedEvent implements ContinuumEvent {
   const AudioFileDeletedEvent();
 }
 
@@ -32,9 +37,8 @@ mixin _$AudioFileEventHandlers {
   void applyAudioFileDeletedEvent(AudioFileDeletedEvent event);
 }
 
-@Aggregate()
-class AudioFile with _$AudioFileEventHandlers {
-  const AudioFile();
+class AudioFile extends AggregateRoot<AudioFileId> with _$AudioFileEventHandlers {
+  AudioFile(super.id);
 
   @override
   dynamic noSuchMethod(Invocation invocation) {
@@ -95,14 +99,19 @@ class AudioFile with _$AudioFileEventHandlers {
         final File dartFile = File('${tempDirectory.path}/domain.dart');
 
         await dartFile.writeAsString(r'''
+import 'package:bounded/bounded.dart';
 import 'package:continuum/continuum.dart';
 
+final class AudioFileId extends TypedIdentity<String> {
+  const AudioFileId(super.value);
+}
+
 @AggregateEvent(of: AudioFile, creation: true)
-class AudioFileCreatedEvent implements ContinuumEvent {
+abstract class AudioFileCreatedEvent implements ContinuumEvent {
   const AudioFileCreatedEvent();
 }
 
-sealed class AudioFileDeletedEvent implements ContinuumEvent {
+abstract class AudioFileDeletedEvent implements ContinuumEvent {
   const AudioFileDeletedEvent();
 }
 
@@ -111,9 +120,8 @@ mixin _$AudioFileEventHandlers {
   void applyAudioFileDeletedEvent(AudioFileDeletedEvent event);
 }
 
-@Aggregate()
-class AudioFile with _$AudioFileEventHandlers {
-  const AudioFile();
+class AudioFile extends AggregateRoot<AudioFileId> with _$AudioFileEventHandlers {
+  AudioFile(super.id);
 
   @override
   dynamic noSuchMethod(Invocation invocation) {

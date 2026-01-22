@@ -43,7 +43,8 @@ void main() async {
     projections: registry,
   );
 
-  final userId = const StreamId('user-123');
+  final streamId = const StreamId('user-123');
+  final userId = const UserId('user-123');
 
   // --- Create User via Events ---
   print('');
@@ -51,9 +52,9 @@ void main() async {
 
   final session = store.openSession();
   session.startStream<User>(
-    userId,
+    streamId,
     UserRegistered(
-      userId: userId.value,
+      userId: userId,
       email: 'alice@example.com',
       name: 'Alice Smith',
     ),
@@ -61,7 +62,7 @@ void main() async {
   await session.saveChangesAsync();
 
   // Read profile from projection (inline = always up to date)
-  var profile = await profileStore.loadAsync(userId);
+  var profile = await profileStore.loadAsync(streamId);
   print('  Profile after registration: $profile');
 
   // --- Update Email ---
@@ -69,14 +70,14 @@ void main() async {
   print('Updating email...');
 
   final updateSession = store.openSession();
-  await updateSession.loadAsync<User>(userId);
+  await updateSession.loadAsync<User>(streamId);
   updateSession.append(
-    userId,
+    streamId,
     EmailChanged(newEmail: 'alice@company.com'),
   );
   await updateSession.saveChangesAsync();
 
-  profile = await profileStore.loadAsync(userId);
+  profile = await profileStore.loadAsync(streamId);
   print('  Profile after email change: $profile');
 
   // --- Deactivate User ---
@@ -84,14 +85,14 @@ void main() async {
   print('Deactivating user...');
 
   final deactivateSession = store.openSession();
-  await deactivateSession.loadAsync<User>(userId);
+  await deactivateSession.loadAsync<User>(streamId);
   deactivateSession.append(
-    userId,
+    streamId,
     UserDeactivated(deactivatedAt: DateTime.now()),
   );
   await deactivateSession.saveChangesAsync();
 
-  profile = await profileStore.loadAsync(userId);
+  profile = await profileStore.loadAsync(streamId);
   print('  Profile after deactivation: $profile');
 
   // --- Summary ---

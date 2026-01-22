@@ -1,3 +1,4 @@
+import 'package:bounded/bounded.dart';
 import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 /// Base contract for all continuum events in an event-sourced system.
@@ -6,34 +7,9 @@ import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 /// They are immutable and carry all the information needed to describe
 /// what occurred.
 ///
-/// Implementations should provide their own constructors that accept
-/// the event-specific data and optionally override [occurredOn] and
-/// [metadata] defaults.
+/// Continuum is compatible with pure unit-test usage (no event store needed).
+/// Events are identified, timestamped, and can carry arbitrary metadata.
 ///
-/// ```dart
-/// @AggregateEvent(of: ShoppingCart, type: 'item_added')
-/// class ItemAdded implements ContinuumEvent {
-///   final String productId;
-///   final int quantity;
-///
-///   ItemAdded({
-///     required EventId eventId,
-///     required this.productId,
-///     required this.quantity,
-///     DateTime? occurredOn,
-///     Map<String, Object?> metadata = const {},
-///   }) : id = eventId,
-///        occurredOn = occurredOn ?? DateTime.now(),
-///        metadata = Map<String, Object?>.unmodifiable(metadata);
-///
-///   @override
-///   final EventId id;
-///
-///   @override
-///   final DateTime occurredOn;
-///
-///   @override
-///   final Map<String, Object?> metadata;
-/// }
-/// ```
-abstract interface class ContinuumEvent implements ZooperDomainEvent {}
+/// Implementations should ensure [id], [occurredOn], and [metadata] are
+/// immutable.
+abstract interface class ContinuumEvent implements BoundedDomainEvent<EventId> {}

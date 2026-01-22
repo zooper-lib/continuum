@@ -28,7 +28,7 @@ void main() async {
   print('Step 1: User fills out form');
   final optimisticUser = User.createFromUserRegistered(
     UserRegistered(
-      userId: 'temp-new-user',
+      userId: const UserId('temp-new-user'),
       name: 'Jane Doe',
       email: 'jane@example.com',
     ),

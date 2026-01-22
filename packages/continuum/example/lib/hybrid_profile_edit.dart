@@ -24,7 +24,7 @@ void main() async {
   print('Initial state (loaded from backend):');
   final existingUser = User.createFromUserRegistered(
     UserRegistered(
-      userId: 'user-456',
+      userId: const UserId('user-456'),
       name: 'Jane Doe',
       email: 'jane@example.com',
     ),

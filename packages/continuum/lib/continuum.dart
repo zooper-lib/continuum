@@ -4,8 +4,10 @@
 /// event-sourced aggregates with code generation support.
 library;
 
+// Re-export Ulid-based EventId from zooper_flutter_core
+export 'package:zooper_flutter_core/zooper_flutter_core.dart' show EventId;
+
 // Annotations for code generation discovery
-export 'src/annotations/aggregate.dart';
 export 'src/annotations/aggregate_event.dart';
 export 'src/annotations/projection.dart';
 
@@ -51,4 +53,3 @@ export 'src/projections/projection_registry.dart';
 export 'src/projections/read_model_result.dart';
 export 'src/projections/read_model_store.dart';
 export 'src/projections/single_stream_projection.dart';
-

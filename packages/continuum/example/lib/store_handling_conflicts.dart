@@ -41,7 +41,7 @@ void main() async {
   session.startStream<User>(
     userId,
     UserRegistered(
-      userId: 'user-001',
+      userId: const UserId('user-001'),
       email: 'bob@example.com',
       name: 'Bob Johnson',
     ),

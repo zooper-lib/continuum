@@ -13,7 +13,7 @@ const List<String> _generatedDartFileSuffixesToIgnore = <String>[
 /// A builder that combines all discovered aggregates and projections into a single file.
 ///
 /// This builder runs after all per-aggregate and per-projection generators have completed.
-/// It scans the entire package for `@Aggregate()` and `@Projection()` annotations and generates
+/// It scans the entire package for bounded `AggregateRoot` types and `@Projection()` annotations and generates
 /// a single `lib/continuum.g.dart` file containing `$aggregateList` and `$projectionList`.
 ///
 /// Users can then simply write:
@@ -30,8 +30,8 @@ const List<String> _generatedDartFileSuffixesToIgnore = <String>[
 /// }
 /// ```
 class CombiningBuilder implements Builder {
-  /// Type checker for the @Aggregate annotation.
-  static const _aggregateChecker = TypeChecker.fromUrl('package:continuum/src/annotations/aggregate.dart#Aggregate');
+  /// Type checker for bounded's AggregateRoot base class.
+  static const _aggregateRootChecker = TypeChecker.fromUrl('package:bounded/src/aggregate_root.dart#AggregateRoot');
 
   /// Type checker for the @Projection annotation.
   static const _projectionChecker = TypeChecker.fromUrl('package:continuum/src/annotations/projection.dart#Projection');
@@ -62,9 +62,9 @@ class CombiningBuilder implements Builder {
       // Calculate the import path relative to lib/.
       final importPath = input.path.replaceFirst('lib/', '');
 
-      // Find all classes annotated with @Aggregate.
+      // Find all classes assignable to AggregateRoot.
       for (final element in library.classes) {
-        if (_aggregateChecker.hasAnnotationOf(element)) {
+        if (_aggregateRootChecker.isAssignableFrom(element)) {
           aggregateInfos.add(
             _DiscoveredInfo(
               className: element.displayName,

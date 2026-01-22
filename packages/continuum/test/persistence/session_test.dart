@@ -2,7 +2,6 @@ import 'package:continuum/continuum.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 import '../_fixtures/counter_fixtures.dart';
 
