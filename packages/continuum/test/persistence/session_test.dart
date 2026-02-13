@@ -119,7 +119,7 @@ void main() {
           CounterIncremented(eventId: const EventId('e-2'), amount: 1),
         );
 
-        await expectLater(session.saveChangesAsync(), completes);
+        await expectLater(session.saveChangesAsync(maxRetries: 0), completes);
 
         final captured = verify(
           eventStore.appendEventsAsync(streamId, ExpectedVersion.noStream, captureAny),
@@ -160,7 +160,7 @@ void main() {
         CounterIncremented(amount: 2),
       );
 
-      await session.saveChangesAsync();
+      await session.saveChangesAsync(maxRetries: 0);
 
       final captured = verify(
         eventStore.appendEventsAsync(streamId, ExpectedVersion.exact(0), captureAny),
@@ -200,7 +200,7 @@ void main() {
           CounterCreated(eventId: const EventId('e-b1'), initial: 0),
         );
 
-        await expectLater(session.saveChangesAsync(), throwsA(isA<StateError>()));
+        await expectLater(session.saveChangesAsync(maxRetries: 0), throwsA(isA<StateError>()));
 
         expect(atomicAppendCalled, isTrue);
         verifyNever(eventStore.appendEventsAsync(any, any, any));

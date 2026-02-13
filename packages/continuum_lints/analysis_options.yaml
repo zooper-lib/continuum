@@ -14,7 +14,6 @@ linter:
     avoid_print: true
     prefer_final_fields: true
     prefer_final_locals: true
-    always_require_non_null_named_parameters: true
     public_member_api_docs: false
     directives_ordering: true
     prefer_is_empty: true

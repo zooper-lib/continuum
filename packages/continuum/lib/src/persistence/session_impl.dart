@@ -1,4 +1,5 @@
 import '../events/continuum_event.dart';
+import '../exceptions/concurrency_exception.dart';
 import '../exceptions/invalid_creation_event_exception.dart';
 import '../exceptions/stream_not_found_exception.dart';
 import '../exceptions/unsupported_event_exception.dart';
@@ -223,7 +224,33 @@ final class SessionImpl implements ContinuumSession {
   }
 
   @override
-  Future<void> saveChangesAsync() async {
+  Future<void> saveChangesAsync({int maxRetries = 1}) async {
+    // Attempt to persist, retrying on concurrency conflicts up to the
+    // configured limit. Each retry reloads conflicting streams and
+    // re-applies pending events on top of the latest persisted state.
+    for (var attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        await _persistPendingEventsAsync();
+        return;
+      } on ConcurrencyException {
+        final isLastAttempt = attempt == maxRetries;
+        if (isLastAttempt) {
+          // All retries exhausted — propagate the conflict to the caller.
+          rethrow;
+        }
+
+        // Reload every stream that still has pending events so the next
+        // attempt uses the latest persisted versions.
+        await _reloadStreamsWithPendingEventsAsync();
+      }
+    }
+  }
+
+  /// Core persistence logic extracted so [saveChangesAsync] can retry it.
+  ///
+  /// Serialises pending events, writes them to the store (atomically when
+  /// possible), runs inline projections, and updates internal stream state.
+  Future<void> _persistPendingEventsAsync() async {
     final pendingEntries = <MapEntry<StreamId, _StreamState>>[];
     for (final entry in _streams.entries) {
       if (entry.value.pendingEvents.isNotEmpty) {
@@ -329,6 +356,137 @@ final class SessionImpl implements ContinuumSession {
     if (_inlineProjectionExecutor != null) {
       await _inlineProjectionExecutor.executeAsync(allStoredEvents);
     }
+  }
+
+  /// Reloads all streams that still carry pending events.
+  ///
+  /// For each such stream the method fetches the latest persisted events,
+  /// reconstructs a fresh aggregate, re-applies the pending events on top,
+  /// and replaces the internal [_StreamState] so the next save attempt
+  /// uses the correct [ExpectedVersion].
+  ///
+  /// New streams (those created via [startStream] with `loadedVersion == -1`)
+  /// are skipped because their concurrency conflict is a duplicate-stream
+  /// error, not a stale-version error, and reloading would not help.
+  Future<void> _reloadStreamsWithPendingEventsAsync() async {
+    final streamIdsToReload = <StreamId>[];
+
+    for (final entry in _streams.entries) {
+      final hasPendingEvents = entry.value.pendingEvents.isNotEmpty;
+      final isExistingStream = entry.value.loadedVersion != -1;
+
+      // Only existing streams benefit from a reload. New streams that
+      // conflict have a duplicate-stream problem, not a stale-version one.
+      if (hasPendingEvents && isExistingStream) {
+        streamIdsToReload.add(entry.key);
+      }
+    }
+
+    for (final streamId in streamIdsToReload) {
+      final currentState = _streams[streamId]!;
+
+      // Snapshot the events we still need to persist.
+      final pendingEvents = List<ContinuumEvent>.of(currentState.pendingEvents);
+
+      // Fetch the latest persisted events from the store.
+      final storedEvents = await _eventStore.loadStreamAsync(streamId);
+
+      if (storedEvents.isEmpty) {
+        throw StreamNotFoundException(streamId: streamId);
+      }
+
+      // Reconstruct the aggregate from all persisted events (including any
+      // that were written by competing sessions since our last load).
+      final freshAggregate = _reconstructAggregateByRuntimeType(
+        storedEvents,
+        currentState.aggregateType,
+      );
+      final latestVersion = storedEvents.last.version;
+
+      // Re-apply our pending events on top of the freshly rebuilt state.
+      for (final event in pendingEvents) {
+        _applyEventByRuntimeType(freshAggregate, event, currentState.aggregateType);
+      }
+
+      // Replace the stream state so the next persist attempt carries the
+      // updated loadedVersion and the correctly-mutated aggregate.
+      _streams[streamId] = _StreamState(
+        aggregate: freshAggregate,
+        aggregateType: currentState.aggregateType,
+        loadedVersion: latestVersion,
+        pendingEvents: pendingEvents,
+      );
+    }
+  }
+
+  /// Reconstructs an aggregate using its runtime [Type] instead of a
+  /// generic type parameter.
+  ///
+  /// This is used during concurrency retries where the concrete generic
+  /// type is no longer available — only the [Type] captured at load time.
+  Object _reconstructAggregateByRuntimeType(
+    List<StoredEvent> events,
+    Type aggregateType,
+  ) {
+    // Deserialize the creation event (first event in the stream).
+    final creationStored = events.first;
+    final creationEvent = _serializer.deserialize(
+      eventType: creationStored.eventType,
+      data: creationStored.data,
+      storedMetadata: creationStored.metadata,
+    );
+
+    // Look up the factory using the runtime type.
+    final factory = _aggregateFactories.getFactory<Object>(
+      aggregateType,
+      creationEvent.runtimeType,
+    );
+
+    if (factory == null) {
+      throw InvalidCreationEventException(
+        eventType: creationEvent.runtimeType,
+        aggregateType: aggregateType,
+      );
+    }
+
+    final aggregate = factory(creationEvent);
+
+    // Apply remaining mutation events.
+    for (var i = 1; i < events.length; i++) {
+      final storedEvent = events[i];
+      final domainEvent = _serializer.deserialize(
+        eventType: storedEvent.eventType,
+        data: storedEvent.data,
+        storedMetadata: storedEvent.metadata,
+      );
+      _applyEventByRuntimeType(aggregate, domainEvent, aggregateType);
+    }
+
+    return aggregate;
+  }
+
+  /// Applies a single event to an aggregate using the runtime [Type].
+  ///
+  /// Counterpart to [_applyEvent] for use in retry paths where the
+  /// generic type parameter is unavailable.
+  void _applyEventByRuntimeType(
+    Object aggregate,
+    ContinuumEvent event,
+    Type aggregateType,
+  ) {
+    final applier = _eventAppliers.getApplier<Object>(
+      aggregateType,
+      event.runtimeType,
+    );
+
+    if (applier == null) {
+      throw UnsupportedEventException(
+        eventType: event.runtimeType,
+        aggregateType: aggregateType,
+      );
+    }
+
+    applier(aggregate, event);
   }
 
   @override

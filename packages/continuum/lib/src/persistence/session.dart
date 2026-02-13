@@ -46,8 +46,20 @@ abstract interface class ContinuumSession {
   /// Uses optimistic concurrency control based on the versions
   /// observed when streams were loaded.
   ///
-  /// Throws [ConcurrencyException] if a version conflict is detected.
-  Future<void> saveChangesAsync();
+  /// When [maxRetries] is greater than zero and a [ConcurrencyException]
+  /// is detected, the session automatically reloads conflicting streams
+  /// from the store, reconstructs fresh aggregates, re-applies the
+  /// pending events on top of the latest state, and retries the save.
+  /// This is repeated up to [maxRetries] times.
+  ///
+  /// After a successful retry the in-session aggregate references are
+  /// replaced with the newly reconstructed instances. Callers holding
+  /// references obtained before [saveChangesAsync] should re-read the
+  /// aggregate via [loadAsync] if they need the latest state.
+  ///
+  /// Throws [ConcurrencyException] if a version conflict is detected
+  /// and retries are exhausted (or [maxRetries] is zero).
+  Future<void> saveChangesAsync({int maxRetries = 1});
 
   /// Discards pending events for a specific stream.
   ///
