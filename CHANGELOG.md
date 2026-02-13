@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Sembast EventStore** (`continuum_store_sembast`): Sembast-backed `EventStore` implementation providing persistent local storage using Sembast. Supports `AtomicEventStore` and `ProjectionEventStore` interfaces. Pure Dart solution that works on all platforms (mobile, desktop, web via `sembast_web`).
 - **Concurrency retry on `saveChangesAsync`**: `ContinuumSession.saveChangesAsync` now accepts an optional `maxRetries` parameter (default `0`, fully backward-compatible). When a `ConcurrencyException` is detected and retries remain, the session automatically reloads conflicting streams from the store, reconstructs fresh aggregates, re-applies pending events on top of the latest state, and retries the save. This prevents silent event loss when multiple workflows modify the same aggregate concurrently.
 
 ## [4.1.0] - 2026-01-22
