@@ -67,7 +67,12 @@ void main() {
 
       final session = store.openSession();
       await session.loadAsync<Counter>(streamId);
-      session.append(streamId, CounterIncremented(amount: 1));
+
+      // Mutate via applyAsync (already-tracked fast path).
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterIncremented(amount: 1),
+      );
 
       // Act & Assert — must throw immediately, no reload attempt.
       await expectLater(
@@ -126,7 +131,12 @@ void main() {
 
       final session = store.openSession();
       await session.loadAsync<Counter>(streamId);
-      session.append(streamId, CounterIncremented(amount: 3));
+
+      // Mutate via applyAsync.
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterIncremented(amount: 3),
+      );
 
       // Act — should succeed on the second attempt.
       await expectLater(session.saveChangesAsync(maxRetries: 1), completes);
@@ -187,7 +197,12 @@ void main() {
 
       final session = store.openSession();
       await session.loadAsync<Counter>(streamId);
-      session.append(streamId, CounterIncremented(amount: 10));
+
+      // Mutate via applyAsync.
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterIncremented(amount: 10),
+      );
 
       // Act & Assert — with only 1 retry allowed, the second failure
       // must propagate to the caller.
@@ -241,7 +256,12 @@ void main() {
 
       final session = store.openSession();
       await session.loadAsync<Counter>(streamId);
-      session.append(streamId, CounterIncremented(amount: 5));
+
+      // Mutate via applyAsync.
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterIncremented(amount: 5),
+      );
 
       // Act
       await expectLater(session.saveChangesAsync(maxRetries: 3), completes);
@@ -270,7 +290,12 @@ void main() {
 
       final session = store.openSession();
       await session.loadAsync<Counter>(streamId);
-      session.append(streamId, CounterIncremented(amount: 1));
+
+      // Mutate via applyAsync.
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterIncremented(amount: 1),
+      );
 
       // Act & Assert — 3 retries + 1 initial = 4 total attempts, all fail.
       await expectLater(
@@ -326,8 +351,11 @@ void main() {
       final session = store.openSession();
       final counter = await session.loadAsync<Counter>(streamId);
 
-      // Our pending event.
-      session.append(streamId, CounterIncremented(amount: 3));
+      // Our pending event via applyAsync.
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterIncremented(amount: 3),
+      );
 
       // Before retry, the counter only knows about its own events.
       expect(counter.value, equals(13));
@@ -386,9 +414,15 @@ void main() {
       final session = store.openSession();
       await session.loadAsync<Counter>(streamId);
 
-      // Append two events.
-      session.append(streamId, CounterIncremented(amount: 1));
-      session.append(streamId, CounterIncremented(amount: 2));
+      // Mutate via applyAsync — two events.
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterIncremented(amount: 1),
+      );
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterIncremented(amount: 2),
+      );
 
       // Act
       await session.saveChangesAsync(maxRetries: 1);
@@ -413,7 +447,7 @@ void main() {
   });
 
   // --------------------------------------------------------------------------
-  // New streams (startStream) — no retry applicable
+  // New streams (applyAsync with creation event) — no retry applicable
   // --------------------------------------------------------------------------
   group('new streams and retry', () {
     test('new stream conflict is not retried (duplicate stream error)', () async {
@@ -429,7 +463,9 @@ void main() {
       );
 
       final session = store.openSession();
-      session.startStream<Counter>(
+
+      // Create stream via applyAsync.
+      await session.applyAsync<Counter>(
         streamId,
         CounterCreated(eventId: const EventId('e-1'), initial: 0),
       );
@@ -452,12 +488,10 @@ void main() {
       final session = store.openSession();
 
       // Act — nothing to save.
-      await expectLater(
-        session.saveChangesAsync(maxRetries: 5),
-        completes,
-      );
+      final committedEvents = await session.saveChangesAsync(maxRetries: 5);
 
-      // Assert — no store interactions should occur.
+      // Assert — no store interactions should occur and returns empty list.
+      expect(committedEvents, isEmpty);
       verifyNever(eventStore.loadStreamAsync(any));
       verifyNever(eventStore.appendEventsAsync(any, any, any));
     });
@@ -473,15 +507,20 @@ void main() {
 
       final session = store.openSession();
       await session.loadAsync<Counter>(streamId);
-      session.append(streamId, CounterIncremented(amount: 1));
 
-      // Act
-      await expectLater(
-        session.saveChangesAsync(maxRetries: 5),
-        completes,
+      // Mutate via applyAsync.
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterIncremented(amount: 1),
       );
 
-      // Assert — only the initial load, no reloads for retry.
+      // Act
+      final committedEvents = await session.saveChangesAsync(maxRetries: 5);
+
+      // Assert — returns committed events.
+      expect(committedEvents, hasLength(1));
+
+      // Only the initial load, no reloads for retry.
       verify(eventStore.loadStreamAsync(streamId)).called(1);
       verify(eventStore.appendEventsAsync(any, any, any)).called(1);
     });
@@ -539,8 +578,15 @@ void main() {
       await session.loadAsync<Counter>(streamA);
       await session.loadAsync<Counter>(streamB);
 
-      session.append(streamA, CounterIncremented(amount: 1));
-      session.append(streamB, CounterIncremented(amount: 2));
+      // Mutate via applyAsync.
+      await session.applyAsync<Counter>(
+        streamA,
+        CounterIncremented(amount: 1),
+      );
+      await session.applyAsync<Counter>(
+        streamB,
+        CounterIncremented(amount: 2),
+      );
 
       // Act
       await expectLater(session.saveChangesAsync(maxRetries: 1), completes);
@@ -608,12 +654,14 @@ void main() {
       final session = store.openSession();
       await session.loadAsync<Counter>(existingStreamId);
 
-      session.startStream<Counter>(
+      // Create new stream via applyAsync.
+      await session.applyAsync<Counter>(
         newStreamId,
         CounterCreated(eventId: const EventId('e-n1'), initial: 0),
       );
 
-      session.append(
+      // Mutate the existing stream via applyAsync.
+      await session.applyAsync<Counter>(
         existingStreamId,
         CounterIncremented(amount: 5),
       );

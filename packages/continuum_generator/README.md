@@ -202,7 +202,7 @@ void main() {
 
   // Create + mutate within a session
   final session = store.openSession();
-  session.startStream<User>(userId, UserCreated(userId, 'alice@example.com'));
+  await session.applyAsync<User>(userId, UserCreated(userId, 'alice@example.com'));
   await session.saveChangesAsync();
 
   // Load aggregate (reconstructed from events)

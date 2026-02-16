@@ -38,7 +38,7 @@ void main() async {
   // Setup: Create a user
   final userId = const StreamId('user-001');
   final ContinuumSession session = store.openSession();
-  session.startStream<User>(
+  await session.applyAsync<User>(
     userId,
     UserRegistered(
       userId: const UserId('user-001'),
@@ -74,7 +74,7 @@ void main() async {
 
   // Both sessions prepare changes (neither has saved yet)
   print('Both sessions preparing changes...');
-  adminSession.append(
+  await adminSession.applyAsync<User>(
     userId,
     EmailChanged(
       newEmail: 'bob.admin@company.com',
@@ -82,7 +82,7 @@ void main() async {
   );
   print('  [Session 1] Staged: bob.admin@company.com');
 
-  userSession.append(
+  await userSession.applyAsync<User>(
     userId,
     EmailChanged(
       newEmail: 'bob.user@company.com',

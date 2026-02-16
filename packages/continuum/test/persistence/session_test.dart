@@ -60,34 +60,22 @@ void main() {
       expect(a1.value, equals(15));
     });
 
-    test('append throws if stream was not loaded/started', () {
-      final eventStore = MockEventStore();
-      final aggregate = buildGeneratedCounterAggregate();
-      final store = EventSourcingStore(eventStore: eventStore, aggregates: [aggregate]);
-      final session = store.openSession();
-
-      expect(
-        () => session.append(
-          const StreamId('missing'),
-          CounterIncremented(eventId: const EventId('e-1'), amount: 1),
-        ),
-        throwsA(isA<StateError>()),
-      );
-    });
-
-    test('discardStream removes pending events but keeps mutated state', () {
+    test('discardStream removes pending events but keeps mutated state', () async {
       final eventStore = MockEventStore();
       final aggregate = buildGeneratedCounterAggregate();
       final store = EventSourcingStore(eventStore: eventStore, aggregates: [aggregate]);
       final session = store.openSession();
 
       final streamId = const StreamId('counter-2');
-      final counter = session.startStream<Counter>(
+
+      // Create via applyAsync (creation event).
+      final counter = await session.applyAsync<Counter>(
         streamId,
         CounterCreated(eventId: const EventId('e-1'), initial: 1),
       );
 
-      session.append(
+      // Mutate via applyAsync (mutation event, already-tracked fast path).
+      await session.applyAsync<Counter>(
         streamId,
         CounterIncremented(eventId: const EventId('e-2'), amount: 3),
       );
@@ -96,6 +84,7 @@ void main() {
 
       session.discardStream(streamId);
 
+      // State is not reverted — only pending events are cleared.
       expect(counter.value, equals(4));
     });
 
@@ -110,16 +99,23 @@ void main() {
         when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
 
         final streamId = const StreamId('counter-3');
-        session.startStream<Counter>(
+
+        // Create via applyAsync.
+        await session.applyAsync<Counter>(
           streamId,
           CounterCreated(eventId: const EventId('e-1'), initial: 0),
         );
-        session.append(
+
+        // Mutate via applyAsync.
+        await session.applyAsync<Counter>(
           streamId,
           CounterIncremented(eventId: const EventId('e-2'), amount: 1),
         );
 
-        await expectLater(session.saveChangesAsync(maxRetries: 0), completes);
+        final committedEvents = await session.saveChangesAsync(maxRetries: 0);
+
+        // saveChangesAsync now returns the committed events.
+        expect(committedEvents, hasLength(2));
 
         final captured = verify(
           eventStore.appendEventsAsync(streamId, ExpectedVersion.noStream, captureAny),
@@ -155,12 +151,16 @@ void main() {
       final counter = await session.loadAsync<Counter>(streamId);
       expect(counter.value, equals(1));
 
-      session.append(
+      // Mutate via applyAsync (already-tracked fast path).
+      await session.applyAsync<Counter>(
         streamId,
         CounterIncremented(amount: 2),
       );
 
-      await session.saveChangesAsync(maxRetries: 0);
+      final committedEvents = await session.saveChangesAsync(maxRetries: 0);
+
+      // saveChangesAsync returns committed events.
+      expect(committedEvents, hasLength(1));
 
       final captured = verify(
         eventStore.appendEventsAsync(streamId, ExpectedVersion.exact(0), captureAny),
@@ -191,11 +191,12 @@ void main() {
         final s1 = const StreamId('counter-a');
         final s2 = const StreamId('counter-b');
 
-        session.startStream<Counter>(
+        // Create streams via applyAsync.
+        await session.applyAsync<Counter>(
           s1,
           CounterCreated(eventId: const EventId('e-a1'), initial: 0),
         );
-        session.startStream<Counter>(
+        await session.applyAsync<Counter>(
           s2,
           CounterCreated(eventId: const EventId('e-b1'), initial: 0),
         );

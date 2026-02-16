@@ -34,7 +34,7 @@ void main() async {
   // Use your aggregates
   final userId = StreamId('user-1');
   final session = store.openSession();
-  session.startStream<User>(
+  await session.applyAsync<User>(
     userId,
     UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
   );

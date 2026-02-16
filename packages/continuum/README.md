@@ -216,11 +216,14 @@ void main() async {
 
   // Create + mutate within a session
   final session = store.openSession();
-  session.startStream<User>(
+  await session.applyAsync<User>(
     userId,
     UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
   );
-  session.append(userId, EmailChanged(userId: userId.value, newEmail: 'alice@company.com'));
+  await session.applyAsync<User>(
+    userId,
+    EmailChanged(userId: userId.value, newEmail: 'alice@company.com'),
+  );
   await session.saveChangesAsync();
 
   // Load aggregate (reconstructed from events)
@@ -311,17 +314,17 @@ class ItemAdded implements ContinuumEvent {
 
 ### Sessions
 
-Sessions track pending events and manage aggregate versions. Call `saveChangesAsync()` to commit events atomically.
+Sessions track pending events and manage aggregate versions. A single `applyAsync` method auto-detects whether an event creates a new stream or mutates an existing one. Call `saveChangesAsync()` to commit events atomically.
 
 ```dart
 final session = store.openSession();
 
-session.startStream<Order>(
+await session.applyAsync<Order>(
   orderId,
   OrderCreated(orderId: orderId.value, customerId: customerId),
 );
-session.append(orderId, ItemAdded(itemId: 'item-1'));
-session.append(orderId, ItemAdded(itemId: 'item-2'));
+await session.applyAsync<Order>(orderId, ItemAdded(itemId: 'item-1'));
+await session.applyAsync<Order>(orderId, ItemAdded(itemId: 'item-2'));
 
 await session.saveChangesAsync(); // All or nothing
 ```
@@ -336,6 +339,67 @@ final store = EventSourcingStore(
   aggregates: $aggregateList, // Auto-discovered - just run build_runner!
 );
 ```
+
+### TransactionalRunner
+
+The `TransactionalRunner` manages the full session lifecycle: open → execute → commit → publish. It uses Dart zones to provide an **ambient session** accessible anywhere within the transaction scope.
+
+```dart
+final runner = TransactionalRunner(
+  store: store,
+  commitHandler: myCommitHandler, // Optional
+);
+
+await runner.runAsync(() async {
+  final session = TransactionalRunner.currentSession;
+  await session.applyAsync<User>(userId, UserRegistered(...));
+  await session.applyAsync<User>(userId, EmailChanged(...));
+  // Auto-commits on success. If the action throws, no events are saved.
+});
+```
+
+**Key properties:**
+- Each `runAsync` creates a new zone with an independent session
+- Nested `runAsync` calls produce separate transactions (not nested transactions)
+- Two concurrent `runAsync` calls get isolated sessions — no cross-contamination
+- Manual session usage via `store.openSession()` is still fully supported
+
+### CommitHandler
+
+A pluggable interface for post-commit side effects. After `saveChangesAsync()` succeeds, the handler receives the list of committed events.
+
+```dart
+abstract interface class CommitHandler {
+  Future<void> onCommitAsync(List<ContinuumEvent> events);
+}
+```
+
+Use cases: event bus publishing, projection execution, analytics, logging. If no handler is provided, events are simply persisted with no post-commit processing.
+
+### Event Application Mode
+
+Controls when events mutate the in-memory aggregate. Configured at the store level:
+
+```dart
+// Eager (default) — events mutate the aggregate immediately
+final store = EventSourcingStore(
+  eventStore: myStore,
+  aggregates: $aggregateList,
+  applicationMode: EventApplicationMode.eager,
+);
+
+// Deferred — events are recorded but applied only on successful save
+final store = EventSourcingStore(
+  eventStore: myStore,
+  aggregates: $aggregateList,
+  applicationMode: EventApplicationMode.deferred,
+);
+```
+
+| | Eager (default) | Deferred |
+|---|---|---|
+| **After `applyAsync`** | Aggregate reflects post-event state | Aggregate reflects pre-event state |
+| **Best for** | Workflows that read post-event state | Fire-and-forget or backend-authoritative patterns |
 
 ## Code Generation
 
@@ -414,10 +478,11 @@ dart run custom_lint
 
 ### Event Stores
 
-Continuum provides pluggable event storage:
+Continuum provides pluggable event storage through the `ContinuumStore` interface:
 
 - `continuum_store_memory`: In-memory (testing/development)
 - `continuum_store_hive`: Local Hive persistence (production)
+- `continuum_store_sembast`: Local Sembast persistence (cross-platform)
 - Custom: Implement `EventStore` interface for your own backend
 
 ### Optimistic Concurrency
@@ -655,7 +720,7 @@ Projections support two execution modes:
 
 #### Inline (Strongly Consistent)
 
-Projections execute during `saveChangesAsync()`. The read model is always up-to-date with the event store.
+Projections execute when committed events are published through a `CommitHandler`. The `TransactionalRunner` manages this lifecycle automatically.
 
 ```dart
 final registry = ProjectionRegistry();
@@ -666,12 +731,27 @@ registry.registerInline(
   userProfileStore,
 );
 
-// Pass to EventSourcingStore
+// Create a CommitHandler that feeds events to the projection executor
+final commitHandler = InlineProjectionCommitHandler(
+  executor: InlineProjectionExecutor(registry: registry),
+);
+
+// Set up the store and runner
 final store = EventSourcingStore(
   eventStore: InMemoryEventStore(),
   aggregates: $aggregateList,
-  projections: registry, // Inline projections execute automatically
 );
+
+final runner = TransactionalRunner(
+  store: store,
+  commitHandler: commitHandler,
+);
+
+// Projections update automatically after each successful commit
+await runner.runAsync(() async {
+  final session = TransactionalRunner.currentSession;
+  await session.applyAsync<User>(userId, UserRegistered(...));
+});
 ```
 
 #### Async (Eventually Consistent)

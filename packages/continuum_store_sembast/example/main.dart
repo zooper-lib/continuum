@@ -51,7 +51,7 @@ void main() async {
   final userId = const StreamId('user-001');
 
   ContinuumSession session = store.openSession();
-  final user = session.startStream<User>(
+  final user = await session.applyAsync<User>(
     userId,
     UserRegistered(
       userId: const UserId('user-001'),

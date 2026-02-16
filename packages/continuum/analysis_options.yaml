@@ -64,6 +64,7 @@ analyzer:
     - "**/generated/**"
     - "**/mocks/**"
     - "**/*.freezed.dart/**"
+    - "**/*.md"
 
   # Language-specific analyzer strictness options.
   language:

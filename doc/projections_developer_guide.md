@@ -22,6 +22,17 @@ The critical method for correctness is:
 
 - `TKey extractKey(StoredEvent event)`
 
+### Projection execution model
+
+Projections are **decoupled from the session**. The session is responsible only for persisting events. Post-commit side effects (including projection execution) are handled by `CommitHandler` implementations registered on the `TransactionalRunner`.
+
+For inline (strongly consistent) projections, a `CommitHandler` feeds committed events to the projection executor after each successful `saveChangesAsync()`. For async (eventually consistent) projections, a background `PollingProjectionProcessor` reads events from the store independently.
+
+This decoupling means:
+- The session does not know about projections.
+- Different runners can have different commit handlers (e.g., test runner with no projections, production runner with full projection + analytics).
+- Projections work identically regardless of the persistence strategy (event-sourced or state-based).
+
 ## The meaning of the key
 
 The key is **the identity of the read model instance** that should be updated by a given event.

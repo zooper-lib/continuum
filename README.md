@@ -10,6 +10,7 @@ Continuum provides a comprehensive event sourcing framework for Dart application
 - **continuum_generator**: Code generator for aggregate and event boilerplate
 - **continuum_store_memory**: In-memory EventStore for testing
 - **continuum_store_hive**: Hive-backed EventStore for local persistence
+- **continuum_store_sembast**: Sembast-backed EventStore for cross-platform persistence
 
 ## Quick Start
 
@@ -138,14 +139,14 @@ final store = EventSourcingStore(
 // Open a session
 final session = store.openSession();
 
-// Start a new stream
-final cart = session.startStream<ShoppingCart>(
+// Apply a creation event (auto-detected)
+await session.applyAsync<ShoppingCart>(
   StreamId('cart-123'),
   CartCreated(eventId: EventId('evt-1'), cartId: 'cart-123'),
 );
 
-// Append mutation events
-session.append(
+// Apply a mutation event
+await session.applyAsync<ShoppingCart>(
   StreamId('cart-123'),
   ItemAdded(eventId: EventId('evt-2'), productId: 'product-abc'),
 );
@@ -162,7 +163,10 @@ Core library providing:
 - `@Aggregate()` and `@AggregateEvent()` annotations
 - `ContinuumEvent` base contract
 - `EventId` and `StreamId` strong types
-- `ContinuumSession`, `EventStore`, `EventSourcingStore` abstractions
+- `ContinuumStore`, `ContinuumSession`, `EventStore`, `EventSourcingStore` abstractions
+- `TransactionalRunner` for zone-based unit-of-work lifecycle
+- `CommitHandler` interface for pluggable post-commit side effects
+- `EventApplicationMode` (eager/deferred) configuration
 - Exception types for error handling
 
 ### continuum_generator
@@ -180,6 +184,10 @@ In-memory `EventStore` implementation suitable for testing and development.
 ### continuum_store_hive
 
 Hive-backed `EventStore` implementation for local persistence.
+
+### continuum_store_sembast
+
+Sembast-backed `EventStore` implementation for cross-platform local persistence.
 
 ## License
 

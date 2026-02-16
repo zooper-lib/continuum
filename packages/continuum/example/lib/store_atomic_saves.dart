@@ -41,7 +41,7 @@ void main() async {
   final userId2 = const StreamId('user-002');
 
   ContinuumSession session = store.openSession();
-  session.startStream<User>(
+  await session.applyAsync<User>(
     userId1,
     UserRegistered(
       userId: const UserId('user-001'),
@@ -49,7 +49,7 @@ void main() async {
       name: 'Alice',
     ),
   );
-  session.startStream<User>(
+  await session.applyAsync<User>(
     userId2,
     UserRegistered(
       userId: const UserId('user-002'),
@@ -77,12 +77,12 @@ void main() async {
 
   // Append changes to BOTH streams within the same session
   print('  [Session] Staging changes for Alice...');
-  session.append(
+  await session.applyAsync<User>(
     userId1,
     EmailChanged(newEmail: 'alice.new@company.com'),
   );
   print('  [Session] Staging changes for Bob...');
-  session.append(
+  await session.applyAsync<User>(
     userId2,
     EmailChanged(newEmail: 'bob.new@company.com'),
   );

@@ -41,7 +41,7 @@ void main() async {
   final userId2 = const StreamId('user-002');
 
   ContinuumSession session = store.openSession();
-  session.startStream<User>(
+  await session.applyAsync<User>(
     userId1,
     UserRegistered(
       userId: const UserId('user-001'),
@@ -49,7 +49,7 @@ void main() async {
       name: 'Alice',
     ),
   );
-  session.startStream<User>(
+  await session.applyAsync<User>(
     userId2,
     UserRegistered(
       userId: const UserId('user-002'),
@@ -75,7 +75,7 @@ void main() async {
   print('Concurrent writer updates Alice (before stale session saves)...');
   final concurrentSession = store.openSession();
   await concurrentSession.loadAsync<User>(userId1);
-  concurrentSession.append(
+  await concurrentSession.applyAsync<User>(
     userId1,
     EmailChanged(
       newEmail: 'alice.concurrent@company.com',
@@ -88,12 +88,12 @@ void main() async {
 
   // Stale session tries to update BOTH Alice and Bob
   print('Stale session tries to save changes to BOTH users...');
-  staleSession.append(
+  await staleSession.applyAsync<User>(
     userId1,
     EmailChanged(newEmail: 'alice.stale@company.com'),
   );
   print('  [Stale Session] Staging Alice update (expects version 0 → 1)');
-  staleSession.append(
+  await staleSession.applyAsync<User>(
     userId2,
     EmailChanged(newEmail: 'bob.stale@company.com'),
   );

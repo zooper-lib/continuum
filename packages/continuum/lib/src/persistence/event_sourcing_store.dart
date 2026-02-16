@@ -1,5 +1,5 @@
-import '../projections/inline_projection_executor.dart';
-import '../projections/projection_registry.dart';
+import 'continuum_store.dart';
+import 'event_application_mode.dart';
 import 'event_serializer.dart';
 import 'event_serializer_registry.dart';
 import 'event_store.dart';
@@ -14,19 +14,9 @@ import 'session_impl.dart';
 /// to provide a complete event sourcing runtime. Sessions are created
 /// from this store to perform aggregate operations.
 ///
-/// Optionally accepts a [ProjectionRegistry] to enable automatic
-/// inline projection execution during event persistence.
-///
-/// ```dart
-/// final store = EventSourcingStore(
-///   eventStore: InMemoryEventStore(),
-///   aggregates: [$User, $Account],
-/// );
-///
-/// final session = store.openSession();
-/// final user = await session.loadAsync<User>(userId);
-/// ```
-final class EventSourcingStore {
+/// Implements [ContinuumStore] so it can be used interchangeably with
+/// other store implementations (e.g., future state-based stores).
+final class EventSourcingStore implements ContinuumStore {
   /// The underlying event store for persistence.
   final EventStore _eventStore;
 
@@ -39,8 +29,8 @@ final class EventSourcingStore {
   /// Event applier registry for applying events to aggregates.
   final EventApplierRegistry _eventAppliers;
 
-  /// Optional executor for inline projections.
-  final InlineProjectionExecutor? _inlineProjectionExecutor;
+  /// Controls when events mutate the in-memory aggregate.
+  final EventApplicationMode _applicationMode;
 
   /// Creates an event sourcing store from generated aggregate bundles.
   ///
@@ -48,20 +38,12 @@ final class EventSourcingStore {
   /// aggregate bundles (e.g., `$User`, `$Account`) and the store
   /// will automatically merge their registries.
   ///
-  /// Optionally provide a [projections] registry to enable automatic
-  /// inline projection execution when events are saved.
-  ///
-  /// ```dart
-  /// final store = EventSourcingStore(
-  ///   eventStore: InMemoryEventStore(),
-  ///   aggregates: [$User, $Account],
-  ///   projections: projectionRegistry, // Optional
-  /// );
-  /// ```
+  /// Optionally provide an [applicationMode] to control when events
+  /// mutate the in-memory aggregate. Defaults to [EventApplicationMode.eager].
   factory EventSourcingStore({
     required EventStore eventStore,
     required List<GeneratedAggregate> aggregates,
-    ProjectionRegistry? projections,
+    EventApplicationMode applicationMode = EventApplicationMode.eager,
   }) {
     // Merge all registries from the provided aggregates
     var serializerRegistry = const EventSerializerRegistry.empty();
@@ -69,15 +51,13 @@ final class EventSourcingStore {
     var eventAppliers = const EventApplierRegistry.empty();
 
     for (final aggregate in aggregates) {
-      serializerRegistry = serializerRegistry.merge(aggregate.serializerRegistry);
-      aggregateFactories = aggregateFactories.merge(aggregate.aggregateFactories);
+      serializerRegistry = serializerRegistry.merge(
+        aggregate.serializerRegistry,
+      );
+      aggregateFactories = aggregateFactories.merge(
+        aggregate.aggregateFactories,
+      );
       eventAppliers = eventAppliers.merge(aggregate.eventAppliers);
-    }
-
-    // Create inline projection executor if projections are configured.
-    InlineProjectionExecutor? inlineProjectionExecutor;
-    if (projections != null && projections.hasInlineProjections) {
-      inlineProjectionExecutor = InlineProjectionExecutor(registry: projections);
     }
 
     return EventSourcingStore._(
@@ -85,7 +65,7 @@ final class EventSourcingStore {
       serializer: JsonEventSerializer(registry: serializerRegistry),
       aggregateFactories: aggregateFactories,
       eventAppliers: eventAppliers,
-      inlineProjectionExecutor: inlineProjectionExecutor,
+      applicationMode: applicationMode,
     );
   }
 
@@ -98,28 +78,21 @@ final class EventSourcingStore {
     required EventSerializer serializer,
     required AggregateFactoryRegistry aggregateFactories,
     required EventApplierRegistry eventAppliers,
-    InlineProjectionExecutor? inlineProjectionExecutor,
+    required EventApplicationMode applicationMode,
   }) : _eventStore = eventStore,
        _serializer = serializer,
        _aggregateFactories = aggregateFactories,
        _eventAppliers = eventAppliers,
-       _inlineProjectionExecutor = inlineProjectionExecutor;
+       _applicationMode = applicationMode;
 
-  /// Opens a new session for aggregate operations.
-  ///
-  /// Each session is independent and tracks its own loaded aggregates
-  /// and pending events. Sessions should be short-lived.
-  ///
-  /// If the store was configured with projections, inline projections
-  /// will be automatically executed when [ContinuumSession.saveChangesAsync]
-  /// is called.
+  @override
   ContinuumSession openSession() {
     return SessionImpl(
       eventStore: _eventStore,
       serializer: _serializer,
       aggregateFactories: _aggregateFactories,
       eventAppliers: _eventAppliers,
-      inlineProjectionExecutor: _inlineProjectionExecutor,
+      applicationMode: _applicationMode,
     );
   }
 }
@@ -180,6 +153,25 @@ final class AggregateFactoryRegistry {
 
     // Cast to the specific aggregate type
     return (event) => factory(event) as TAggregate;
+  }
+
+  /// Looks up a creation factory by [eventType] alone, scanning all
+  /// registered aggregate types.
+  ///
+  /// Returns a record of the resolved aggregate [Type] and the factory,
+  /// or null if no aggregate has a creation factory for this event type.
+  ///
+  /// This is used as a fallback when the caller does not specify a
+  /// concrete aggregate type parameter (i.e. `TAggregate` is `dynamic`
+  /// or `Object`).
+  ({Type aggregateType, AggregateFactory<Object> factory})? getFactoryByEventType(Type eventType) {
+    for (final entry in _factories.entries) {
+      final factory = entry.value[eventType];
+      if (factory != null) {
+        return (aggregateType: entry.key, factory: factory);
+      }
+    }
+    return null;
   }
 }
 

@@ -1,7 +1,7 @@
 import '../events/continuum_event.dart';
 import '../identity/stream_id.dart';
 
-/// Unit of work abstraction for event-sourced aggregate operations.
+/// Unit of work abstraction for aggregate operations.
 ///
 /// A session tracks loaded aggregates and pending events, applying
 /// changes optimistically and persisting them atomically on save.
@@ -19,27 +19,30 @@ abstract interface class ContinuumSession {
   /// Throws [StreamNotFoundException] if the stream does not exist.
   Future<TAggregate> loadAsync<TAggregate>(StreamId streamId);
 
-  /// Starts a new stream with a creation event.
+  /// Applies a domain event to a stream, auto-detecting whether it
+  /// is a creation or mutation event.
   ///
-  /// Creates a new aggregate instance using the generated creation
-  /// dispatcher and tracks it for persistence.
+  /// Three detection paths in order:
+  /// 1. **Already tracked** — stream is in the session's identity map,
+  ///    apply event directly (fast path).
+  /// 2. **Creation event** — a registered factory exists for the
+  ///    (aggregate type, event type) pair. Creates the aggregate and
+  ///    begins tracking the stream.
+  /// 3. **Mutation event** — no factory found, loads the aggregate
+  ///    from the store via [loadAsync], then applies the event.
   ///
-  /// Returns the newly created aggregate instance.
+  /// Returns the aggregate in its post-event state (when using eager
+  /// application mode) or pre-event state (when using deferred mode).
   ///
-  /// Throws [InvalidCreationEventException] if the event is not a valid
-  /// creation event for the aggregate type.
-  TAggregate startStream<TAggregate>(
+  /// Throws [InvalidOperationException] if the event is a creation
+  /// event but the stream is already tracked (strict creation guard).
+  ///
+  /// Throws [StreamNotFoundException] if the event is a mutation event
+  /// and the stream does not exist in the store.
+  Future<TAggregate> applyAsync<TAggregate>(
     StreamId streamId,
-    ContinuumEvent creationEvent,
+    ContinuumEvent event,
   );
-
-  /// Appends a mutation event to an existing stream.
-  ///
-  /// The event is applied to the cached aggregate immediately and
-  /// recorded as pending for persistence.
-  ///
-  /// Throws if the stream has not been loaded or started in this session.
-  void append(StreamId streamId, ContinuumEvent event);
 
   /// Persists all pending events to the event store.
   ///
@@ -57,9 +60,13 @@ abstract interface class ContinuumSession {
   /// references obtained before [saveChangesAsync] should re-read the
   /// aggregate via [loadAsync] if they need the latest state.
   ///
+  /// Returns a list of all committed [ContinuumEvent] instances across
+  /// all streams, ordered by stream in persistence order. Returns an
+  /// empty list if there were no pending events.
+  ///
   /// Throws [ConcurrencyException] if a version conflict is detected
   /// and retries are exhausted (or [maxRetries] is zero).
-  Future<void> saveChangesAsync({int maxRetries = 1});
+  Future<List<ContinuumEvent>> saveChangesAsync({int maxRetries = 1});
 
   /// Discards pending events for a specific stream.
   ///
