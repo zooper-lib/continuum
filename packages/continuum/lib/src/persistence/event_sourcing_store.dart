@@ -480,7 +480,7 @@ final class EventApplierRegistry {
 
         // None of the registered appliers accepted this event type.
         throw UnsupportedError(
-          'No registered applier for ${aggregateType} accepted '
+          'No registered applier for $aggregateType accepted '
           'event of type ${evt.runtimeType}.',
         );
       };

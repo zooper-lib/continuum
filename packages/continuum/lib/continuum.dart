@@ -18,7 +18,10 @@ export 'src/events/continuum_event.dart';
 export 'src/exceptions/concurrency_exception.dart';
 export 'src/exceptions/invalid_creation_event_exception.dart';
 export 'src/exceptions/invalid_operation_exception.dart';
+export 'src/exceptions/partial_save_exception.dart';
+export 'src/exceptions/permanent_adapter_exception.dart';
 export 'src/exceptions/stream_not_found_exception.dart';
+export 'src/exceptions/transient_adapter_exception.dart';
 export 'src/exceptions/unknown_event_type_exception.dart';
 export 'src/exceptions/unsupported_event_exception.dart';
 
@@ -41,6 +44,8 @@ export 'src/persistence/generated_aggregate.dart';
 export 'src/persistence/json_event_serializer.dart';
 export 'src/persistence/projection_event_store.dart';
 export 'src/persistence/session.dart';
+export 'src/persistence/state_based_session.dart';
+export 'src/persistence/state_based_store.dart';
 export 'src/persistence/stored_event.dart';
 export 'src/persistence/transactional_runner.dart';
 

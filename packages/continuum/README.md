@@ -26,14 +26,15 @@ The frontend is the source of truth. Events are persisted locally (SQLite, Hive,
 - Single-user desktop tools
 - No backend or backend is just for sync/backup
 
-### Mode 3: Hybrid Mode (Backend as Source of Truth)
+### Mode 3: State-Based with Backend
 
-Backend is authoritative, frontend uses events for optimistic UI. Frontend events are transient and discarded after backend confirms. The backend may use its own event sourcing or CRUD—your frontend doesn't care.
+Backend is authoritative, frontend uses events for local state management. A `StateBasedStore` with `AggregatePersistenceAdapter` bridges each aggregate to the backend API. Sessions work identically to Mode 2 — same `applyAsync` / `saveChangesAsync` contract.
 
 **Use when:**
+- Backend is the source of truth (REST, GraphQL, database)
+- You want the same event-driven programming model across all modes
 - Building responsive UIs with optimistic updates
 - Need undo/cancel before committing
-- Backend handles validation and persistence
 
 ## Quick Start
 
@@ -233,35 +234,38 @@ void main() async {
 }
 ```
 
-#### Mode 3: Hybrid with Backend
+#### Mode 3: State-Based with Backend
 
 ```dart
 void main() async {
-  // Backend is source of truth.
-  // On the frontend, keep transient domain events for optimistic UI.
+  // Backend is source of truth — use StateBasedStore with an adapter.
+  final store = StateBasedStore(
+    adapters: {User: UserApiAdapter(httpClient)},
+    aggregates: $aggregateList,
+  );
 
   final userId = StreamId('user-123');
-  final user = await backendApi.fetchUser(userId);
 
-  // User edits email in UI (optimistic)
-  final pendingEvents = <ContinuumEvent>[];
-  final emailChanged = EmailChanged(userId: userId.value, newEmail: 'new@email.com');
-  pendingEvents.add(emailChanged);
-  user.applyEvent(emailChanged);
+  // Create + mutate within a session (same API as Mode 2!)
+  final session = store.openSession();
+  await session.applyAsync<User>(
+    userId,
+    UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
+  );
+  await session.applyAsync<User>(
+    userId,
+    EmailChanged(newEmail: 'alice@company.com'),
+  );
+  await session.saveChangesAsync(); // Adapter persists to backend
 
-  updateUI(user); // Show immediately
-
-  // Convert to a request DTO and send to backend
-  final dto = {'email': user.email};
-  final confirmed = await backendApi.updateUser(userId, dto);
-
-  // Discard local events; replace with backend response
-  pendingEvents.clear();
-  displayUser(User.fromBackend(confirmed));
+  // Load aggregate (fetched from backend via adapter)
+  final readSession = store.openSession();
+  final user = await readSession.loadAsync<User>(userId);
+  print(user.email); // alice@company.com
 }
 ```
 
-See [hybrid_mode_example.dart](example/hybrid_mode_example.dart) for a complete example.
+See [store_state_based.dart](example/lib/store_state_based.dart) for a complete example.
 
 ## Core Concepts
 
@@ -339,6 +343,49 @@ final store = EventSourcingStore(
   aggregates: $aggregateList, // Auto-discovered - just run build_runner!
 );
 ```
+
+### State-Based Store
+
+The `StateBasedStore` is for apps backed by a traditional backend (REST API, GraphQL, database). Instead of persisting events to an event store, each aggregate is loaded and saved through an `AggregatePersistenceAdapter` that talks to the backend.
+
+```dart
+final store = StateBasedStore(
+  adapters: {User: UserApiAdapter(httpClient)},
+  aggregates: $aggregateList,
+);
+```
+
+Each adapter implements two methods — `fetchAsync` to load an aggregate, and `persistAsync` to save it:
+
+```dart
+class UserApiAdapter implements AggregatePersistenceAdapter<User> {
+  final HttpClient _client;
+
+  UserApiAdapter(this._client);
+
+  @override
+  Future<User> fetchAsync(StreamId streamId) async {
+    final response = await _client.get('/users/${streamId.value}');
+    return User.fromJson(response.body);
+  }
+
+  @override
+  Future<void> persistAsync(
+    StreamId streamId,
+    User aggregate,
+    List<ContinuumEvent> pendingEvents,
+  ) async {
+    await _client.put('/users/${streamId.value}', body: aggregate.toJson());
+  }
+}
+```
+
+**Key properties:**
+- Sessions work identically to `EventSourcingStore` — same `applyAsync` / `saveChangesAsync` contract
+- Events exist only in memory; they are never serialized
+- The adapter receives the post-event aggregate state plus the pending events list on save
+- Each stream is persisted independently — partial failures are reported via `PartialSaveException`
+- `loadAsync` delegates to the adapter's `fetchAsync`; `loadAllAsync` is not supported
 
 ### TransactionalRunner
 

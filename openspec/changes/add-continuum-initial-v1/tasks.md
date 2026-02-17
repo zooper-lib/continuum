@@ -1,6 +1,6 @@
 ## 1. Specs & structure
 - [x] 1.1 Add initial capability specs (core, persistence, generator, stores)
-- [ ] 1.2 Validate OpenSpec change (`openspec validate add-continuum-initial-v1 --strict`)
+- [x] 1.2 Validate OpenSpec change (`openspec validate add-continuum-initial-v1 --strict`)
 
 ## 2. Core package: `packages/continuum`
 - [x] 2.1 Implement annotations: `@Aggregate()` and `@Event(ofAggregate: ..., type: ...)`
@@ -18,7 +18,7 @@
 - [x] 3.4 Generate `applyEvent()` and `replayEvents()` extensions
 - [x] 3.5 Generate `createFromEvent()` factory dispatcher
 - [x] 3.6 Generate `EventRegistry` for persistence deserialization
-- [ ] 3.7 Add integration-style tests that compile and run generated code
+- [x] 3.7 Add integration-style tests that compile and run generated code
 
 ## 4. Store packages
 - [x] 4.1 Add `packages/continuum_store_memory` implementing `EventStore`

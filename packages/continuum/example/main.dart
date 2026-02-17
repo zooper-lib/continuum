@@ -16,6 +16,9 @@
 ///   store_atomic_saves.dart         - Atomic multi-stream saves
 ///   store_atomic_rollback.dart      - Atomic rollback on conflict
 ///
+/// STATE-BASED PERSISTENCE (StateBasedStore + Adapter):
+///   store_state_based.dart           - State-based backend persistence
+///
 /// PROJECTIONS (Read Models):
 ///   projection_example.dart         - Projection with code generation
 ///
@@ -48,6 +51,9 @@ void main() {
   print('  store_handling_conflicts.dart   - Conflict detection');
   print('  store_atomic_saves.dart         - Atomic multi-stream saves');
   print('  store_atomic_rollback.dart      - Atomic rollback on conflict');
+  print('');
+  print('STATE-BASED PERSISTENCE (StateBasedStore + Adapter):');
+  print('  store_state_based.dart           - State-based backend persistence');
   print('');
   print('PROJECTIONS (Read Models):');
   print('  projection_example.dart         - Projection with code generation');
