@@ -57,7 +57,7 @@ void main() {
       final stored = buildStoredEvents(streamId, [created]);
 
       when(eventStore.loadStreamAsync(streamId)).thenAnswer((_) async => stored);
-      when(eventStore.appendEventsAsync(any, any, any)).thenThrow(
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenThrow(
         ConcurrencyException(
           streamId: streamId,
           expectedVersion: 0,
@@ -117,7 +117,7 @@ void main() {
 
       // First append: conflict. Second append: succeeds.
       var appendCallCount = 0;
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {
         appendCallCount++;
         if (appendCallCount == 1) {
           throw ConcurrencyException(
@@ -147,6 +147,7 @@ void main() {
           streamId,
           captureAny,
           captureAny,
+          aggregateType: anyNamed('aggregateType'),
         ),
       ).captured;
 
@@ -187,7 +188,7 @@ void main() {
       });
 
       // Every append throws.
-      when(eventStore.appendEventsAsync(any, any, any)).thenThrow(
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenThrow(
         ConcurrencyException(
           streamId: streamId,
           expectedVersion: 0,
@@ -242,7 +243,7 @@ void main() {
       });
 
       var appendCallCount = 0;
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {
         appendCallCount++;
         if (appendCallCount <= 2) {
           throw ConcurrencyException(
@@ -270,7 +271,7 @@ void main() {
       verify(eventStore.loadStreamAsync(streamId)).called(3);
 
       // And attempted to append 3 times.
-      verify(eventStore.appendEventsAsync(any, any, any)).called(3);
+      verify(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).called(3);
     });
 
     test('exhausts all retries then throws', () async {
@@ -280,7 +281,7 @@ void main() {
       final events = buildStoredEvents(streamId, [created]);
 
       when(eventStore.loadStreamAsync(streamId)).thenAnswer((_) async => events);
-      when(eventStore.appendEventsAsync(any, any, any)).thenThrow(
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenThrow(
         ConcurrencyException(
           streamId: streamId,
           expectedVersion: 0,
@@ -306,7 +307,7 @@ void main() {
       // Initial load + 3 reloads for retries = 4 loads total.
       verify(eventStore.loadStreamAsync(streamId)).called(4);
       // 1 initial attempt + 3 retries = 4 append calls.
-      verify(eventStore.appendEventsAsync(any, any, any)).called(4);
+      verify(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).called(4);
     });
   });
 
@@ -337,7 +338,7 @@ void main() {
       });
 
       var appendCallCount = 0;
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {
         appendCallCount++;
         if (appendCallCount == 1) {
           throw ConcurrencyException(
@@ -400,7 +401,7 @@ void main() {
       });
 
       var appendCallCount = 0;
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {
         appendCallCount++;
         if (appendCallCount == 1) {
           throw ConcurrencyException(
@@ -429,7 +430,7 @@ void main() {
 
       // Assert — both pending events must be in the second append call.
       final captured = verify(
-        eventStore.appendEventsAsync(streamId, captureAny, captureAny),
+        eventStore.appendEventsAsync(streamId, captureAny, captureAny, aggregateType: anyNamed('aggregateType')),
       ).captured;
 
       // Second call's events (index 2 = expectedVersion, index 3 = events).
@@ -454,7 +455,7 @@ void main() {
       // Arrange — attempt to create a stream that already exists.
       final streamId = const StreamId('counter-duplicate');
 
-      when(eventStore.appendEventsAsync(any, any, any)).thenThrow(
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenThrow(
         ConcurrencyException(
           streamId: streamId,
           expectedVersion: -1,
@@ -493,7 +494,7 @@ void main() {
       // Assert — no store interactions should occur and returns empty list.
       expect(committedEvents, isEmpty);
       verifyNever(eventStore.loadStreamAsync(any));
-      verifyNever(eventStore.appendEventsAsync(any, any, any));
+      verifyNever(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType')));
     });
 
     test('saveChangesAsync succeeds on first attempt without touching retry logic', () async {
@@ -503,7 +504,7 @@ void main() {
       final events = buildStoredEvents(streamId, [created]);
 
       when(eventStore.loadStreamAsync(streamId)).thenAnswer((_) async => events);
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
 
       final session = store.openSession();
       await session.loadAsync<Counter>(streamId);
@@ -522,7 +523,7 @@ void main() {
 
       // Only the initial load, no reloads for retry.
       verify(eventStore.loadStreamAsync(streamId)).called(1);
-      verify(eventStore.appendEventsAsync(any, any, any)).called(1);
+      verify(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).called(1);
     });
   });
 
@@ -634,7 +635,7 @@ void main() {
       // The save falls back to per-stream when the store is not atomic.
       // We make the existing stream conflict on the first attempt.
       var appendCallCount = 0;
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer(
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer(
         (invocation) async {
           appendCallCount++;
           final appendStreamId = invocation.positionalArguments[0] as StreamId;

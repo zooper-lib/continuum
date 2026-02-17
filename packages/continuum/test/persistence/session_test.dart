@@ -48,7 +48,7 @@ void main() {
       when(eventStore.loadStreamAsync(streamId)).thenAnswer((_) async => stored);
 
       // Ensure writes don't fail if accidentally invoked.
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
 
       final session = store.openSession();
 
@@ -96,7 +96,7 @@ void main() {
         final store = EventSourcingStore(eventStore: eventStore, aggregates: [aggregate]);
         final session = store.openSession();
 
-        when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
+        when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
 
         final streamId = const StreamId('counter-3');
 
@@ -118,7 +118,7 @@ void main() {
         expect(committedEvents, hasLength(2));
 
         final captured = verify(
-          eventStore.appendEventsAsync(streamId, ExpectedVersion.noStream, captureAny),
+          eventStore.appendEventsAsync(streamId, ExpectedVersion.noStream, captureAny, aggregateType: anyNamed('aggregateType')),
         ).captured;
 
         final persistedEvents = captured.single as List<StoredEvent>;
@@ -145,7 +145,7 @@ void main() {
       );
 
       when(eventStore.loadStreamAsync(streamId)).thenAnswer((_) async => [storedCreated]);
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
 
       final session = store.openSession();
       final counter = await session.loadAsync<Counter>(streamId);
@@ -163,7 +163,7 @@ void main() {
       expect(committedEvents, hasLength(1));
 
       final captured = verify(
-        eventStore.appendEventsAsync(streamId, ExpectedVersion.exact(0), captureAny),
+        eventStore.appendEventsAsync(streamId, ExpectedVersion.exact(0), captureAny, aggregateType: anyNamed('aggregateType')),
       ).captured;
 
       final persistedEvents = captured.single as List<StoredEvent>;
@@ -204,7 +204,7 @@ void main() {
         await expectLater(session.saveChangesAsync(maxRetries: 0), throwsA(isA<StateError>()));
 
         expect(atomicAppendCalled, isTrue);
-        verifyNever(eventStore.appendEventsAsync(any, any, any));
+        verifyNever(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType')));
       },
     );
   });

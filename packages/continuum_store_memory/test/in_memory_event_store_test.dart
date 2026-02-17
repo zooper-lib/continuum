@@ -27,7 +27,7 @@ void main() {
         final streamId = const StreamId('test_stream');
         final storedEvents = [_createStoredEvent(streamId, 0, 'event_1'), _createStoredEvent(streamId, 1, 'event_2')];
 
-        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, storedEvents);
+        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, storedEvents, aggregateType: 'TestAggregate');
 
         // Act
         final loadedEvents = await store.loadStreamAsync(streamId);
@@ -46,7 +46,7 @@ void main() {
         final events = [_createStoredEvent(streamId, 0, 'created')];
 
         // Act
-        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, events);
+        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, events, aggregateType: 'TestAggregate');
 
         // Assert - event should be stored
         final loaded = await store.loadStreamAsync(streamId);
@@ -58,10 +58,10 @@ void main() {
         final streamId = const StreamId('versioned_stream');
 
         // Act - append first event
-        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'first')]);
+        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'first')], aggregateType: 'TestAggregate');
 
         // Act - append second event
-        await store.appendEventsAsync(streamId, ExpectedVersion.exact(0), [_createStoredEvent(streamId, 1, 'second')]);
+        await store.appendEventsAsync(streamId, ExpectedVersion.exact(0), [_createStoredEvent(streamId, 1, 'second')], aggregateType: 'TestAggregate');
 
         // Assert - versions should be 0 and 1
         final loaded = await store.loadStreamAsync(streamId);
@@ -72,7 +72,7 @@ void main() {
       test('should throw ConcurrencyException when expected version mismatches', () async {
         // Arrange
         final streamId = const StreamId('concurrent_stream');
-        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'first')]);
+        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'first')], aggregateType: 'TestAggregate');
 
         // Act & Assert - wrong expected version should throw
         expect(
@@ -80,6 +80,7 @@ void main() {
             streamId,
             ExpectedVersion.exact(5), // Wrong - should be 0
             [_createStoredEvent(streamId, 1, 'second')],
+            aggregateType: 'TestAggregate',
           ),
           throwsA(isA<ConcurrencyException>()),
         );
@@ -88,11 +89,11 @@ void main() {
       test('should throw ConcurrencyException when expecting noStream but stream exists', () async {
         // Arrange
         final streamId = const StreamId('existing_stream');
-        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'first')]);
+        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'first')], aggregateType: 'TestAggregate');
 
         // Act & Assert - noStream on existing stream should throw
         expect(
-          () => store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 1, 'duplicate')]),
+          () => store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 1, 'duplicate')], aggregateType: 'TestAggregate'),
           throwsA(isA<ConcurrencyException>()),
         );
       });
@@ -103,7 +104,7 @@ void main() {
         final events = [_createStoredEvent(streamId, 0, 'event_1'), _createStoredEvent(streamId, 1, 'event_2'), _createStoredEvent(streamId, 2, 'event_3')];
 
         // Act
-        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, events);
+        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, events, aggregateType: 'TestAggregate');
 
         // Assert - all events stored with sequential versions
         final loaded = await store.loadStreamAsync(streamId);
@@ -117,8 +118,8 @@ void main() {
         final stream2 = const StreamId('stream_2');
 
         // Act - append to two different streams
-        await store.appendEventsAsync(stream1, ExpectedVersion.noStream, [_createStoredEvent(stream1, 0, 'first')]);
-        await store.appendEventsAsync(stream2, ExpectedVersion.noStream, [_createStoredEvent(stream2, 0, 'second')]);
+        await store.appendEventsAsync(stream1, ExpectedVersion.noStream, [_createStoredEvent(stream1, 0, 'first')], aggregateType: 'TestAggregate');
+        await store.appendEventsAsync(stream2, ExpectedVersion.noStream, [_createStoredEvent(stream2, 0, 'second')], aggregateType: 'TestAggregate');
 
         // Assert - global sequences should be ordered across streams
         final events1 = await store.loadStreamAsync(stream1);
@@ -139,7 +140,7 @@ void main() {
           data: const {'k': 'v'},
         );
 
-        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [stored]);
+        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [stored], aggregateType: 'TestAggregate');
 
         final loaded = await store.loadStreamAsync(streamId);
         expect(loaded, hasLength(1));
@@ -155,10 +156,12 @@ void main() {
 
         final Map<StreamId, StreamAppendBatch> batches = <StreamId, StreamAppendBatch>{
           stream1: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
             expectedVersion: ExpectedVersion.noStream,
             events: <StoredEvent>[_createStoredEvent(stream1, 0, 'first')],
           ),
           stream2: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
             expectedVersion: ExpectedVersion.noStream,
             events: <StoredEvent>[_createStoredEvent(stream2, 0, 'second')],
           ),
@@ -191,14 +194,17 @@ void main() {
           stream1,
           ExpectedVersion.noStream,
           <StoredEvent>[_createStoredEvent(stream1, 0, 'first')],
+          aggregateType: 'TestAggregate',
         );
 
         final Map<StreamId, StreamAppendBatch> batches = <StreamId, StreamAppendBatch>{
           stream1: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
             expectedVersion: ExpectedVersion.exact(999),
             events: <StoredEvent>[_createStoredEvent(stream1, 1, 'should_fail')],
           ),
           stream2: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
             expectedVersion: ExpectedVersion.noStream,
             events: <StoredEvent>[_createStoredEvent(stream2, 0, 'should_not_be_written')],
           ),
@@ -224,7 +230,7 @@ void main() {
       test('should remove all events', () async {
         // Arrange
         final streamId = const StreamId('to_clear');
-        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'event')]);
+        await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [_createStoredEvent(streamId, 0, 'event')], aggregateType: 'TestAggregate');
 
         // Act
         store.clear();
@@ -238,8 +244,12 @@ void main() {
     group('statistics', () {
       test('should track stream count', () async {
         // Arrange
-        await store.appendEventsAsync(const StreamId('stream_1'), ExpectedVersion.noStream, [_createStoredEvent(const StreamId('stream_1'), 0, 'event')]);
-        await store.appendEventsAsync(const StreamId('stream_2'), ExpectedVersion.noStream, [_createStoredEvent(const StreamId('stream_2'), 0, 'event')]);
+        await store.appendEventsAsync(const StreamId('stream_1'), ExpectedVersion.noStream, [
+          _createStoredEvent(const StreamId('stream_1'), 0, 'event'),
+        ], aggregateType: 'TestAggregate');
+        await store.appendEventsAsync(const StreamId('stream_2'), ExpectedVersion.noStream, [
+          _createStoredEvent(const StreamId('stream_2'), 0, 'event'),
+        ], aggregateType: 'TestAggregate');
 
         // Assert
         expect(store.streamCount, equals(2));
@@ -251,7 +261,7 @@ void main() {
         await store.appendEventsAsync(streamId, ExpectedVersion.noStream, [
           _createStoredEvent(streamId, 0, 'event_1'),
           _createStoredEvent(streamId, 1, 'event_2'),
-        ]);
+        ], aggregateType: 'TestAggregate');
 
         // Assert
         expect(store.eventCount, equals(2));
@@ -270,10 +280,10 @@ void main() {
 
         await store.appendEventsAsync(s1, ExpectedVersion.noStream, [
           _createStoredEvent(s1, 0, 'e1'),
-        ]);
+        ], aggregateType: 'TestAggregate');
         await store.appendEventsAsync(s2, ExpectedVersion.noStream, [
           _createStoredEvent(s2, 0, 'e2'),
-        ]);
+        ], aggregateType: 'TestAggregate');
 
         // Load from position 1 (skip first event).
         final events = await store.loadEventsFromPositionAsync(1, 100);
@@ -288,7 +298,7 @@ void main() {
           _createStoredEvent(s1, 0, 'e1'),
           _createStoredEvent(s1, 1, 'e2'),
           _createStoredEvent(s1, 2, 'e3'),
-        ]);
+        ], aggregateType: 'TestAggregate');
 
         final events = await store.loadEventsFromPositionAsync(0, 2);
 
@@ -303,13 +313,13 @@ void main() {
 
         await store.appendEventsAsync(s1, ExpectedVersion.noStream, [
           _createStoredEvent(s1, 0, 'e1'),
-        ]);
+        ], aggregateType: 'TestAggregate');
         await store.appendEventsAsync(s2, ExpectedVersion.noStream, [
           _createStoredEvent(s2, 0, 'e2'),
-        ]);
+        ], aggregateType: 'TestAggregate');
         await store.appendEventsAsync(s1, ExpectedVersion.exact(0), [
           _createStoredEvent(s1, 1, 'e3'),
-        ]);
+        ], aggregateType: 'TestAggregate');
 
         final events = await store.loadEventsFromPositionAsync(0, 100);
 
@@ -332,11 +342,165 @@ void main() {
           _createStoredEvent(s1, 0, 'e1'),
           _createStoredEvent(s1, 1, 'e2'),
           _createStoredEvent(s1, 2, 'e3'),
-        ]);
+        ], aggregateType: 'TestAggregate');
 
         final maxSeq = await store.getMaxGlobalSequenceAsync();
 
         expect(maxSeq, equals(2));
+      });
+    });
+
+    group('getStreamIdsByAggregateTypeAsync', () {
+      test('should return empty list when no streams exist', () async {
+        // Act
+        final result = await store.getStreamIdsByAggregateTypeAsync('Counter');
+
+        // Assert — no streams have been persisted, so nothing should match.
+        expect(result, isEmpty);
+      });
+
+      test('should return empty list when no streams match the type', () async {
+        // Arrange — persist a stream tagged with a different aggregate type.
+        final streamId = const StreamId('stream-1');
+        await store.appendEventsAsync(
+          streamId,
+          ExpectedVersion.noStream,
+          [_createStoredEvent(streamId, 0, 'created')],
+          aggregateType: 'Counter',
+        );
+
+        // Act — query for a type that was never stored.
+        final result = await store.getStreamIdsByAggregateTypeAsync('Invoice');
+
+        // Assert — mismatched type should return no results.
+        expect(result, isEmpty);
+      });
+
+      test('should return stream IDs that match the given type', () async {
+        // Arrange — persist two streams with the same aggregate type.
+        final stream1 = const StreamId('counter-1');
+        final stream2 = const StreamId('counter-2');
+
+        await store.appendEventsAsync(
+          stream1,
+          ExpectedVersion.noStream,
+          [_createStoredEvent(stream1, 0, 'created')],
+          aggregateType: 'Counter',
+        );
+        await store.appendEventsAsync(
+          stream2,
+          ExpectedVersion.noStream,
+          [_createStoredEvent(stream2, 0, 'created')],
+          aggregateType: 'Counter',
+        );
+
+        // Act
+        final result = await store.getStreamIdsByAggregateTypeAsync('Counter');
+
+        // Assert — both streams should be returned.
+        expect(result, hasLength(2));
+        expect(
+          result.map((id) => id.value).toSet(),
+          equals({'counter-1', 'counter-2'}),
+        );
+      });
+
+      test('should filter correctly between different aggregate types', () async {
+        // Arrange — persist streams tagged with two different aggregate types.
+        final counterStream = const StreamId('counter-1');
+        final invoiceStream = const StreamId('invoice-1');
+
+        await store.appendEventsAsync(
+          counterStream,
+          ExpectedVersion.noStream,
+          [_createStoredEvent(counterStream, 0, 'created')],
+          aggregateType: 'Counter',
+        );
+        await store.appendEventsAsync(
+          invoiceStream,
+          ExpectedVersion.noStream,
+          [_createStoredEvent(invoiceStream, 0, 'created')],
+          aggregateType: 'Invoice',
+        );
+
+        // Act
+        final counters = await store.getStreamIdsByAggregateTypeAsync('Counter');
+        final invoices = await store.getStreamIdsByAggregateTypeAsync('Invoice');
+
+        // Assert — each query should return only its own type's streams.
+        expect(counters, hasLength(1));
+        expect(counters.single.value, equals('counter-1'));
+        expect(invoices, hasLength(1));
+        expect(invoices.single.value, equals('invoice-1'));
+      });
+
+      test('should return IDs for streams created via atomic batch writes', () async {
+        // Arrange — persist via the atomic multi-stream API.
+        final stream1 = const StreamId('atomic-1');
+        final stream2 = const StreamId('atomic-2');
+
+        await store.appendEventsToStreamsAsync({
+          stream1: StreamAppendBatch(
+            expectedVersion: ExpectedVersion.noStream,
+            events: [_createStoredEvent(stream1, 0, 'created')],
+            aggregateType: 'Counter',
+          ),
+          stream2: StreamAppendBatch(
+            expectedVersion: ExpectedVersion.noStream,
+            events: [_createStoredEvent(stream2, 0, 'created')],
+            aggregateType: 'Counter',
+          ),
+        });
+
+        // Act
+        final result = await store.getStreamIdsByAggregateTypeAsync('Counter');
+
+        // Assert — both streams from the atomic batch should be found.
+        expect(result, hasLength(2));
+      });
+
+      test('should preserve aggregate type when appending more events to existing stream', () async {
+        // Arrange — create a stream, then append more events to it.
+        final streamId = const StreamId('counter-append');
+
+        await store.appendEventsAsync(
+          streamId,
+          ExpectedVersion.noStream,
+          [_createStoredEvent(streamId, 0, 'created')],
+          aggregateType: 'Counter',
+        );
+        await store.appendEventsAsync(
+          streamId,
+          ExpectedVersion.exact(0),
+          [_createStoredEvent(streamId, 1, 'incremented')],
+          aggregateType: 'Counter',
+        );
+
+        // Act
+        final result = await store.getStreamIdsByAggregateTypeAsync('Counter');
+
+        // Assert — stream should still appear exactly once (not duplicated).
+        expect(result, hasLength(1));
+        expect(result.single.value, equals('counter-append'));
+      });
+
+      test('should return empty list after clear()', () async {
+        // Arrange — persist and then clear.
+        final streamId = const StreamId('counter-cleared');
+        await store.appendEventsAsync(
+          streamId,
+          ExpectedVersion.noStream,
+          [_createStoredEvent(streamId, 0, 'created')],
+          aggregateType: 'Counter',
+        );
+
+        store.clear();
+
+        // Act
+        final result = await store.getStreamIdsByAggregateTypeAsync('Counter');
+
+        // Assert — clear must also remove aggregate type metadata.
+        expect(result, isEmpty);
       });
     });
   });

@@ -129,6 +129,17 @@ class MockContinuumSession extends _i1.Mock implements _i2.ContinuumSession {
           as _i3.Future<TAggregate>);
 
   @override
+  _i3.Future<List<TAggregate>> loadAllAsync<TAggregate>() =>
+      (super.noSuchMethod(
+            Invocation.method(#loadAllAsync, []),
+            returnValue: _i3.Future<List<TAggregate>>.value(<TAggregate>[]),
+            returnValueForMissingStub: _i3.Future<List<TAggregate>>.value(
+              <TAggregate>[],
+            ),
+          )
+          as _i3.Future<List<TAggregate>>);
+
+  @override
   _i3.Future<List<_i7.ContinuumEvent>> saveChangesAsync({
     int? maxRetries = 1,
   }) =>

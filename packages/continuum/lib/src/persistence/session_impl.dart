@@ -113,10 +113,13 @@ final class SessionImpl implements ContinuumSession {
       storedMetadata: creationStored.metadata,
     );
 
-    // Get the factory for creating the aggregate from the creation event
-    final factory = _aggregateFactories.getFactory<TAggregate>(
+    // Get the factory for creating the aggregate from the creation event.
+    // Uses predicate-based lookup to support sealed class hierarchies
+    // (e.g., Freezed unions) where creationEvent.runtimeType may be a
+    // private subclass of the annotated base event type.
+    final factory = _aggregateFactories.getFactoryForEvent<TAggregate>(
       TAggregate,
-      creationEvent.runtimeType,
+      creationEvent,
     );
 
     if (factory == null) {
@@ -148,9 +151,12 @@ final class SessionImpl implements ContinuumSession {
     TAggregate aggregate,
     ContinuumEvent event,
   ) {
-    final applier = _eventAppliers.getApplier<TAggregate>(
+    // Use predicate-based lookup to support sealed class hierarchies
+    // (e.g., Freezed unions) where event.runtimeType may be a private
+    // subclass of the annotated base event type.
+    final applier = _eventAppliers.getApplierForEvent<TAggregate>(
       TAggregate,
-      event.runtimeType,
+      event,
     );
 
     if (applier == null) {
@@ -168,6 +174,21 @@ final class SessionImpl implements ContinuumSession {
   /// omitted and Dart inferred a top type.
   bool _isExplicitType<TAggregate>() {
     return TAggregate != dynamic && TAggregate != Object;
+  }
+
+  @override
+  Future<List<TAggregate>> loadAllAsync<TAggregate>() async {
+    final streamIds = await _eventStore.getStreamIdsByAggregateTypeAsync(
+      TAggregate.toString(),
+    );
+
+    final List<TAggregate> aggregates = <TAggregate>[];
+    for (final streamId in streamIds) {
+      final aggregate = await loadAsync<TAggregate>(streamId);
+      aggregates.add(aggregate);
+    }
+
+    return aggregates;
   }
 
   @override
@@ -189,14 +210,17 @@ final class SessionImpl implements ContinuumSession {
       // already-tracked streams. A creation event semantically means
       // "this aggregate starts here" — applying one to an existing
       // aggregate is a programming error.
+      //
+      // Uses predicate-based lookups to correctly detect creation events
+      // when the event is a sealed class subtype (e.g., Freezed union).
       final isCreationEvent = hasExplicitType
-          ? _aggregateFactories.getFactory<TAggregate>(
+          ? _aggregateFactories.getFactoryForEvent<TAggregate>(
                   TAggregate,
-                  event.runtimeType,
+                  event,
                 ) !=
                 null
-          : _aggregateFactories.getFactoryByEventType(
-                  event.runtimeType,
+          : _aggregateFactories.getFactoryByEvent(
+                  event,
                 ) !=
                 null;
 
@@ -217,9 +241,11 @@ final class SessionImpl implements ContinuumSession {
     // Path 2: Creation event — factory probe succeeds.
     if (hasExplicitType) {
       // Caller specified the aggregate type — use the direct lookup.
-      final factory = _aggregateFactories.getFactory<TAggregate>(
+      // Predicate-based lookup supports sealed class hierarchies where
+      // event.runtimeType is a private subclass (e.g., Freezed union).
+      final factory = _aggregateFactories.getFactoryForEvent<TAggregate>(
         TAggregate,
-        event.runtimeType,
+        event,
       );
       if (factory != null) {
         return _createAndTrack<TAggregate>(
@@ -230,9 +256,9 @@ final class SessionImpl implements ContinuumSession {
         );
       }
     } else {
-      // Caller omitted the type parameter — scan by event type.
-      final result = _aggregateFactories.getFactoryByEventType(
-        event.runtimeType,
+      // Caller omitted the type parameter — scan by event instance.
+      final result = _aggregateFactories.getFactoryByEvent(
+        event,
       );
       if (result != null) {
         final aggregate = result.factory(event);
@@ -256,18 +282,62 @@ final class SessionImpl implements ContinuumSession {
 
     if (storedEvents.isEmpty) {
       // The stream does not exist and no creation factory was found.
-      // Provide an actionable error message.
+      // Build an actionable error message with diagnostic details so the
+      // user can immediately see what IS registered versus what they
+      // expected.
       final typeHint = hasExplicitType ? '$TAggregate' : 'dynamic (not specified)';
+
+      // Gather diagnostic info about what factories are available.
+      final registeredAggregates = _aggregateFactories.registeredAggregateTypes;
+      final registeredEventsForType = hasExplicitType ? _aggregateFactories.getRegisteredEventTypes(TAggregate) : <Type>[];
+
+      final diagnosticBuffer = StringBuffer();
+      diagnosticBuffer.writeln(
+        'Cannot apply ${event.runtimeType} to stream '
+        '${streamId.value}: no creation factory was found for '
+        '($typeHint, ${event.runtimeType}) and the stream does not '
+        'exist in the store.',
+      );
+
+      // Show what aggregates are registered.
+      if (registeredAggregates.isEmpty) {
+        diagnosticBuffer.writeln(
+          'No aggregate types are registered in the factory registry.',
+        );
+      } else {
+        diagnosticBuffer.writeln(
+          'Registered aggregate types: '
+          '${registeredAggregates.join(', ')}.',
+        );
+      }
+
+      // Show what creation events are registered for the requested
+      // aggregate.
+      if (hasExplicitType) {
+        if (registeredEventsForType.isEmpty) {
+          diagnosticBuffer.writeln(
+            'No creation events are registered for $TAggregate. '
+            'Verify that $TAggregate appears in the generated '
+            '\$aggregateList and that build_runner has been re-run.',
+          );
+        } else {
+          diagnosticBuffer.writeln(
+            'Registered creation event types for $TAggregate: '
+            '${registeredEventsForType.join(', ')}.',
+          );
+        }
+      }
+
+      diagnosticBuffer.write(
+        'If this is a creation event, ensure the @AggregateEvent '
+        'annotation includes `creation: true` and that a matching '
+        'static factory method exists on the aggregate. Also verify '
+        'that applyAsync is called with an explicit type parameter, '
+        'e.g. session.applyAsync<MyAggregate>(...).',
+      );
+
       throw InvalidOperationException(
-        message:
-            'Cannot apply ${event.runtimeType} to stream '
-            '${streamId.value}: no creation factory was found for '
-            '($typeHint, ${event.runtimeType}) and the stream does not '
-            'exist in the store. If this is a creation event, ensure '
-            'the @AggregateEvent annotation includes `creation: true` and '
-            'that a matching static factory method exists on the aggregate. '
-            'Also verify that applyAsync is called with an explicit type '
-            'parameter, e.g. session.applyAsync<MyAggregate>(...).',
+        message: diagnosticBuffer.toString(),
       );
     }
 
@@ -419,6 +489,7 @@ final class SessionImpl implements ContinuumSession {
         batches[streamId] = StreamAppendBatch(
           expectedVersion: expectedVersion,
           events: storedEvents,
+          aggregateType: state.aggregateType.toString(),
         );
         newLoadedVersions[streamId] = nextVersion - 1;
       }
@@ -466,6 +537,7 @@ final class SessionImpl implements ContinuumSession {
         streamId,
         expectedVersion,
         storedEvents,
+        aggregateType: state.aggregateType.toString(),
       );
 
       _streams[streamId] = _StreamState(
@@ -562,10 +634,11 @@ final class SessionImpl implements ContinuumSession {
       storedMetadata: creationStored.metadata,
     );
 
-    // Look up the factory using the runtime type.
-    final factory = _aggregateFactories.getFactory<Object>(
+    // Look up the factory using predicate-based matching for sealed
+    // class support.
+    final factory = _aggregateFactories.getFactoryForEvent<Object>(
       aggregateType,
-      creationEvent.runtimeType,
+      creationEvent,
     );
 
     if (factory == null) {
@@ -600,9 +673,10 @@ final class SessionImpl implements ContinuumSession {
     ContinuumEvent event,
     Type aggregateType,
   ) {
-    final applier = _eventAppliers.getApplier<Object>(
+    // Use predicate-based lookup for sealed class support.
+    final applier = _eventAppliers.getApplierForEvent<Object>(
       aggregateType,
-      event.runtimeType,
+      event,
     );
 
     if (applier == null) {

@@ -133,6 +133,9 @@ final class CodeEmitter {
   ///
   /// This bundles the serializer registry, aggregate factories, and event
   /// appliers into a single constant that can be passed to EventSourcingStore.
+  ///
+  /// Each registry also includes type-check matchers that enable subtype
+  /// matching for sealed class hierarchies (e.g., Freezed unions).
   String _emitGeneratedAggregate(AggregateInfo aggregate) {
     final buffer = StringBuffer();
 
@@ -142,7 +145,7 @@ final class CodeEmitter {
     buffer.writeln('/// Add to the `aggregates` list when creating an [EventSourcingStore].');
     buffer.writeln('final \$${aggregate.name} = GeneratedAggregate(');
 
-    // Emit serializer registry inline
+    // Emit serializer registry inline with matchers for subtype support.
     buffer.writeln('  serializerRegistry: EventSerializerRegistry({');
     for (final event in aggregate.allEvents) {
       if (event.type != null) {
@@ -153,9 +156,15 @@ final class CodeEmitter {
         buffer.writeln('    ),');
       }
     }
+    buffer.writeln('  }, matchers: {');
+    for (final event in aggregate.allEvents) {
+      if (event.type != null) {
+        buffer.writeln('    ${event.name}: (Object event) => event is ${event.name},');
+      }
+    }
     buffer.writeln('  }),');
 
-    // Emit aggregate factory registry inline
+    // Emit aggregate factory registry inline with matchers.
     buffer.writeln('  aggregateFactories: AggregateFactoryRegistry({');
     if (aggregate.creationEvents.isNotEmpty) {
       buffer.writeln('    ${aggregate.name}: {');
@@ -165,15 +174,31 @@ final class CodeEmitter {
       }
       buffer.writeln('    },');
     }
+    buffer.writeln('  }, matchers: {');
+    if (aggregate.creationEvents.isNotEmpty) {
+      buffer.writeln('    ${aggregate.name}: {');
+      for (final event in aggregate.creationEvents) {
+        buffer.writeln('      ${event.name}: (Object event) => event is ${event.name},');
+      }
+      buffer.writeln('    },');
+    }
     buffer.writeln('  }),');
 
-    // Emit event applier registry inline
+    // Emit event applier registry inline with matchers.
     buffer.writeln('  eventAppliers: EventApplierRegistry({');
     if (aggregate.mutationEvents.isNotEmpty) {
       buffer.writeln('    ${aggregate.name}: {');
       for (final event in aggregate.mutationEvents) {
         buffer.writeln('      ${event.name}: (aggregate, event) =>');
         buffer.writeln('          (aggregate as ${aggregate.name}).apply${event.name}(event as ${event.name}),');
+      }
+      buffer.writeln('    },');
+    }
+    buffer.writeln('  }, matchers: {');
+    if (aggregate.mutationEvents.isNotEmpty) {
+      buffer.writeln('    ${aggregate.name}: {');
+      for (final event in aggregate.mutationEvents) {
+        buffer.writeln('      ${event.name}: (Object event) => event is ${event.name},');
       }
       buffer.writeln('    },');
     }

@@ -22,6 +22,9 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
   /// Store name for write-ahead transaction log entries.
   static const String _transactionsStoreName = 'transactions';
 
+  /// Store name for per-stream aggregate type metadata.
+  static const String _aggregateTypesStoreName = 'aggregate_types';
+
   /// The Sembast database instance.
   final Database _database;
 
@@ -37,6 +40,12 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
   /// to mirror the same crash-recovery pattern used by HiveEventStore.
   final StoreRef<String, String> _transactionsStore;
 
+  /// The Sembast store for per-stream aggregate type tags, keyed by stream ID.
+  ///
+  /// Stores the Dart `Type.toString()` value of the aggregate that owns
+  /// each stream, enabling [getStreamIdsByAggregateTypeAsync] queries.
+  final StoreRef<String, String> _aggregateTypesStore;
+
   /// Global sequence counter for ordered projections.
   int _globalSequence;
 
@@ -48,6 +57,7 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
        _eventsStore = StoreRef<String, String>(_eventsStoreName),
        _streamsStore = StoreRef<String, int>(_streamsStoreName),
        _transactionsStore = StoreRef<String, String>(_transactionsStoreName),
+       _aggregateTypesStore = StoreRef<String, String>(_aggregateTypesStoreName),
        _globalSequence = globalSequence;
 
   /// Opens a Sembast event store using the provided [databaseFactory] and [dbPath].
@@ -116,12 +126,17 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
   Future<void> appendEventsAsync(
     StreamId streamId,
     ExpectedVersion expectedVersion,
-    List<StoredEvent> events,
-  ) async {
+    List<StoredEvent> events, {
+    required String aggregateType,
+  }) async {
     // Delegate to the multi-stream path for consistency.
     await appendEventsToStreamsAsync(
       <StreamId, StreamAppendBatch>{
-        streamId: StreamAppendBatch(expectedVersion: expectedVersion, events: events),
+        streamId: StreamAppendBatch(
+          expectedVersion: expectedVersion,
+          events: events,
+          aggregateType: aggregateType,
+        ),
       },
     );
   }
@@ -227,6 +242,11 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
 
           await _streamsStore.record(streamIdValue).put(txn, newVersion);
         }
+
+        // Persist aggregate type tags for all streams.
+        for (final MapEntry<StreamId, StreamAppendBatch> entry in entries) {
+          await _aggregateTypesStore.record(entry.key.value).put(txn, entry.value.aggregateType);
+        }
       });
 
       // Commit succeeded — remove the write-ahead record.
@@ -286,6 +306,16 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
       return null;
     }
     return _globalSequence - 1;
+  }
+
+  @override
+  Future<List<StreamId>> getStreamIdsByAggregateTypeAsync(
+    String aggregateType,
+  ) async {
+    // Scan the aggregate types store for streams matching the given type.
+    final List<RecordSnapshot<String, String>> records = await _aggregateTypesStore.find(_database);
+
+    return records.where((record) => record.value == aggregateType).map((record) => StreamId(record.key)).toList();
   }
 
   // ---------------------------------------------------------------------------

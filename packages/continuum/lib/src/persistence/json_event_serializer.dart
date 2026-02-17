@@ -20,7 +20,10 @@ final class JsonEventSerializer implements EventSerializer {
 
   @override
   SerializedEvent serialize(ContinuumEvent event) {
-    final entry = _registry[event.runtimeType];
+    // Use predicate-based lookup to support sealed class hierarchies
+    // (e.g., Freezed unions) where event.runtimeType may be a private
+    // subclass of the registered base event type.
+    final entry = _registry.getEntryForEvent(event);
     if (entry == null) {
       throw StateError(
         'No serializer registered for event type: ${event.runtimeType}. '

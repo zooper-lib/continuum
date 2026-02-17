@@ -15,10 +15,18 @@ final class StreamAppendBatch {
   /// Events are expected to have sequential versions for that stream.
   final List<StoredEvent> events;
 
+  /// The aggregate type tag for the target stream.
+  ///
+  /// The store persists this as stream metadata to enable
+  /// [EventStore.getStreamIdsByAggregateTypeAsync] queries. The value
+  /// should be the Dart `Type.toString()` of the aggregate.
+  final String aggregateType;
+
   /// Creates a batch append request for a single stream.
   const StreamAppendBatch({
     required this.expectedVersion,
     required this.events,
+    required this.aggregateType,
   });
 }
 

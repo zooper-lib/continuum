@@ -96,7 +96,7 @@ void main() {
       final streamId = const StreamId('counter-persist');
       final session = store.openSession();
 
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
 
       await session.applyAsync<Counter>(
         streamId,
@@ -111,7 +111,7 @@ void main() {
       expect(committed.first, isA<CounterCreated>());
 
       final captured = verify(
-        eventStore.appendEventsAsync(streamId, captureAny, captureAny),
+        eventStore.appendEventsAsync(streamId, captureAny, captureAny, aggregateType: anyNamed('aggregateType')),
       ).captured;
 
       // First capture is the expected version.
@@ -362,7 +362,7 @@ void main() {
       final streamId = const StreamId('counter-single');
       final session = store.openSession();
 
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
 
       await session.applyAsync<Counter>(
         streamId,
@@ -403,7 +403,7 @@ void main() {
       final streamB = const StreamId('counter-b');
       final session = store.openSession();
 
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
 
       await session.applyAsync<Counter>(
         streamA,

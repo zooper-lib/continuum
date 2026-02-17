@@ -44,6 +44,16 @@ abstract interface class ContinuumSession {
     ContinuumEvent event,
   );
 
+  /// Loads all aggregates of the given type from the store.
+  ///
+  /// Queries the event store for all streams tagged with [TAggregate]'s
+  /// type name, then loads each one via [loadAsync]. Streams that are
+  /// already tracked in the session's identity map are returned from
+  /// cache without a store round-trip.
+  ///
+  /// Returns an empty list if no streams of that type exist.
+  Future<List<TAggregate>> loadAllAsync<TAggregate>();
+
   /// Persists all pending events to the event store.
   ///
   /// Uses optimistic concurrency control based on the versions

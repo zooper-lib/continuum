@@ -141,7 +141,7 @@ void main() {
       final stored = buildStoredEvents(streamId, [created]);
 
       when(eventStore.loadStreamAsync(streamId)).thenAnswer((_) async => stored);
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
 
       final session = store.openSession();
       final counter = await session.loadAsync<Counter>(streamId);
@@ -177,7 +177,7 @@ void main() {
       final stored = buildStoredEvents(streamId, [created]);
 
       when(eventStore.loadStreamAsync(streamId)).thenAnswer((_) async => stored);
-      when(eventStore.appendEventsAsync(any, any, any)).thenAnswer((_) async {});
+      when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
 
       final session = store.openSession();
       final counter = await session.loadAsync<Counter>(streamId);

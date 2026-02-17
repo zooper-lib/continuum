@@ -11,6 +11,9 @@ final class InMemoryEventStore implements AtomicEventStore, ProjectionEventStore
   /// Internal storage of events by stream ID.
   final Map<StreamId, List<StoredEvent>> _streams = {};
 
+  /// Per-stream aggregate type metadata for type-based lookups.
+  final Map<StreamId, String> _aggregateTypes = {};
+
   /// Global sequence counter for optional global ordering.
   int _globalSequence = 0;
 
@@ -70,6 +73,7 @@ final class InMemoryEventStore implements AtomicEventStore, ProjectionEventStore
       preparedEventsByStream[streamId] = preparedEvents;
     }
 
+    // Apply all prepared writes and persist aggregate type metadata.
     for (final MapEntry<StreamId, List<StoredEvent>> entry in preparedEventsByStream.entries) {
       final StreamId streamId = entry.key;
       final List<StoredEvent> preparedEvents = entry.value;
@@ -79,16 +83,37 @@ final class InMemoryEventStore implements AtomicEventStore, ProjectionEventStore
       } else {
         _streams[streamId] = preparedEvents;
       }
+
+      // Store the aggregate type tag from the batch.
+      final String aggregateType = batches[streamId]!.aggregateType;
+      _aggregateTypes[streamId] = aggregateType;
     }
   }
 
   @override
-  Future<void> appendEventsAsync(StreamId streamId, ExpectedVersion expectedVersion, List<StoredEvent> events) async {
+  Future<void> appendEventsAsync(
+    StreamId streamId,
+    ExpectedVersion expectedVersion,
+    List<StoredEvent> events, {
+    required String aggregateType,
+  }) async {
     await appendEventsToStreamsAsync(
       <StreamId, StreamAppendBatch>{
-        streamId: StreamAppendBatch(expectedVersion: expectedVersion, events: events),
+        streamId: StreamAppendBatch(
+          expectedVersion: expectedVersion,
+          events: events,
+          aggregateType: aggregateType,
+        ),
       },
     );
+  }
+
+  @override
+  Future<List<StreamId>> getStreamIdsByAggregateTypeAsync(
+    String aggregateType,
+  ) async {
+    // Filter the aggregate type map for streams matching the given type.
+    return _aggregateTypes.entries.where((entry) => entry.value == aggregateType).map((entry) => entry.key).toList();
   }
 
   /// Validates optimistic concurrency expectations.
@@ -117,6 +142,7 @@ final class InMemoryEventStore implements AtomicEventStore, ProjectionEventStore
   /// Useful for resetting state between tests.
   void clear() {
     _streams.clear();
+    _aggregateTypes.clear();
     _globalSequence = 0;
   }
 

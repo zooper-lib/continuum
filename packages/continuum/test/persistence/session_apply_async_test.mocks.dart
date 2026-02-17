@@ -47,16 +47,32 @@ class MockEventStore extends _i1.Mock implements _i2.EventStore {
   _i3.Future<void> appendEventsAsync(
     _i5.StreamId? streamId,
     _i6.ExpectedVersion? expectedVersion,
-    List<_i4.StoredEvent>? events,
-  ) =>
+    List<_i4.StoredEvent>? events, {
+    required String? aggregateType,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#appendEventsAsync, [
-              streamId,
-              expectedVersion,
-              events,
-            ]),
+            Invocation.method(
+              #appendEventsAsync,
+              [streamId, expectedVersion, events],
+              {#aggregateType: aggregateType},
+            ),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
           as _i3.Future<void>);
+
+  @override
+  _i3.Future<List<_i5.StreamId>> getStreamIdsByAggregateTypeAsync(
+    String? aggregateType,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getStreamIdsByAggregateTypeAsync, [
+              aggregateType,
+            ]),
+            returnValue: _i3.Future<List<_i5.StreamId>>.value(<_i5.StreamId>[]),
+            returnValueForMissingStub: _i3.Future<List<_i5.StreamId>>.value(
+              <_i5.StreamId>[],
+            ),
+          )
+          as _i3.Future<List<_i5.StreamId>>);
 }
