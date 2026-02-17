@@ -9,8 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **State-Based Store**: A complete persistence mode for backend-authoritative applications. Instead of persisting events to an event store, aggregates are loaded and saved through `AggregatePersistenceAdapter` instances that communicate with your backend (REST API, GraphQL, database, etc.):
+  - `StateBasedStore`: Store implementation backed by adapter map (one adapter per aggregate type)
+  - `StateBasedSession`: Session implementation delegating to adapters for load/save operations
+  - `AggregatePersistenceAdapter<TAggregate>`: Interface defining `fetchAsync` and `persistAsync` operations
+  - `SessionBase`: Abstract base class extracting shared session logic (identity map, event application, 3-path detection) for reuse across `SessionImpl` and `StateBasedSession`
+  - `PartialSaveException`: Reports partial failures when saving multiple streams atomically
+  - `TransientAdapterException`: Base exception for retriable adapter failures
+  - `PermanentAdapterException`: Base exception for non-retriable adapter failures
+  - Sessions support the same `applyAsync` / `saveChangesAsync` contract as `EventSourcingStore`
+  - Supports concurrency retry via `maxRetries` parameter (adapter must throw `ConcurrencyException`)
+  - Events exist only in memory as domain objects and are never serialized
 - **Sembast EventStore** (`continuum_store_sembast`): Sembast-backed `EventStore` implementation providing persistent local storage using Sembast. Supports `AtomicEventStore` and `ProjectionEventStore` interfaces. Pure Dart solution that works on all platforms (mobile, desktop, web via `sembast_web`).
 - **Concurrency retry on `saveChangesAsync`**: `ContinuumSession.saveChangesAsync` now accepts an optional `maxRetries` parameter (default `0`, fully backward-compatible). When a `ConcurrencyException` is detected and retries remain, the session automatically reloads conflicting streams from the store, reconstructs fresh aggregates, re-applies pending events on top of the latest state, and retries the save. This prevents silent event loss when multiple workflows modify the same aggregate concurrently.
+- **State-Based Store documentation**: Added comprehensive documentation and examples for `StateBasedStore`:
+  - New example: `example/lib/store_state_based.dart` demonstrates `StateBasedStore` with `AggregatePersistenceAdapter`
+  - README: Added "State-Based Store" section under "Core Concepts" with construction patterns and adapter implementation examples
+  - README: Updated Mode 3 quick-start snippet to use `StateBasedStore` instead of manual backend wiring
+  - Example index: Added STATE-BASED PERSISTENCE section for state-based examples
 
 ## [4.1.0] - 2026-01-22
 
