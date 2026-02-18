@@ -22,7 +22,6 @@ export 'package:continuum/continuum.dart'
     show
         GeneratedProjection,
         InlineProjectionExecutor,
-        InMemoryReadModelStore,
         MultiStreamProjection,
         ProjectionBase,
         ProjectionLifecycle,

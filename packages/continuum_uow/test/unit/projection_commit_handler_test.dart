@@ -1,4 +1,5 @@
 import 'package:continuum/continuum.dart';
+import 'package:continuum_store_memory/continuum_store_memory.dart';
 import 'package:continuum_uow/continuum_uow.dart';
 import 'package:test/test.dart';
 
