@@ -17,9 +17,11 @@
 library;
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
 import 'package:continuum_store_memory_example/continuum.g.dart';
 import 'package:continuum_store_memory_example/domain/user.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 
 void main() async {
   print('═══════════════════════════════════════════════════════════════════');

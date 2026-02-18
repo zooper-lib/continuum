@@ -10,8 +10,12 @@ dependencies:
   bounded: ^2.0.0
   continuum:
     path: ../../continuum
+  continuum_event_sourcing:
+    path: ../../continuum_event_sourcing
   continuum_store_hive:
     path: ../
+  continuum_uow:
+    path: ../../continuum_uow
   hive: ^2.2.3
 
 dev_dependencies:
@@ -23,3 +27,7 @@ dev_dependencies:
 dependency_overrides:
   continuum:
     path: ../../continuum
+  continuum_event_sourcing:
+    path: ../../continuum_event_sourcing
+  continuum_uow:
+    path: ../../continuum_uow

@@ -21,9 +21,11 @@ library;
 import 'dart:io';
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_sembast/continuum_store_sembast.dart';
 import 'package:continuum_store_sembast_example/continuum.g.dart';
 import 'package:continuum_store_sembast_example/domain/user.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 import 'package:sembast/sembast_io.dart';
 
 void main() async {

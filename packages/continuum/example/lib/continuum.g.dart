@@ -3,6 +3,7 @@
 // ignore_for_file: type=lint
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 
 import 'abstract_interface_aggregates.dart';
 import 'domain/projections/user_profile_projection.dart';

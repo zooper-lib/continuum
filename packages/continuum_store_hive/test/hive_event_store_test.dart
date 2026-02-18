@@ -1,6 +1,7 @@
 import 'dart:io';
 
-import 'package:continuum/continuum.dart';
+import 'package:continuum/continuum.dart' hide EventFromJsonFactory, EventSerializerEntry, EventSerializerRegistry, EventToJsonFactory, GeneratedAggregate;
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_hive/continuum_store_hive.dart';
 import 'package:hive/hive.dart';
 import 'package:test/test.dart';

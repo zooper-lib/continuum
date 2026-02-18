@@ -1,4 +1,5 @@
-import 'package:continuum/continuum.dart';
+import 'package:continuum/continuum.dart' hide EventFromJsonFactory, EventSerializerEntry, EventSerializerRegistry, EventToJsonFactory, GeneratedAggregate;
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 
 /// In-memory implementation of [EventStore].
 ///

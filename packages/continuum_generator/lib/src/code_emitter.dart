@@ -72,7 +72,7 @@ final class CodeEmitter {
 
     buffer.writeln('      default:');
     buffer.writeln('        throw UnsupportedEventException(');
-    buffer.writeln('          eventType: event.runtimeType,');
+    buffer.writeln('          operationType: event.runtimeType,');
     buffer.writeln('          aggregateType: ${aggregate.name},');
     buffer.writeln('        );');
     buffer.writeln('    }');

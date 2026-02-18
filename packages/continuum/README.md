@@ -1,46 +1,12 @@
 # Continuum
 
-A flexible event sourcing and domain event modeling framework for Dart and Flutter.
+Core types and annotations for the Continuum event sourcing framework.
 
-## Philosophy
+## Overview
 
-Continuum is built around **domain events as a modeling tool**. Events describe meaningful state transitions, and aggregates define how those transitions affect domain state. Unlike traditional event sourcing frameworks, Continuum supports multiple usage modes depending on where your source of truth lives.
+This package provides the **foundational Layer 0 types** used by all other Continuum packages. It defines annotations, event contracts, identity types, and dispatch registries — but does **not** include sessions, stores, or persistence logic.
 
-## Three Usage Modes
-
-### Mode 1: Event-Driven Mutation (No Persistence)
-
-Use events as typed, explicit state transitions with aggregate validation. Only final state is persisted (CRUD style). Events are not stored or replayed.
-
-**Use when:**
-- Building clean domain models with strong invariants
-- You want explicit mutations without event sourcing overhead
-- Backend uses traditional CRUD persistence
-
-### Mode 2: Frontend-Only Event Sourcing
-
-The frontend is the source of truth. Events are persisted locally (SQLite, Hive, etc.) and aggregates are reconstructed by replaying events.
-
-**Use when:**
-- Building offline-first applications
-- Single-user desktop tools
-- No backend or backend is just for sync/backup
-
-### Mode 3: State-Based with Backend
-
-Backend is authoritative, frontend uses events for local state management. A `StateBasedStore` with `AggregatePersistenceAdapter` bridges each aggregate to the backend API. Sessions work identically to Mode 2 — same `applyAsync` / `saveChangesAsync` contract.
-
-**Use when:**
-- Backend is the source of truth (REST, GraphQL, database)
-- You want the same event-driven programming model across all modes
-- Building responsive UIs with optimistic updates
-- Need undo/cancel before committing
-
-## Quick Start
-
-### Installation
-
-Add to your `pubspec.yaml`:
+## Installation
 
 ```yaml
 dependencies:
@@ -51,77 +17,67 @@ dev_dependencies:
   continuum_generator: latest
 ```
 
-### 1. Define Your Aggregate
+## What This Package Provides
+
+- **Annotations**: `@AggregateEvent()`, `@Projection()`
+- **Event contract**: `ContinuumEvent` interface
+- **Identity types**: `EventId`, `StreamId`
+- **Operation enum**: `Operation.create`, `Operation.mutate`
+- **Dispatch registries**: `AggregateFactory`, `EventApplier`, `EventRegistry`
+- **Generated aggregate support**: `GeneratedAggregate` bundle type
+- **Event application mode**: `EventApplicationMode` (eager / deferred)
+- **Core exceptions**: `EventNotRegisteredException`, `AggregateNotRegisteredException`
+
+## Multi-Package Architecture
+
+Continuum is organized into four layers:
+
+| Layer | Package | Purpose |
+|-------|---------|---------|
+| 0 | **`continuum`** (this package) | Core types, annotations, identity |
+| 1 | `continuum_uow` | Unit of Work session engine |
+| 2 | `continuum_event_sourcing` | Event sourcing persistence & projections |
+| 2 | `continuum_state` | State-based persistence (REST/DB adapters) |
+| 3 | `continuum_store_memory` / `_hive` / `_sembast` | Store implementations |
+
+**Choose the right package for your use case:**
+
+- **Event sourcing** (local persistence): `continuum` + `continuum_event_sourcing` + a store package
+- **State-based** (backend-authoritative): `continuum` + `continuum_state`
+- **Event-driven mutation only** (no persistence): `continuum` alone
+
+## Quick Start
+
+### Define Your Aggregate
 
 ```dart
 import 'package:continuum/continuum.dart';
 
 part 'user.g.dart';
 
-@Aggregate()
-class User with _$UserEventHandlers {
-  final String id;
+class User extends AggregateRoot<String> with _$UserEventHandlers {
   String name;
   String email;
 
-  User._({required this.id, required this.name, required this.email});
+  User._({required super.id, required this.name, required this.email});
 
-  // Static factory for creating from first event
   static User createFromUserRegistered(UserRegistered event) {
-    return User._(
-      id: event.userId,
-      name: event.name,
-      email: event.email,
-    );
+    return User._(id: event.userId, name: event.name, email: event.email);
   }
 
-  // Apply methods define state transitions (override generated mixin)
   @override
   void applyEmailChanged(EmailChanged event) {
     email = event.newEmail;
   }
-
-  @override
-  void applyNameChanged(NameChanged event) {
-    name = event.newName;
-  }
 }
 ```
 
-### 2. Define Your Events
+### Define Your Events
 
 ```dart
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
-// For Mode 1 (no persistence) you can omit `type:` and serialization.
-@AggregateEvent(of: User)
-class EmailChanged implements ContinuumEvent {
-  EmailChanged({
-    required this.userId,
-    required this.newEmail,
-    EventId? eventId,
-    DateTime? occurredOn,
-    Map<String, Object?> metadata = const {},
-  }) : id = eventId ?? EventId.fromUlid(),
-       occurredOn = occurredOn ?? DateTime.now(),
-       metadata = Map<String, Object?>.unmodifiable(metadata);
-
-  final String userId;
-  final String newEmail;
-
-  @override
-  final EventId id;
-
-  @override
-  final DateTime occurredOn;
-
-  @override
-  final Map<String, Object?> metadata;
-}
-
-// For Mode 2/3 (with persistence), add `type:` and `toJson`/`fromJson`.
-@AggregateEvent(of: User, type: 'user.registered')
+@AggregateEvent(of: User, type: 'user.registered', creation: true)
 class UserRegistered implements ContinuumEvent {
   UserRegistered({
     required this.userId,
@@ -140,741 +96,40 @@ class UserRegistered implements ContinuumEvent {
 
   @override
   final EventId id;
-
   @override
   final DateTime occurredOn;
-
   @override
   final Map<String, Object?> metadata;
-
-  factory UserRegistered.fromJson(Map<String, dynamic> json) {
-    return UserRegistered(
-      userId: json['userId'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
-      eventId: EventId(json['eventId'] as String),
-      occurredOn: DateTime.parse(json['occurredOn'] as String),
-      metadata: Map<String, Object?>.from(json['metadata'] as Map),
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'userId': userId,
-    'name': name,
-    'email': email,
-    'eventId': id.toString(),
-    'occurredOn': occurredOn.toIso8601String(),
-    'metadata': metadata,
-  };
 }
 ```
 
-### 3. Generate Code
+### Generate Code
 
 ```bash
 dart run build_runner build
 ```
 
 This creates:
-- `user.g.dart` with event handling mixin
-- `lib/continuum.g.dart` with `$aggregateList` (auto-discovered!)
-
-### 4. Use Your Aggregate
-
-#### Mode 1: Simple State Transitions
-
-```dart
-void main() {
-  final userId = StreamId('123');
-
-  // Create from a creation event
-  final user = User.createFromUserRegistered(
-    UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
-  );
-
-  // Apply events to mutate state
-  user.applyEvent(EmailChanged(userId: userId.value, newEmail: 'alice@company.com'));
-
-  print(user.email); // alice@company.com
-
-  // Save final state to your database (events not persisted)
-}
-```
-
-#### Mode 2: Frontend Event Sourcing
-
-```dart
-import 'package:continuum_store_memory/continuum_store_memory.dart';
-
-void main() async {
-  // Setup (zero configuration - $aggregateList auto-discovered!)
-  final store = EventSourcingStore(
-    eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList, // Generated automatically!
-  );
-
-  final userId = StreamId('user-123');
-
-  // Create + mutate within a session
-  final session = store.openSession();
-  await session.applyAsync<User>(
-    userId,
-    UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
-  );
-  await session.applyAsync<User>(
-    userId,
-    EmailChanged(userId: userId.value, newEmail: 'alice@company.com'),
-  );
-  await session.saveChangesAsync();
-
-  // Load aggregate (reconstructed from events)
-  final readSession = store.openSession();
-  final user = await readSession.loadAsync<User>(userId);
-  print(user.email); // alice@company.com
-}
-```
-
-#### Mode 3: State-Based with Backend
-
-```dart
-void main() async {
-  // Backend is source of truth — use StateBasedStore with an adapter.
-  final store = StateBasedStore(
-    adapters: {User: UserApiAdapter(httpClient)},
-    aggregates: $aggregateList,
-  );
-
-  final userId = StreamId('user-123');
-
-  // Create + mutate within a session (same API as Mode 2!)
-  final session = store.openSession();
-  await session.applyAsync<User>(
-    userId,
-    UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
-  );
-  await session.applyAsync<User>(
-    userId,
-    EmailChanged(newEmail: 'alice@company.com'),
-  );
-  await session.saveChangesAsync(); // Adapter persists to backend
-
-  // Load aggregate (fetched from backend via adapter)
-  final readSession = store.openSession();
-  final user = await readSession.loadAsync<User>(userId);
-  print(user.email); // alice@company.com
-}
-```
-
-See [store_state_based.dart](example/lib/store_state_based.dart) for a complete example.
-
-## Core Concepts
-
-### Aggregates
-
-Aggregates are domain objects that encapsulate business logic and invariants. They transition between states by applying events.
-
-```dart
-@Aggregate()
-class Order with _$OrderEventHandlers {
-  final String id;
-  final List<String> items;
-  final OrderStatus status;
-  
-  // Constructor, factories, and apply methods...
-}
-```
-
-### Events
-
-Events represent things that have happened. They are immutable and describe state changes.
-
-```dart
-import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
-
-@AggregateEvent(of: Order, type: 'order.item_added') // type required for persistence
-class ItemAdded implements ContinuumEvent {
-  final String itemId;
-
-  ItemAdded({
-    required this.itemId,
-    EventId? eventId,
-    DateTime? occurredOn,
-    Map<String, Object?> metadata = const {},
-  }) : id = eventId ?? EventId.fromUlid(),
-       occurredOn = occurredOn ?? DateTime.now(),
-       metadata = Map<String, Object?>.unmodifiable(metadata);
-
-  @override
-  final EventId id;
-
-  @override
-  final DateTime occurredOn;
-
-  @override
-  final Map<String, Object?> metadata;
-}
-```
-
-### Sessions
-
-Sessions track pending events and manage aggregate versions. A single `applyAsync` method auto-detects whether an event creates a new stream or mutates an existing one. Call `saveChangesAsync()` to commit events atomically.
-
-```dart
-final session = store.openSession();
-
-await session.applyAsync<Order>(
-  orderId,
-  OrderCreated(orderId: orderId.value, customerId: customerId),
-);
-await session.applyAsync<Order>(orderId, ItemAdded(itemId: 'item-1'));
-await session.applyAsync<Order>(orderId, ItemAdded(itemId: 'item-2'));
-
-await session.saveChangesAsync(); // All or nothing
-```
-
-### Event Sourcing Store
-
-The `EventSourcingStore` is your configuration root. It automatically merges all aggregate registries.
-
-```dart
-final store = EventSourcingStore(
-  eventStore: InMemoryEventStore(), // or HiveEventStore
-  aggregates: $aggregateList, // Auto-discovered - just run build_runner!
-);
-```
-
-### State-Based Store
-
-The `StateBasedStore` is for apps backed by a traditional backend (REST API, GraphQL, database). Instead of persisting events to an event store, each aggregate is loaded and saved through an `AggregatePersistenceAdapter` that talks to the backend.
-
-```dart
-final store = StateBasedStore(
-  adapters: {User: UserApiAdapter(httpClient)},
-  aggregates: $aggregateList,
-);
-```
-
-Each adapter implements two methods — `fetchAsync` to load an aggregate, and `persistAsync` to save it:
-
-```dart
-class UserApiAdapter implements AggregatePersistenceAdapter<User> {
-  final HttpClient _client;
-
-  UserApiAdapter(this._client);
-
-  @override
-  Future<User> fetchAsync(StreamId streamId) async {
-    final response = await _client.get('/users/${streamId.value}');
-    return User.fromJson(response.body);
-  }
-
-  @override
-  Future<void> persistAsync(
-    StreamId streamId,
-    User aggregate,
-    List<ContinuumEvent> pendingEvents,
-  ) async {
-    await _client.put('/users/${streamId.value}', body: aggregate.toJson());
-  }
-}
-```
-
-**Key properties:**
-- Sessions work identically to `EventSourcingStore` — same `applyAsync` / `saveChangesAsync` contract
-- Events exist only in memory; they are never serialized
-- The adapter receives the post-event aggregate state plus the pending events list on save
-- Each stream is persisted independently — partial failures are reported via `PartialSaveException`
-- `loadAsync` delegates to the adapter's `fetchAsync`; `loadAllAsync` is not supported
-
-### TransactionalRunner
-
-The `TransactionalRunner` manages the full session lifecycle: open → execute → commit → publish. It uses Dart zones to provide an **ambient session** accessible anywhere within the transaction scope.
-
-```dart
-final runner = TransactionalRunner(
-  store: store,
-  commitHandler: myCommitHandler, // Optional
-);
-
-await runner.runAsync(() async {
-  final session = TransactionalRunner.currentSession;
-  await session.applyAsync<User>(userId, UserRegistered(...));
-  await session.applyAsync<User>(userId, EmailChanged(...));
-  // Auto-commits on success. If the action throws, no events are saved.
-});
-```
-
-**Key properties:**
-- Each `runAsync` creates a new zone with an independent session
-- Nested `runAsync` calls produce separate transactions (not nested transactions)
-- Two concurrent `runAsync` calls get isolated sessions — no cross-contamination
-- Manual session usage via `store.openSession()` is still fully supported
-
-### CommitHandler
-
-A pluggable interface for post-commit side effects. After `saveChangesAsync()` succeeds, the handler receives the list of committed events.
-
-```dart
-abstract interface class CommitHandler {
-  Future<void> onCommitAsync(List<ContinuumEvent> events);
-}
-```
-
-Use cases: event bus publishing, projection execution, analytics, logging. If no handler is provided, events are simply persisted with no post-commit processing.
-
-### Event Application Mode
-
-Controls when events mutate the in-memory aggregate. Configured at the store level:
-
-```dart
-// Eager (default) — events mutate the aggregate immediately
-final store = EventSourcingStore(
-  eventStore: myStore,
-  aggregates: $aggregateList,
-  applicationMode: EventApplicationMode.eager,
-);
-
-// Deferred — events are recorded but applied only on successful save
-final store = EventSourcingStore(
-  eventStore: myStore,
-  aggregates: $aggregateList,
-  applicationMode: EventApplicationMode.deferred,
-);
-```
-
-| | Eager (default) | Deferred |
-|---|---|---|
-| **After `applyAsync`** | Aggregate reflects post-event state | Aggregate reflects pre-event state |
-| **Best for** | Workflows that read post-event state | Fire-and-forget or backend-authoritative patterns |
-
-## Code Generation
-
-Continuum uses code generation to eliminate boilerplate. When you run `build_runner`, it generates:
-
-1. **Per-aggregate files** (`user.g.dart`):
-   - `_$UserEventHandlers` mixin with event dispatcher
-   - `applyEvent()` extension method
-   - `replayEvents()` for reconstruction
-   - `createFromEvent()` factory
-   - Event serialization registry
-
-2. **Global file** (`lib/continuum.g.dart`):
-   - `$aggregateList` with all aggregates in your project
-   - Auto-discovered from `@Aggregate()` annotations
-
-### Build Configuration
-
-Add to `build.yaml` (optional, for customization):
-
-```yaml
-targets:
-  $default:
-    builders:
-      continuum_generator:
-        enabled: true
-```
+- `user.g.dart` with `_$UserEventHandlers` mixin
+- `lib/continuum.g.dart` with `$aggregateList`
 
 ## Custom Lints (Recommended)
 
-Continuum can optionally surface common mistakes *immediately in the editor* using a custom lint plugin.
-
-### Why use it?
-
-Some Continuum patterns rely on generated mixins (for example `_$UserEventHandlers`). If a concrete `@Aggregate()` class forgets to implement one of the required `apply<Event>(...)` handlers, Dart can sometimes delay the failure until runtime (or until the class is instantiated, depending on how the type is used).
-
-The `continuum_lints` package detects this situation early and reports it as a diagnostic while you type.
-
-### Setup
-
-Add these dev dependencies:
+Surface common mistakes in the editor using `continuum_lints`:
 
 ```yaml
 dev_dependencies:
   custom_lint: ^0.8.1
-  continuum_lints: ^3.1.1
+  continuum_lints: latest
 ```
 
-Enable the analyzer plugin in your `analysis_options.yaml`:
-
 ```yaml
+# analysis_options.yaml
 analyzer:
   plugins:
     - custom_lint
 ```
 
-Optionally, configure which rules are enabled (recommended to keep things explicit):
-
-```yaml
-custom_lint:
-  enable_all_lint_rules: false
-  rules:
-    - continuum_missing_apply_handlers        # For @Aggregate classes
-    - continuum_missing_projection_handlers   # For @Projection classes
-```
-
-### CI usage
-
-`dart analyze` does not run custom lints. In CI, run:
-
-```bash
-dart run custom_lint
-```
-
-## Working with Persistence
-
-### Event Stores
-
-Continuum provides pluggable event storage through the `ContinuumStore` interface:
-
-- `continuum_store_memory`: In-memory (testing/development)
-- `continuum_store_hive`: Local Hive persistence (production)
-- `continuum_store_sembast`: Local Sembast persistence (cross-platform)
-- Custom: Implement `EventStore` interface for your own backend
-
-### Optimistic Concurrency
-
-Prevent conflicting writes with version checks:
-
-```dart
-try {
-  await session.saveChangesAsync();
-} on ConcurrencyException catch (e) {
-  // Handle conflict: reload and retry, or show error to user
-  print('Conflict: expected ${e.expectedVersion}, got ${e.actualVersion}');
-}
-```
-
-### Event Serialization
-
-Events are serialized to JSON for storage. Implement `toJson()` and `fromJson()`:
-
-```dart
-@AggregateEvent(of: User, type: 'user.email_changed')
-import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
-
-@AggregateEvent(of: User, type: 'user.email_changed')
-class EmailChanged implements ContinuumEvent {
-  EmailChanged({
-    required this.userId,
-    required this.newEmail,
-    EventId? eventId,
-    DateTime? occurredOn,
-    Map<String, Object?> metadata = const {},
-  }) : id = eventId ?? EventId.fromUlid(),
-       occurredOn = occurredOn ?? DateTime.now(),
-       metadata = Map<String, Object?>.unmodifiable(metadata);
-
-  final String userId;
-  final String newEmail;
-
-  @override
-  final EventId id;
-
-  @override
-  final DateTime occurredOn;
-
-  @override
-  final Map<String, Object?> metadata;
-
-  factory EmailChanged.fromJson(Map<String, dynamic> json) {
-    return EmailChanged(
-      userId: json['userId'] as String,
-      newEmail: json['newEmail'] as String,
-      eventId: EventId(json['eventId'] as String),
-      occurredOn: DateTime.parse(json['occurredOn'] as String),
-      metadata: Map<String, Object?>.from(json['metadata'] as Map),
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'userId': userId,
-    'newEmail': newEmail,
-    'eventId': id.toString(),
-    'occurredOn': occurredOn.toIso8601String(),
-    'metadata': metadata,
-  };
-}
-```
-
-The `of` links the event to its aggregate. The `type` string identifies the event type in storage—make it unique and stable.
-
-## Examples
-
-- [Basic usage](example/continuum_example.dart) - All three modes demonstrated
-- [Hybrid mode](example/hybrid_mode_example.dart) - Optimistic UI with backend
-- [Memory store](../continuum_store_memory/example/lib/main.dart) - Event sourcing persistence
-- [Hive store](../continuum_store_hive/example/lib/main.dart) - Local database persistence
-
-## Projections (Read Models)
-
-Projections maintain **read models** that are automatically updated when events occur. This enables CQRS (Command Query Responsibility Segregation) patterns where you have optimized read views separate from your event-sourced aggregates.
-
-### Why Use Projections?
-
-1. **Query Efficiency**: Read models are optimized for specific queries without reconstructing aggregates.
-2. **Denormalization**: Combine data from multiple aggregates into a single view.
-3. **Performance**: Avoid replaying events for every read operation.
-
-### Quick Start with Code Generation
-
-Like aggregates, projections use code generation to eliminate boilerplate:
-
-```dart
-import 'package:continuum/continuum.dart';
-
-part 'user_profile_projection.g.dart';
-
-/// Read model for a user's profile information.
-class UserProfile {
-  final String name;
-  final String email;
-  final bool isActive;
-  final DateTime lastUpdated;
-
-  const UserProfile({
-    required this.name,
-    required this.email,
-    required this.isActive,
-    required this.lastUpdated,
-  });
-
-  UserProfile copyWith({String? name, String? email, bool? isActive, DateTime? lastUpdated}) {
-    return UserProfile(
-      name: name ?? this.name,
-      email: email ?? this.email,
-      isActive: isActive ?? this.isActive,
-      lastUpdated: lastUpdated ?? this.lastUpdated,
-    );
-  }
-}
-
-/// Projection that maintains UserProfile read models.
-@Projection(
-  name: 'user-profile',
-  events: [UserRegistered, EmailChanged, UserDeactivated],
-)
-class UserProfileProjection
-    extends SingleStreamProjection<UserProfile>
-    with _$UserProfileProjectionHandlers {
-
-  @override
-  UserProfile createInitial(StreamId streamId) => UserProfile(
-        name: '',
-        email: '',
-        isActive: true,
-        lastUpdated: DateTime.utc(1970),
-      );
-
-  @override
-  UserProfile applyUserRegistered(UserProfile current, UserRegistered event) {
-    return UserProfile(
-      name: event.name,
-      email: event.email,
-      isActive: true,
-      lastUpdated: event.occurredOn,
-    );
-  }
-
-  @override
-  UserProfile applyEmailChanged(UserProfile current, EmailChanged event) {
-    return current.copyWith(
-      email: event.newEmail,
-      lastUpdated: event.occurredOn,
-    );
-  }
-
-  @override
-  UserProfile applyUserDeactivated(UserProfile current, UserDeactivated event) {
-    return current.copyWith(
-      isActive: false,
-      lastUpdated: event.occurredOn,
-    );
-  }
-}
-```
-
-The `@Projection` annotation declares:
-- `name`: Unique identifier for position tracking (use stable names)
-- `events`: List of event types this projection handles
-
-The generator creates:
-- `_$UserProfileProjectionHandlers` mixin with `handledEventTypes`, `projectionName`, and `apply()`
-- Abstract `apply<EventName>()` methods for each event type
-- `$UserProfileProjection` bundle for registration
-- `$projectionList` in `lib/continuum.g.dart` with all projections
-
-### Multi-Stream Projections
-
-Aggregate data across multiple streams (e.g., statistics, dashboards):
-
-```dart
-/// Read model for system-wide user statistics.
-class UserStatistics {
-  final int totalUsers;
-  final int activeUsers;
-
-  const UserStatistics({required this.totalUsers, required this.activeUsers});
-}
-
-/// Projection that tracks statistics across all user streams.
-@Projection(
-  name: 'user-statistics',
-  events: [UserRegistered, UserDeactivated, UserReactivated],
-)
-class UserStatisticsProjection
-    extends MultiStreamProjection<UserStatistics, String>
-    with _$UserStatisticsProjectionHandlers {
-
-  // Multi-stream projections require custom key extraction
-  @override
-  String extractKey(StoredEvent event) => 'global';
-
-  @override
-  UserStatistics createInitial(String key) =>
-      const UserStatistics(totalUsers: 0, activeUsers: 0);
-
-  @override
-  UserStatistics applyUserRegistered(UserStatistics current, UserRegistered event) {
-    return UserStatistics(
-      totalUsers: current.totalUsers + 1,
-      activeUsers: current.activeUsers + 1,
-    );
-  }
-
-  @override
-  UserStatistics applyUserDeactivated(UserStatistics current, UserDeactivated event) {
-    return UserStatistics(
-      totalUsers: current.totalUsers,
-      activeUsers: current.activeUsers - 1,
-    );
-  }
-
-  @override
-  UserStatistics applyUserReactivated(UserStatistics current, UserReactivated event) {
-    return UserStatistics(
-      totalUsers: current.totalUsers,
-      activeUsers: current.activeUsers + 1,
-    );
-  }
-}
-```
-
-### Projection Lifecycle
-
-Projections support two execution modes:
-
-#### Inline (Strongly Consistent)
-
-Projections execute when committed events are published through a `CommitHandler`. The `TransactionalRunner` manages this lifecycle automatically.
-
-```dart
-final registry = ProjectionRegistry();
-final userProfileStore = InMemoryReadModelStore<UserProfile, StreamId>();
-
-registry.registerInline(
-  UserProfileProjection(),
-  userProfileStore,
-);
-
-// Create a CommitHandler that feeds events to the projection executor
-final commitHandler = InlineProjectionCommitHandler(
-  executor: InlineProjectionExecutor(registry: registry),
-);
-
-// Set up the store and runner
-final store = EventSourcingStore(
-  eventStore: InMemoryEventStore(),
-  aggregates: $aggregateList,
-);
-
-final runner = TransactionalRunner(
-  store: store,
-  commitHandler: commitHandler,
-);
-
-// Projections update automatically after each successful commit
-await runner.runAsync(() async {
-  final session = TransactionalRunner.currentSession;
-  await session.applyAsync<User>(userId, UserRegistered(...));
-});
-```
-
-#### Async (Eventually Consistent)
-
-Projections execute in the background after events are appended. Better for high-throughput scenarios.
-
-```dart
-final registry = ProjectionRegistry();
-final statisticsStore = InMemoryReadModelStore<UserStatistics, String>();
-
-registry.registerAsync(
-  UserStatisticsProjection(),
-  statisticsStore,
-);
-
-// Create background processor
-final processor = PollingProjectionProcessor(
-  eventStore: eventStore, // Must implement ProjectionEventStore
-  executor: AsyncProjectionExecutor(registry: registry),
-  positionStore: InMemoryProjectionPositionStore(),
-  pollInterval: Duration(seconds: 1),
-);
-
-// Start processing
-await processor.startAsync();
-
-// ... later
-await processor.stopAsync();
-```
-
-### Schema Change Detection
-
-When you modify a projection's event list, the generated `schemaHash` changes. On startup:
-1. The system compares stored schema hash with current
-2. If different, the projection is marked stale and rebuilds from scratch
-3. Read models may return with `isStale: true` during rebuild
-
-This ensures projections always reflect their current event definitions.
-
-### Read Model Storage
-
-Projections store their state in `ReadModelStore` implementations:
-
-```dart
-// In-memory storage (for testing or volatile read models)
-final store = InMemoryReadModelStore<UserProfile, StreamId>();
-
-// Load a read model
-final profile = await store.loadAsync(userId);
-
-// Custom storage - implement the interface
-class PostgresReadModelStore<T, K> implements ReadModelStore<T, K> {
-  @override
-  Future<T?> loadAsync(K key) async { /* ... */ }
-
-  @override
-  Future<void> saveAsync(K key, T readModel) async { /* ... */ }
-
-  @override
-  Future<void> deleteAsync(K key) async { /* ... */ }
-}
-```
-
-### Lint Support
-
-The `continuum_lints` package provides editor-time checks for projections:
-
-```yaml
-custom_lint:
-  rules:
-    - continuum_missing_projection_handlers
-```
-
-This rule detects missing `apply<EventName>` implementations in `@Projection` classes and offers quick-fixes to generate stubs.
-
 ## Contributing
 
 See the [repository](https://github.com/zooper-lib/continuum) for contribution guidelines.
-

@@ -1,12 +1,13 @@
 # Continuum Store Sembast
 
-Sembast-backed `EventStore` implementation for [continuum](../continuum). Events are persisted locally using Sembast and survive app restarts.
+Sembast-backed `EventStore` implementation for [Continuum](https://github.com/zooper-lib/continuum). Events are persisted locally using Sembast and survive app restarts.
 
 ## Installation
 
 ```yaml
 dependencies:
   continuum: latest
+  continuum_event_sourcing: latest
   continuum_store_sembast: latest
   sembast: ^3.8.6
 ```
@@ -14,7 +15,7 @@ dependencies:
 ## Usage
 
 ```dart
-import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_sembast/continuum_store_sembast.dart';
 import 'package:sembast/sembast_io.dart';
 import 'continuum.g.dart'; // Generated

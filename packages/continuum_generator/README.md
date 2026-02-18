@@ -6,7 +6,7 @@ Code generator for the [continuum](../continuum) event sourcing library. Automat
 
 ### Per-Aggregate Files (`*.g.dart`)
 
-For each `@Aggregate()` class, generates:
+For each `AggregateRoot()` class, generates:
 
 1. **Event handler mixin** (`_$YourAggregateEventHandlers`)
    - Connects your `applyEventName()` methods to events
@@ -24,7 +24,7 @@ For each `@Aggregate()` class, generates:
 
 ### Global Discovery (`lib/continuum.g.dart`)
 
-Automatically discovers all `@Aggregate()` classes and generates:
+Automatically discovers all `AggregateRoot()` classes and generates:
 
 ```dart
 final List<GeneratedAggregate> $aggregateList = [
@@ -65,13 +65,10 @@ import 'package:continuum/continuum.dart';
 
 part 'user.g.dart';
 
-@Aggregate()
-class User with _$UserEventHandlers {
-  final String id;
+class User extends AggregateRoot<String> with _$UserEventHandlers {
   String email;
 
-  User._({required this.id, required this.email});
-
+  User._({required super.id, required this.email});
   static User createFromUserCreated(UserCreated event) {
     return User._(id: event.userId, email: event.email);
   }
@@ -283,7 +280,7 @@ Each package gets its own `continuum.g.dart` with its aggregates.
 
 ## How Auto-Discovery Works
 
-The generator scans all `.dart` files in your `lib/` directory for `@Aggregate()` annotations and collects them into `$aggregateList`. This happens in a separate build phase after all per-aggregate generators complete.
+The generator scans all `.dart` files in your `lib/` directory for `AggregateRoot` classes and collects them into `$aggregateList`. This happens in a separate build phase after all per-aggregate generators complete.
 
 **You don't need to:**
 - Manually import aggregate files
@@ -291,7 +288,7 @@ The generator scans all `.dart` files in your `lib/` directory for `@Aggregate()
 - Merge multiple registries
 
 **Just:**
-1. Add `@Aggregate()` annotation
+1. Extend `AggregateRoot` in your aggregate class
 2. Run `build_runner`
 3. Use `$aggregateList`
 
@@ -308,7 +305,7 @@ dart run build_runner build
 
 Make sure:
 1. You have `part 'my_aggregate.g.dart';` directive
-2. Your class has the `@Aggregate()` annotation
+2. Your class extends `AggregateRoot` and mixes in `_$MyAggregateEventHandlers`:
 3. You've run `build_runner`
 
 ### "No apply method found for event"

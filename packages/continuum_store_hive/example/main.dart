@@ -20,9 +20,11 @@ library;
 import 'dart:io';
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_hive/continuum_store_hive.dart';
 import 'package:continuum_store_hive_example/continuum.g.dart';
 import 'package:continuum_store_hive_example/domain/user.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 import 'package:hive/hive.dart';
 
 void main() async {

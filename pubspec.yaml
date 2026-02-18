@@ -6,6 +6,9 @@ environment:
 
 workspace:
   - packages/continuum
+  - packages/continuum_uow
+  - packages/continuum_event_sourcing
+  - packages/continuum_state
   - packages/continuum_generator
   - packages/continuum_store_memory
   - packages/continuum_store_hive

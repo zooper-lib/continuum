@@ -1,0 +1,21 @@
+name: continuum_state
+description: State-based persistence strategy for Continuum — aggregate adapters, fetch/persist lifecycle, and concurrency retry.
+version: 1.0.0
+repository: https://github.com/zooper/continuum
+homepage: https://zooper.dev
+
+environment:
+  sdk: ^3.10.4
+
+resolution: workspace
+
+dependencies:
+  continuum:
+  continuum_uow:
+  meta: ^1.15.0
+
+dev_dependencies:
+  build_runner: ^2.4.0
+  lints: ^6.0.0
+  mockito: ^5.4.0
+  test: ^1.25.6

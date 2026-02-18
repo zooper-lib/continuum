@@ -74,8 +74,8 @@ final class ProjectionCodeEmitter {
       buffer.writeln('      $eventTypeName() => apply$eventTypeName(current, domainEvent),');
     }
     buffer.writeln('      _ => throw UnsupportedEventException(');
-    buffer.writeln('            eventType: domainEvent.runtimeType,');
-    buffer.writeln('            projectionType: $className,');
+    buffer.writeln('            operationType: domainEvent.runtimeType,');
+    buffer.writeln('            aggregateType: $className,');
     buffer.writeln('          ),');
     buffer.writeln('    };');
     buffer.writeln('  }');
@@ -119,8 +119,8 @@ final class ProjectionCodeEmitter {
     }
 
     buffer.writeln('      _ => throw UnsupportedEventException(');
-    buffer.writeln('            eventType: event.runtimeType,');
-    buffer.writeln('            projectionType: $className,');
+    buffer.writeln('            operationType: event.runtimeType,');
+    buffer.writeln('            aggregateType: $className,');
     buffer.writeln('          ),');
     buffer.writeln('    };');
     buffer.writeln('  }');

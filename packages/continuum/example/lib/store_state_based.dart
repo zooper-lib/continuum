@@ -21,6 +21,8 @@ import 'package:continuum_example/continuum.g.dart';
 import 'package:continuum_example/domain/events/email_changed.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
+import 'package:continuum_state/continuum_state.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 
 /// A fake backend adapter that stores user state in memory.
 ///
@@ -57,7 +59,7 @@ class FakeUserApiAdapter implements AggregatePersistenceAdapter<User> {
   Future<void> persistAsync(
     StreamId streamId,
     User aggregate,
-    List<ContinuumEvent> pendingEvents,
+    List<Operation> pendingOperations,
   ) async {
     // Simulate network latency.
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -72,7 +74,7 @@ class FakeUserApiAdapter implements AggregatePersistenceAdapter<User> {
 
     print(
       '    [Backend] PUT /users/${streamId.value} '
-      '(${pendingEvents.length} event(s)) → 200 OK',
+      '(${pendingOperations.length} event(s)) → 200 OK',
     );
   }
 }

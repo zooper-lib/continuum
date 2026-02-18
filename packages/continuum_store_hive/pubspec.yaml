@@ -12,6 +12,7 @@ resolution: workspace
 dependencies:
   zooper_flutter_core: ^2.0.0
   continuum: ^4.0.1
+  continuum_event_sourcing:
   hive: ^2.2.3
 
 dev_dependencies:

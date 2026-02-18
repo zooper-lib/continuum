@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:continuum/continuum.dart';
+import 'package:continuum/continuum.dart' hide EventFromJsonFactory, EventSerializerEntry, EventSerializerRegistry, EventToJsonFactory, GeneratedAggregate;
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:sembast/sembast.dart';
 
 /// Sembast-backed implementation of [EventStore].

@@ -8,8 +8,14 @@ environment:
 dependencies:
   continuum:
     path: ../
+  continuum_event_sourcing:
+    path: ../../continuum_event_sourcing
+  continuum_state:
+    path: ../../continuum_state
   continuum_store_memory:
     path: ../../continuum_store_memory
+  continuum_uow:
+    path: ../../continuum_uow
 
   bounded: ^2.0.0
   zooper_flutter_core: ^2.0.0
@@ -23,3 +29,9 @@ dev_dependencies:
 dependency_overrides:
   continuum:
     path: ../
+  continuum_event_sourcing:
+    path: ../../continuum_event_sourcing
+  continuum_state:
+    path: ../../continuum_state
+  continuum_uow:
+    path: ../../continuum_uow

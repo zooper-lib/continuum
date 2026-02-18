@@ -1,4 +1,5 @@
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 
 import '../events/email_changed.dart';
 import '../events/user_deactivated.dart';

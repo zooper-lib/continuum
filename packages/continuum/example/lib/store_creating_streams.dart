@@ -12,6 +12,7 @@
 library;
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_example/continuum.g.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
