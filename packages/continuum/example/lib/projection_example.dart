@@ -62,10 +62,8 @@ void main() async {
   await session.applyAsync<User>(streamId, creationEvent);
   await session.saveChangesAsync();
 
-  // Feed committed events to projections
-  await projectionExecutor.executeAsync([
-    _toStoredEvent(creationEvent, streamId, version: 1),
-  ]);
+  // Feed committed operations to projections
+  await projectionExecutor.executeAsync([creationEvent]);
 
   // Read profile from projection
   var profile = await profileStore.loadAsync(streamId);
@@ -77,14 +75,12 @@ void main() async {
 
   final updateSession = store.openSession();
   await updateSession.loadAsync<User>(streamId);
-  final emailEvent = EmailChanged(newEmail: 'alice@company.com');
+  final emailEvent = EmailChanged(newEmail: 'alice@company.com', userId: userId);
   await updateSession.applyAsync<User>(streamId, emailEvent);
   await updateSession.saveChangesAsync();
 
-  // Feed committed events to projections
-  await projectionExecutor.executeAsync([
-    _toStoredEvent(emailEvent, streamId, version: 2),
-  ]);
+  // Feed committed operations to projections
+  await projectionExecutor.executeAsync([emailEvent]);
 
   profile = await profileStore.loadAsync(streamId);
   print('  Profile after email change: $profile');
@@ -95,14 +91,15 @@ void main() async {
 
   final deactivateSession = store.openSession();
   await deactivateSession.loadAsync<User>(streamId);
-  final deactivateEvent = UserDeactivated(deactivatedAt: DateTime.now());
+  final deactivateEvent = UserDeactivated(
+    deactivatedAt: DateTime.now(),
+    userId: userId,
+  );
   await deactivateSession.applyAsync<User>(streamId, deactivateEvent);
   await deactivateSession.saveChangesAsync();
 
-  // Feed committed events to projections
-  await projectionExecutor.executeAsync([
-    _toStoredEvent(deactivateEvent, streamId, version: 3),
-  ]);
+  // Feed committed operations to projections
+  await projectionExecutor.executeAsync([deactivateEvent]);
 
   profile = await profileStore.loadAsync(streamId);
   print('  Profile after deactivation: $profile');
@@ -113,26 +110,9 @@ void main() async {
   print('Key Takeaways:');
   print('  1. Projections are defined with @Projection annotation');
   print('  2. Generated mixin provides type-safe apply methods');
-  print('  3. Projections are decoupled from the session — feed events');
-  print('     via InlineProjectionExecutor or a CommitHandler');
+  print('  3. Projections work with Operation — decoupled from event');
+  print('     sourcing infrastructure. Feed events directly via');
+  print('     InlineProjectionExecutor or a CommitHandler');
   print('  4. Read models are optimized for specific query patterns');
   print('═══════════════════════════════════════════════════════════════════');
-}
-
-/// Converts a [ContinuumEvent] to a [StoredEvent] for projection execution.
-///
-/// In production, a [CommitHandler] would handle this conversion
-/// automatically. This helper is for demonstration only.
-StoredEvent _toStoredEvent(
-  ContinuumEvent event,
-  StreamId streamId, {
-  required int version,
-}) {
-  return StoredEvent.fromContinuumEvent(
-    continuumEvent: event,
-    streamId: streamId,
-    version: version,
-    eventType: event.runtimeType.toString(),
-    data: const <String, dynamic>{},
-  );
 }

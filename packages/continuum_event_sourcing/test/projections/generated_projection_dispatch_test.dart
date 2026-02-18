@@ -1,81 +1,43 @@
 import 'package:continuum/continuum.dart';
-import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('Generated projection dispatch (domainEvent)', () {
-    test('apply dispatches based on StoredEvent.domainEvent runtime type', () {
+    test('apply dispatches based on Operation runtime type', () {
       final projection = _GeneratedStyleProjection();
 
       final eventA = _TestEventA(eventId: EventId.fromUlid());
-      final storedA = StoredEvent.fromContinuumEvent(
-        continuumEvent: eventA,
-        streamId: const StreamId('s1'),
-        version: 0,
-        eventType: 'test.a',
-        data: const {'a': 1},
-      );
 
-      final resultA = projection.apply(0, storedA);
+      // Act: apply directly with the Operation (ContinuumEvent).
+      final resultA = projection.apply(0, eventA);
       expect(resultA, equals(1));
 
       final eventB = _TestEventB(eventId: EventId.fromUlid());
-      final storedB = StoredEvent.fromContinuumEvent(
-        continuumEvent: eventB,
-        streamId: const StreamId('s1'),
-        version: 1,
-        eventType: 'test.b',
-        data: const {'b': 1},
-      );
 
-      final resultB = projection.apply(resultA, storedB);
+      final resultB = projection.apply(resultA, eventB);
       expect(resultB, equals(11));
     });
 
-    test('apply throws StateError when StoredEvent.domainEvent is null', () {
-      final projection = _GeneratedStyleProjection();
-
-      final stored = StoredEvent(
-        eventId: EventId.fromUlid(),
-        streamId: const StreamId('s1'),
-        version: 0,
-        eventType: 'test.a',
-        data: const {'a': 1},
-        occurredOn: DateTime.now(),
-        metadata: const {},
-        domainEvent: null,
-      );
-
-      expect(
-        () => projection.apply(0, stored),
-        throwsA(isA<StateError>()),
-      );
-    });
-
-    test('apply throws UnsupportedEventException for unsupported domainEvent type', () {
+    test('apply throws UnsupportedOperationException for unsupported Operation type', () {
       // Arrange: A projection that supports only A and B.
       final projection = _GeneratedStyleProjection();
 
       final eventC = _TestEventC(eventId: EventId.fromUlid());
-      final storedC = StoredEvent.fromContinuumEvent(
-        continuumEvent: eventC,
-        streamId: const StreamId('s1'),
-        version: 0,
-        eventType: 'test.c',
-        data: const {'c': 1},
-      );
 
-      // Act/Assert: Unsupported events must fail fast.
-      // This matters because applying the wrong event type is a programming error.
+      // Act/Assert: Unsupported operations must fail fast.
+      // This matters because applying the wrong operation type is a programming error.
       expect(
-        () => projection.apply(0, storedC),
-        throwsA(isA<UnsupportedEventException>()),
+        () => projection.apply(0, eventC),
+        throwsA(isA<UnsupportedProjectionOperationException>()),
       );
     });
   });
 }
 
 final class _GeneratedStyleProjection extends SingleStreamProjection<int> with _$_GeneratedStyleProjectionHandlers {
+  @override
+  StreamId extractKey(Operation operation) => const StreamId('default');
+
   @override
   int createInitial(StreamId streamId) => 0;
 
@@ -92,21 +54,13 @@ mixin _$_GeneratedStyleProjectionHandlers {
 
   String get projectionName => 'generated-style';
 
-  int apply(int current, StoredEvent event) {
-    final domainEvent = event.domainEvent;
-    if (domainEvent == null) {
-      throw StateError(
-        'StoredEvent.domainEvent is null. '
-        'Projections require deserialized domain events.',
-      );
-    }
-
-    return switch (domainEvent) {
-      _TestEventA() => applyTestEventA(current, domainEvent),
-      _TestEventB() => applyTestEventB(current, domainEvent),
-      _ => throw UnsupportedEventException(
-        operationType: domainEvent.runtimeType,
-        aggregateType: _GeneratedStyleProjection,
+  int apply(int current, Operation operation) {
+    return switch (operation) {
+      _TestEventA() => applyTestEventA(current, operation),
+      _TestEventB() => applyTestEventB(current, operation),
+      _ => throw UnsupportedProjectionOperationException(
+        operationType: operation.runtimeType,
+        projectionType: _GeneratedStyleProjection,
       ),
     };
   }

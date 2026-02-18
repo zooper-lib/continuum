@@ -1,4 +1,4 @@
-import 'projection.dart';
+import 'projection_base.dart';
 import 'projection_lifecycle.dart';
 import 'read_model_store.dart';
 

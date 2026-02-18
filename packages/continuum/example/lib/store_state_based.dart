@@ -116,7 +116,7 @@ void main() async {
   print('Session 1: Creating a user and changing email');
   print('');
 
-  ContinuumSession session = store.openSession();
+  Session session = store.openSession();
 
   // Apply a creation event — same API as EventSourcingStore
   print('  [Session] Applying UserRegistered...');

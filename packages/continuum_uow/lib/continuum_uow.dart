@@ -5,7 +5,6 @@
 /// point for custom persistence strategies.
 library;
 
-export 'src/backward_compatibility.dart';
 export 'src/commit_handler.dart';
 export 'src/concurrency_exception.dart';
 export 'src/invalid_operation_exception.dart';

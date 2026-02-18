@@ -21,24 +21,17 @@ mixin _$UserProfileProjectionHandlers {
   /// The unique name identifying this projection.
   String get projectionName => 'user-profile';
 
-  /// Applies an event to update the read model.
+  /// Applies an operation to update the read model.
   ///
-  /// Routes the event to the appropriate typed handler method.
-  /// Throws [UnsupportedEventException] for unknown event types.
-  UserProfile apply(UserProfile current, StoredEvent event) {
-    final domainEvent = event.domainEvent;
-    if (domainEvent == null) {
-      throw StateError(
-        'StoredEvent.domainEvent is null. '
-        'Projections require deserialized domain events.',
-      );
-    }
-    return switch (domainEvent) {
-      UserRegistered() => applyUserRegistered(current, domainEvent),
-      EmailChanged() => applyEmailChanged(current, domainEvent),
-      UserDeactivated() => applyUserDeactivated(current, domainEvent),
-      _ => throw UnsupportedEventException(
-        eventType: domainEvent.runtimeType,
+  /// Routes the operation to the appropriate typed handler method.
+  /// Throws [UnsupportedProjectionOperationException] for unknown operation types.
+  UserProfile apply(UserProfile current, Operation operation) {
+    return switch (operation) {
+      UserRegistered() => applyUserRegistered(current, operation),
+      EmailChanged() => applyEmailChanged(current, operation),
+      UserDeactivated() => applyUserDeactivated(current, operation),
+      _ => throw UnsupportedProjectionOperationException(
+        operationType: operation.runtimeType,
         projectionType: UserProfileProjection,
       ),
     };
@@ -56,19 +49,18 @@ mixin _$UserProfileProjectionHandlers {
 
 /// Generated extension providing additional event dispatch for UserProfileProjection.
 extension $UserProfileProjectionEventDispatch on UserProfileProjection {
-  /// Routes a domain event to the appropriate apply method.
+  /// Routes an operation to the appropriate apply method.
   ///
-  /// This is a convenience method for applying events directly without
-  /// wrapping in [StoredEvent]. For normal projection processing, use [apply].
+  /// This is a convenience method for applying operations directly.
   ///
-  /// Throws [UnsupportedEventException] for unknown event types.
-  UserProfile applyEvent(UserProfile current, ContinuumEvent event) {
-    return switch (event) {
-      UserRegistered() => applyUserRegistered(current, event),
-      EmailChanged() => applyEmailChanged(current, event),
-      UserDeactivated() => applyUserDeactivated(current, event),
-      _ => throw UnsupportedEventException(
-        eventType: event.runtimeType,
+  /// Throws [UnsupportedProjectionOperationException] for unknown operation types.
+  UserProfile applyEvent(UserProfile current, Operation operation) {
+    return switch (operation) {
+      UserRegistered() => applyUserRegistered(current, operation),
+      EmailChanged() => applyEmailChanged(current, operation),
+      UserDeactivated() => applyUserDeactivated(current, operation),
+      _ => throw UnsupportedProjectionOperationException(
+        operationType: operation.runtimeType,
         projectionType: UserProfileProjection,
       ),
     };

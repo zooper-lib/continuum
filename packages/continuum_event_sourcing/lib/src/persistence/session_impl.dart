@@ -120,7 +120,7 @@ final class SessionImpl extends SessionBase {
     );
 
     if (applier == null) {
-      throw UnsupportedEventException(
+      throw UnsupportedOperationException(
         operationType: event.runtimeType,
         aggregateType: TAggregate,
       );

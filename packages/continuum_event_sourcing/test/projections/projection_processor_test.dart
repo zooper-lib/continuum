@@ -240,7 +240,10 @@ void main() {
 int _eventCounter = 0;
 
 StoredEvent _createEvent(String streamId, {required int globalSequence}) {
-  final continuumEvent = _TestEvent(eventId: EventId('evt-${_eventCounter++}'));
+  final continuumEvent = _TestEvent(
+    eventId: EventId('evt-${_eventCounter++}'),
+    streamId: StreamId(streamId),
+  );
 
   return StoredEvent.fromContinuumEvent(
     continuumEvent: continuumEvent,
@@ -267,12 +270,15 @@ class _CounterProjection extends SingleStreamProjection<_CounterReadModel> {
   String get projectionName => 'counter';
 
   @override
+  StreamId extractKey(Operation operation) => (operation as _TestEvent).streamId;
+
+  @override
   _CounterReadModel createInitial(StreamId streamId) {
     return _CounterReadModel(streamId: streamId.value, count: 0);
   }
 
   @override
-  _CounterReadModel apply(_CounterReadModel current, StoredEvent event) {
+  _CounterReadModel apply(_CounterReadModel current, Operation operation) {
     return _CounterReadModel(
       streamId: current.streamId,
       count: current.count + 1,
@@ -281,8 +287,11 @@ class _CounterProjection extends SingleStreamProjection<_CounterReadModel> {
 }
 
 final class _TestEvent implements ContinuumEvent {
+  final StreamId streamId;
+
   _TestEvent({
     required EventId eventId,
+    required this.streamId,
     DateTime? occurredOn,
     Map<String, Object?> metadata = const <String, Object?>{},
   }) : id = eventId,
@@ -307,12 +316,15 @@ final class _FailingProjection extends SingleStreamProjection<_CounterReadModel>
   String get projectionName => 'failing';
 
   @override
+  StreamId extractKey(Operation operation) => (operation as _TestEvent).streamId;
+
+  @override
   _CounterReadModel createInitial(StreamId streamId) {
     return _CounterReadModel(streamId: streamId.value, count: 0);
   }
 
   @override
-  _CounterReadModel apply(_CounterReadModel current, StoredEvent event) {
+  _CounterReadModel apply(_CounterReadModel current, Operation operation) {
     throw StateError('Intentional failure for testing');
   }
 }

@@ -183,7 +183,7 @@ void main() {
       final eventA = _createStoredEvent(
         streamId: const StreamId('s1'),
         globalSequence: 0,
-        continuumEvent: _TestEventA(eventId: EventId.fromUlid()),
+        continuumEvent: _TestEventA(eventId: EventId.fromUlid(), streamId: const StreamId('s1')),
       );
 
       // Act.
@@ -211,7 +211,7 @@ void main() {
       final eventA = _createStoredEvent(
         streamId: const StreamId('s1'),
         globalSequence: 5,
-        continuumEvent: _TestEventA(eventId: EventId.fromUlid()),
+        continuumEvent: _TestEventA(eventId: EventId.fromUlid(), streamId: const StreamId('s1')),
       );
 
       // Act.
@@ -244,7 +244,7 @@ void main() {
       final eventA = _createStoredEvent(
         streamId: const StreamId('s1'),
         globalSequence: 7,
-        continuumEvent: _TestEventA(eventId: EventId.fromUlid()),
+        continuumEvent: _TestEventA(eventId: EventId.fromUlid(), streamId: const StreamId('s1')),
       );
 
       // Act.
@@ -354,7 +354,10 @@ StoredEvent _createEvent({
   required String streamId,
   int? globalSequence,
 }) {
-  final continuumEvent = _TestEvent(eventId: EventId('evt-${_eventCounter++}'));
+  final continuumEvent = _TestEvent(
+    eventId: EventId('evt-${_eventCounter++}'),
+    streamId: StreamId(streamId),
+  );
 
   return StoredEvent.fromContinuumEvent(
     continuumEvent: continuumEvent,
@@ -385,12 +388,15 @@ class _CounterProjection extends SingleStreamProjection<_CounterReadModel> {
   String get projectionName => _name;
 
   @override
+  StreamId extractKey(Operation operation) => (operation as _TestEvent).streamId;
+
+  @override
   _CounterReadModel createInitial(StreamId streamId) {
     return _CounterReadModel(streamId: streamId.value, count: 0);
   }
 
   @override
-  _CounterReadModel apply(_CounterReadModel current, StoredEvent event) {
+  _CounterReadModel apply(_CounterReadModel current, Operation operation) {
     return _CounterReadModel(
       streamId: current.streamId,
       count: current.count + 1,
@@ -414,8 +420,11 @@ StoredEvent _createStoredEvent({
 }
 
 final class _TestEvent implements ContinuumEvent {
+  final StreamId streamId;
+
   _TestEvent({
     required EventId eventId,
+    required this.streamId,
     DateTime? occurredOn,
     Map<String, Object?> metadata = const <String, Object?>{},
   }) : id = eventId,
@@ -433,7 +442,9 @@ final class _TestEvent implements ContinuumEvent {
 }
 
 final class _TestEventA implements ContinuumEvent {
-  _TestEventA({required EventId eventId}) : id = eventId;
+  final StreamId streamId;
+
+  _TestEventA({required EventId eventId, required this.streamId}) : id = eventId;
 
   @override
   final EventId id;
@@ -446,7 +457,9 @@ final class _TestEventA implements ContinuumEvent {
 }
 
 final class _TestEventB implements ContinuumEvent {
-  _TestEventB({required EventId eventId}) : id = eventId;
+  final StreamId streamId;
+
+  _TestEventB({required EventId eventId, required this.streamId}) : id = eventId;
 
   @override
   final EventId id;
@@ -466,10 +479,13 @@ final class _CounterProjectionForA extends SingleStreamProjection<int> {
   String get projectionName => 'counter-a';
 
   @override
+  StreamId extractKey(Operation operation) => (operation as _TestEventA).streamId;
+
+  @override
   int createInitial(StreamId streamId) => 0;
 
   @override
-  int apply(int current, StoredEvent event) => current + 1;
+  int apply(int current, Operation operation) => current + 1;
 }
 
 final class _CounterProjectionForB extends SingleStreamProjection<int> {
@@ -480,10 +496,13 @@ final class _CounterProjectionForB extends SingleStreamProjection<int> {
   String get projectionName => 'counter-b';
 
   @override
+  StreamId extractKey(Operation operation) => (operation as _TestEventB).streamId;
+
+  @override
   int createInitial(StreamId streamId) => 0;
 
   @override
-  int apply(int current, StoredEvent event) => current + 1;
+  int apply(int current, Operation operation) => current + 1;
 }
 
 final class _FailingProjectionForA extends SingleStreamProjection<int> {
@@ -494,10 +513,13 @@ final class _FailingProjectionForA extends SingleStreamProjection<int> {
   String get projectionName => 'failing-a';
 
   @override
+  StreamId extractKey(Operation operation) => (operation as _TestEventA).streamId;
+
+  @override
   int createInitial(StreamId streamId) => 0;
 
   @override
-  int apply(int current, StoredEvent event) {
+  int apply(int current, Operation operation) {
     throw StateError('Intentional failure for testing');
   }
 }
@@ -510,10 +532,13 @@ class _FailingProjection extends SingleStreamProjection<int> {
   String get projectionName => 'failing';
 
   @override
+  StreamId extractKey(Operation operation) => (operation as _TestEvent).streamId;
+
+  @override
   int createInitial(StreamId streamId) => 0;
 
   @override
-  int apply(int current, StoredEvent event) {
+  int apply(int current, Operation operation) {
     throw StateError('Intentional failure');
   }
 }

@@ -42,8 +42,28 @@ final class ProjectionInfo {
   List<String> get eventTypeNames => eventTypes.map((type) => type.element?.name ?? type.toString()).toList();
 
   /// Returns the read model type name as a string for code generation.
-  String get readModelTypeName => readModelType?.getDisplayString() ?? 'dynamic';
+  ///
+  /// Throws if the type could not be resolved — projections must always
+  /// have a concrete read model type.
+  String get readModelTypeName {
+    final resolved = readModelType?.getDisplayString();
+    if (resolved == null || resolved == 'dynamic') {
+      throw StateError(
+        'Could not resolve read model type for projection "$className". '
+        'Ensure the projection extends SingleStreamProjection<T> or '
+        'MultiStreamProjection<T, K> with a concrete type argument.',
+      );
+    }
+    return resolved;
+  }
 
   /// Returns the key type name as a string for code generation.
-  String get keyTypeName => keyType?.getDisplayString() ?? 'dynamic';
+  ///
+  /// Returns `null` when the key type is implicitly `StreamId` (for
+  /// [SingleStreamProjection]) — callers should substitute the default.
+  String? get keyTypeName {
+    final resolved = keyType?.getDisplayString();
+    if (resolved == 'dynamic') return null;
+    return resolved;
+  }
 }

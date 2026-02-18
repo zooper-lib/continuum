@@ -1,5 +1,5 @@
 import 'generated_projection.dart';
-import 'projection.dart';
+import 'projection_base.dart';
 import 'projection_lifecycle.dart';
 import 'projection_registration.dart';
 import 'read_model_store.dart';
@@ -70,6 +70,57 @@ final class ProjectionRegistry {
     );
   }
 
+  /// Returns inline projections that handle the given event type.
+  List<ProjectionRegistration<Object, Object>> getInlineProjectionsForEventType(
+    Type eventType,
+  ) {
+    return _getProjectionsForEventType(eventType, ProjectionLifecycle.inline);
+  }
+
+  /// Returns async projections that handle the given event type.
+  List<ProjectionRegistration<Object, Object>> getAsyncProjectionsForEventType(
+    Type eventType,
+  ) {
+    return _getProjectionsForEventType(eventType, ProjectionLifecycle.async);
+  }
+
+  /// All inline projection registrations.
+  List<ProjectionRegistration<Object, Object>> get inlineProjections {
+    return _registrations.values.where((reg) => reg.lifecycle == ProjectionLifecycle.inline).toList();
+  }
+
+  /// All async projection registrations.
+  List<ProjectionRegistration<Object, Object>> get asyncProjections {
+    return _registrations.values.where((reg) => reg.lifecycle == ProjectionLifecycle.async).toList();
+  }
+
+  /// The total number of registered projections.
+  int get length => _registrations.length;
+
+  /// Whether no projections are registered.
+  bool get isEmpty => _registrations.isEmpty;
+
+  /// Whether any projections are registered.
+  bool get isNotEmpty => _registrations.isNotEmpty;
+
+  /// Whether any inline projections are registered.
+  bool get hasInlineProjections => inlineProjections.isNotEmpty;
+
+  /// Whether any async projections are registered.
+  bool get hasAsyncProjections => asyncProjections.isNotEmpty;
+
+  /// Gets the generated bundle for the named projection, if any.
+  GeneratedProjection? getGeneratedBundle(String projectionName) {
+    return _generatedBundles[projectionName];
+  }
+
+  /// Gets the schema hash for the named projection.
+  ///
+  /// Returns an empty string if the projection has no generated bundle.
+  String getSchemaHash(String projectionName) {
+    return _generatedBundles[projectionName]?.schemaHash ?? '';
+  }
+
   /// Internal registration for generated projections.
   void _registerGenerated<TReadModel, TKey>({
     required GeneratedProjection bundle,
@@ -129,20 +180,6 @@ final class ProjectionRegistry {
     }
   }
 
-  /// Returns inline projections that handle the given event type.
-  List<ProjectionRegistration<Object, Object>> getInlineProjectionsForEventType(
-    Type eventType,
-  ) {
-    return _getProjectionsForEventType(eventType, ProjectionLifecycle.inline);
-  }
-
-  /// Returns async projections that handle the given event type.
-  List<ProjectionRegistration<Object, Object>> getAsyncProjectionsForEventType(
-    Type eventType,
-  ) {
-    return _getProjectionsForEventType(eventType, ProjectionLifecycle.async);
-  }
-
   /// Internal method to filter projections by event type and lifecycle.
   List<ProjectionRegistration<Object, Object>> _getProjectionsForEventType(
     Type eventType,
@@ -154,42 +191,5 @@ final class ProjectionRegistry {
     }
 
     return names.map((name) => _registrations[name]).whereType<ProjectionRegistration<Object, Object>>().where((reg) => reg.lifecycle == lifecycle).toList();
-  }
-
-  /// All inline projection registrations.
-  List<ProjectionRegistration<Object, Object>> get inlineProjections {
-    return _registrations.values.where((reg) => reg.lifecycle == ProjectionLifecycle.inline).toList();
-  }
-
-  /// All async projection registrations.
-  List<ProjectionRegistration<Object, Object>> get asyncProjections {
-    return _registrations.values.where((reg) => reg.lifecycle == ProjectionLifecycle.async).toList();
-  }
-
-  /// The total number of registered projections.
-  int get length => _registrations.length;
-
-  /// Whether no projections are registered.
-  bool get isEmpty => _registrations.isEmpty;
-
-  /// Whether any projections are registered.
-  bool get isNotEmpty => _registrations.isNotEmpty;
-
-  /// Whether any inline projections are registered.
-  bool get hasInlineProjections => inlineProjections.isNotEmpty;
-
-  /// Whether any async projections are registered.
-  bool get hasAsyncProjections => asyncProjections.isNotEmpty;
-
-  /// Gets the generated bundle for the named projection, if any.
-  GeneratedProjection? getGeneratedBundle(String projectionName) {
-    return _generatedBundles[projectionName];
-  }
-
-  /// Gets the schema hash for the named projection.
-  ///
-  /// Returns an empty string if the projection has no generated bundle.
-  String getSchemaHash(String projectionName) {
-    return _generatedBundles[projectionName]?.schemaHash ?? '';
   }
 }

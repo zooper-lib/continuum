@@ -14,7 +14,24 @@ export 'package:continuum/continuum.dart' show EventFromJsonFactory, EventSerial
 
 // Re-export ConcurrencyException from continuum_uow so that store
 // implementations can throw it without depending on continuum_uow directly.
-export 'package:continuum_uow/continuum_uow.dart' show ConcurrencyException, UnsupportedEventException;
+export 'package:continuum_uow/continuum_uow.dart' show ConcurrencyException, UnsupportedOperationException;
+
+// Re-export projection types from continuum core so that consumers who
+// already import continuum_event_sourcing continue to see them.
+export 'package:continuum/continuum.dart'
+    show
+        GeneratedProjection,
+        InlineProjectionExecutor,
+        InMemoryReadModelStore,
+        MultiStreamProjection,
+        ProjectionBase,
+        ProjectionLifecycle,
+        ProjectionRegistration,
+        ProjectionRegistry,
+        ReadModelResult,
+        ReadModelStore,
+        SingleStreamProjection,
+        UnsupportedProjectionOperationException;
 
 export 'src/persistence/atomic_event_store.dart';
 export 'src/persistence/event_serializer.dart';
@@ -27,16 +44,6 @@ export 'src/persistence/session_impl.dart';
 export 'src/persistence/stored_event.dart';
 
 export 'src/projections/async_projection_executor.dart';
-export 'src/projections/generated_projection.dart';
-export 'src/projections/inline_projection_executor.dart';
-export 'src/projections/multi_stream_projection.dart';
-export 'src/projections/projection.dart';
-export 'src/projections/projection_lifecycle.dart';
 export 'src/projections/projection_position.dart';
 export 'src/projections/projection_position_store.dart';
 export 'src/projections/projection_processor.dart';
-export 'src/projections/projection_registration.dart';
-export 'src/projections/projection_registry.dart';
-export 'src/projections/read_model_result.dart';
-export 'src/projections/read_model_store.dart';
-export 'src/projections/single_stream_projection.dart';

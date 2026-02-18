@@ -1,8 +1,8 @@
+import 'package:continuum/continuum.dart';
+
 import '../persistence/stored_event.dart';
 import 'projection_position.dart';
 import 'projection_position_store.dart';
-import 'projection_registration.dart';
-import 'projection_registry.dart';
 
 /// Executes async projections for background processing.
 ///
@@ -92,6 +92,9 @@ final class AsyncProjectionExecutor {
   }
 
   /// Applies a single event to a single projection's read model.
+  ///
+  /// Extracts the domain event (an [Operation]) from the [StoredEvent]
+  /// and delegates to the projection's [extractKey] and [apply] methods.
   Future<void> _applyEventToProjectionAsync(
     ProjectionRegistration<Object, Object> registration,
     StoredEvent event,
@@ -99,12 +102,21 @@ final class AsyncProjectionExecutor {
     final projection = registration.projection;
     final store = registration.readModelStore;
 
-    final key = projection.extractKey(event);
+    // Extract the typed operation from the ES storage envelope.
+    final domainEvent = event.domainEvent;
+    if (domainEvent == null) {
+      throw StateError(
+        'StoredEvent.domainEvent is null. '
+        'Async projections require deserialized domain events.',
+      );
+    }
+
+    final key = projection.extractKey(domainEvent);
 
     var readModel = await store.loadAsync(key);
     readModel ??= projection.createInitial(key);
 
-    final updatedReadModel = projection.apply(readModel, event);
+    final updatedReadModel = projection.apply(readModel, domainEvent);
 
     await store.saveAsync(key, updatedReadModel);
   }

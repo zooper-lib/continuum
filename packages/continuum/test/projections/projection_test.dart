@@ -1,34 +1,33 @@
 import 'package:continuum/continuum.dart';
-import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('Projection', () {
+  group('ProjectionBase', () {
     test('handles() returns true for registered event types', () {
       final projection = _TestSingleStreamProjection();
 
-      expect(projection.handles(_TestEventA), isTrue);
-      expect(projection.handles(_TestEventB), isTrue);
+      // Verifies the type-index lookup matches expected types.
+      expect(projection.handles(_TestOperationA), isTrue);
+      expect(projection.handles(_TestOperationB), isTrue);
     });
 
     test('handles() returns false for unregistered event types', () {
       final projection = _TestSingleStreamProjection();
 
-      expect(projection.handles(_TestEventC), isFalse);
+      // Unregistered types must not match — prevents misrouting.
+      expect(projection.handles(_TestOperationC), isFalse);
       expect(projection.handles(String), isFalse);
     });
   });
 
   group('SingleStreamProjection', () {
-    test('extractKey returns the event stream ID', () {
+    test('extractKey returns the stream ID from the operation', () {
       final projection = _TestSingleStreamProjection();
-      final event = _createStoredEvent(
-        streamId: const StreamId('stream-123'),
-        eventType: 'test.event_a',
-      );
+      final operation = const _TestOperationA(streamId: StreamId('stream-123'));
 
-      final key = projection.extractKey(event);
+      final key = projection.extractKey(operation);
 
+      // Key must be derived from the operation's domain data.
       expect(key, equals(const StreamId('stream-123')));
     });
 
@@ -41,15 +40,12 @@ void main() {
       expect(readModel.eventCount, equals(0));
     });
 
-    test('apply updates read model with event', () {
+    test('apply updates read model with operation', () {
       final projection = _TestSingleStreamProjection();
-      final initial = _TestReadModel(streamId: 'stream-1', eventCount: 0);
-      final event = _createStoredEvent(
-        streamId: const StreamId('stream-1'),
-        eventType: 'test.event_a',
-      );
+      final initial = const _TestReadModel(streamId: 'stream-1', eventCount: 0);
+      final operation = const _TestOperationA(streamId: StreamId('stream-1'));
 
-      final updated = projection.apply(initial, event);
+      final updated = projection.apply(initial, operation);
 
       expect(updated.eventCount, equals(1));
     });
@@ -57,8 +53,8 @@ void main() {
     test('handledEventTypes returns declared types', () {
       final projection = _TestSingleStreamProjection();
 
-      expect(projection.handledEventTypes, contains(_TestEventA));
-      expect(projection.handledEventTypes, contains(_TestEventB));
+      expect(projection.handledEventTypes, contains(_TestOperationA));
+      expect(projection.handledEventTypes, contains(_TestOperationB));
       expect(projection.handledEventTypes.length, equals(2));
     });
 
@@ -70,15 +66,11 @@ void main() {
   });
 
   group('MultiStreamProjection', () {
-    test('extractKey returns key from event data', () {
+    test('extractKey returns key from operation data', () {
       final projection = _TestMultiStreamProjection();
-      final event = _createStoredEvent(
-        streamId: const StreamId('stream-1'),
-        eventType: 'test.event_a',
-        data: {'categoryId': 'category-abc'},
-      );
+      final operation = const _TestOperationWithCategory(categoryId: 'category-abc');
 
-      final key = projection.extractKey(event);
+      final key = projection.extractKey(operation);
 
       expect(key, equals('category-abc'));
     });
@@ -92,16 +84,12 @@ void main() {
       expect(readModel.totalEvents, equals(0));
     });
 
-    test('apply updates read model with event from any stream', () {
+    test('apply updates read model with operation from any stream', () {
       final projection = _TestMultiStreamProjection();
-      final initial = _CategoryStats(categoryId: 'cat-1', totalEvents: 5);
-      final event = _createStoredEvent(
-        streamId: const StreamId('different-stream'),
-        eventType: 'test.event_a',
-        data: {'categoryId': 'cat-1'},
-      );
+      final initial = const _CategoryStats(categoryId: 'cat-1', totalEvents: 5);
+      final operation = const _TestOperationWithCategory(categoryId: 'cat-1');
 
-      final updated = projection.apply(initial, event);
+      final updated = projection.apply(initial, operation);
 
       expect(updated.totalEvents, equals(6));
     });
@@ -109,7 +97,7 @@ void main() {
     test('handledEventTypes returns declared types', () {
       final projection = _TestMultiStreamProjection();
 
-      expect(projection.handledEventTypes, contains(_TestEventA));
+      expect(projection.handledEventTypes, contains(_TestOperationWithCategory));
       expect(projection.handledEventTypes.length, equals(1));
     });
 
@@ -123,21 +111,36 @@ void main() {
 
 // --- Test Fixtures ---
 
-/// Marker class for test event type A.
-class _TestEventA {}
+/// Test operation carrying a stream ID.
+class _TestOperationA implements Operation {
+  final StreamId streamId;
 
-/// Marker class for test event type B.
-class _TestEventB {}
+  const _TestOperationA({required this.streamId});
+}
 
-/// Marker class for test event type C (not handled).
-class _TestEventC {}
+/// Test operation carrying a stream ID.
+class _TestOperationB implements Operation {
+  final StreamId streamId;
+
+  const _TestOperationB({required this.streamId});
+}
+
+/// Marker class for unhandled operation type.
+class _TestOperationC implements Operation {}
+
+/// Operation carrying a category ID for multi-stream projection tests.
+class _TestOperationWithCategory implements Operation {
+  final String categoryId;
+
+  const _TestOperationWithCategory({required this.categoryId});
+}
 
 /// Simple read model for single-stream projection tests.
 class _TestReadModel {
   final String streamId;
   final int eventCount;
 
-  _TestReadModel({required this.streamId, required this.eventCount});
+  const _TestReadModel({required this.streamId, required this.eventCount});
 }
 
 /// Simple read model for multi-stream projection tests.
@@ -145,16 +148,25 @@ class _CategoryStats {
   final String categoryId;
   final int totalEvents;
 
-  _CategoryStats({required this.categoryId, required this.totalEvents});
+  const _CategoryStats({required this.categoryId, required this.totalEvents});
 }
 
 /// Test implementation of SingleStreamProjection.
 class _TestSingleStreamProjection extends SingleStreamProjection<_TestReadModel> {
   @override
-  Set<Type> get handledEventTypes => {_TestEventA, _TestEventB};
+  Set<Type> get handledEventTypes => {_TestOperationA, _TestOperationB};
 
   @override
   String get projectionName => 'test-single-stream';
+
+  @override
+  StreamId extractKey(Operation operation) {
+    return switch (operation) {
+      _TestOperationA(:final streamId) => streamId,
+      _TestOperationB(:final streamId) => streamId,
+      _ => throw ArgumentError('Unsupported operation type: ${operation.runtimeType}'),
+    };
+  }
 
   @override
   _TestReadModel createInitial(StreamId streamId) {
@@ -162,7 +174,7 @@ class _TestSingleStreamProjection extends SingleStreamProjection<_TestReadModel>
   }
 
   @override
-  _TestReadModel apply(_TestReadModel current, StoredEvent event) {
+  _TestReadModel apply(_TestReadModel current, Operation operation) {
     return _TestReadModel(
       streamId: current.streamId,
       eventCount: current.eventCount + 1,
@@ -173,14 +185,14 @@ class _TestSingleStreamProjection extends SingleStreamProjection<_TestReadModel>
 /// Test implementation of MultiStreamProjection.
 class _TestMultiStreamProjection extends MultiStreamProjection<_CategoryStats, String> {
   @override
-  Set<Type> get handledEventTypes => {_TestEventA};
+  Set<Type> get handledEventTypes => {_TestOperationWithCategory};
 
   @override
   String get projectionName => 'test-multi-stream';
 
   @override
-  String extractKey(StoredEvent event) {
-    return event.data['categoryId'] as String;
+  String extractKey(Operation operation) {
+    return (operation as _TestOperationWithCategory).categoryId;
   }
 
   @override
@@ -189,30 +201,10 @@ class _TestMultiStreamProjection extends MultiStreamProjection<_CategoryStats, S
   }
 
   @override
-  _CategoryStats apply(_CategoryStats current, StoredEvent event) {
+  _CategoryStats apply(_CategoryStats current, Operation operation) {
     return _CategoryStats(
       categoryId: current.categoryId,
       totalEvents: current.totalEvents + 1,
     );
   }
-}
-
-/// Counter for generating unique event IDs in tests.
-int _eventIdCounter = 0;
-
-/// Helper to create a stored event for testing.
-StoredEvent _createStoredEvent({
-  required StreamId streamId,
-  required String eventType,
-  Map<String, dynamic> data = const {},
-}) {
-  return StoredEvent(
-    eventId: EventId('test-event-${_eventIdCounter++}'),
-    streamId: streamId,
-    version: 0,
-    eventType: eventType,
-    data: data,
-    occurredOn: DateTime.now(),
-    metadata: const {},
-  );
 }

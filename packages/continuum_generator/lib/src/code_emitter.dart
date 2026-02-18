@@ -61,7 +61,7 @@ final class CodeEmitter {
     buffer.writeln('  /// Applies a continuum event to this aggregate.');
     buffer.writeln('  ///');
     buffer.writeln('  /// Routes supported mutation events to the corresponding apply method.');
-    buffer.writeln('  /// Throws [UnsupportedEventException] for unknown event types.');
+    buffer.writeln('  /// Throws [UnsupportedOperationException] for unknown event types.');
     buffer.writeln('  void applyEvent(ContinuumEvent event) {');
     buffer.writeln('    switch (event) {');
 
@@ -71,7 +71,7 @@ final class CodeEmitter {
     }
 
     buffer.writeln('      default:');
-    buffer.writeln('        throw UnsupportedEventException(');
+    buffer.writeln('        throw UnsupportedOperationException(');
     buffer.writeln('          operationType: event.runtimeType,');
     buffer.writeln('          aggregateType: ${aggregate.name},');
     buffer.writeln('        );');

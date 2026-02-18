@@ -4,7 +4,6 @@ import 'package:meta/meta.dart';
 import 'invalid_operation_exception.dart';
 import 'session.dart';
 import 'tracked_entity.dart';
-import 'unsupported_operation_exception.dart';
 
 /// Abstract base class containing persistence-agnostic session logic.
 ///
