@@ -117,6 +117,13 @@ class CombiningBuilder implements Builder {
     buffer.writeln('// ignore_for_file: type=lint');
     buffer.writeln();
     buffer.writeln("import 'package:continuum/continuum.dart';");
+
+    // Import continuum_uow when projections exist — needed for the generated
+    // $createInlineProjectionHandler function and CommitHandler return type.
+    if (projectionDetailInfos.isNotEmpty) {
+      buffer.writeln("import 'package:continuum_uow/continuum_uow.dart';");
+    }
+
     buffer.writeln();
 
     // Generate imports for each discovered file.
@@ -159,6 +166,14 @@ class CombiningBuilder implements Builder {
 
       // Emit registerAll extension on ProjectionRegistry.
       _emitRegisterAllExtension(buffer, projectionDetailInfos);
+
+      // Emit $createInlineProjectionHandler convenience function
+      // that collapses registry + executor + handler into one call.
+      final inlineProjections = projectionDetailInfos.where((p) => p.lifecycle == 'inline').toList();
+      if (inlineProjections.isNotEmpty) {
+        buffer.writeln();
+        _emitCreateInlineProjectionHandler(buffer, inlineProjections);
+      }
     }
 
     // Write the output.
@@ -218,6 +233,57 @@ class CombiningBuilder implements Builder {
     }
 
     buffer.writeln('  }');
+    buffer.writeln('}');
+  }
+
+  /// Emits a top-level convenience function that creates a ready-to-use
+  /// [CommitHandler] for inline projections.
+  ///
+  /// This collapses the entire wiring pipeline (registry → executor →
+  /// handler) into a single call, so users can write:
+  /// ```dart
+  /// final runner = TransactionalRunner(
+  ///   store: store,
+  ///   commitHandler: $createInlineProjectionHandler(
+  ///     userProfileProjection: UserProfileProjection(),
+  ///     userProfileStore: profileStore,
+  ///   ),
+  /// );
+  /// ```
+  void _emitCreateInlineProjectionHandler(
+    StringBuffer buffer,
+    List<_ProjectionDetailInfo> inlineProjections,
+  ) {
+    buffer.writeln('/// Creates a [CommitHandler] that runs all inline projections.');
+    buffer.writeln('///');
+    buffer.writeln('/// This is the simplest way to wire projections into a');
+    buffer.writeln('/// [TransactionalRunner]. Internally creates a [ProjectionRegistry],');
+    buffer.writeln('/// registers all inline projections, and wraps them in a');
+    buffer.writeln('/// [ProjectionCommitHandler].');
+    buffer.writeln('CommitHandler \$createInlineProjectionHandler({');
+
+    for (final info in inlineProjections) {
+      final paramBaseName = _toParameterBaseName(info.className);
+
+      buffer.writeln('  required ${info.className} ${paramBaseName}Projection,');
+      buffer.writeln('  required ReadModelStore<${info.readModelTypeName}, ${info.keyTypeName}> ${paramBaseName}Store,');
+    }
+
+    buffer.writeln('}) {');
+    buffer.writeln('  final registry = ProjectionRegistry();');
+
+    for (final info in inlineProjections) {
+      final paramBaseName = _toParameterBaseName(info.className);
+      final bundleName = '\$${info.className}';
+
+      buffer.writeln('  registry.registerGeneratedInline(');
+      buffer.writeln('    $bundleName,');
+      buffer.writeln('    ${paramBaseName}Projection,');
+      buffer.writeln('    ${paramBaseName}Store,');
+      buffer.writeln('  );');
+    }
+
+    buffer.writeln('  return ProjectionCommitHandler(InlineProjectionExecutor(registry: registry));');
     buffer.writeln('}');
   }
 

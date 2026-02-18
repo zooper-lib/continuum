@@ -3,9 +3,8 @@
 /// Demonstrates using projections with code generation.
 /// This example shows how to:
 /// - Define a projection using `@Projection` annotation
-/// - Register projections with the registry
-/// - Wire the framework-provided [ProjectionCommitHandler] so projections
-///   update automatically on every commit
+/// - Wire projections with a single generated function call
+/// - Projections update automatically on every commit
 library;
 
 import 'package:continuum/continuum.dart';
@@ -32,18 +31,6 @@ void main() async {
   // Create read model store for profiles.
   final profileStore = InMemoryReadModelStore<UserProfile, StreamId>();
 
-  // Create projection registry and register our projection.
-  // The generated registerAll extension wires all discovered
-  // projections in a single type-safe call.
-  final registry = ProjectionRegistry();
-  registry.registerAll(
-    userProfileProjection: UserProfileProjection(),
-    userProfileStore: profileStore,
-  );
-
-  // Create the inline projection executor.
-  final projectionExecutor = InlineProjectionExecutor(registry: registry);
-
   // Create event sourcing store.
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
@@ -51,19 +38,22 @@ void main() async {
   );
 
   // Wire everything together with TransactionalRunner.
-  // The framework-provided ProjectionCommitHandler bridges the executor
-  // into the commit handler contract — no hand-written adapter needed.
+  // The generated $createInlineProjectionHandler collapses registry
+  // creation, projection registration, and handler setup into one call.
   //
   // For multiple commit handlers (e.g., projections + event bus + analytics),
   // use CompositeCommitHandler:
   //   final handler = CompositeCommitHandler([
-  //     ProjectionCommitHandler(executor: projectionExecutor),
+  //     $createInlineProjectionHandler(...),
   //     EventBusCommitHandler(eventBus),
   //     AnalyticsCommitHandler(analytics),
   //   ]);
   final runner = TransactionalRunner(
     store: store,
-    commitHandler: ProjectionCommitHandler(projectionExecutor),
+    commitHandler: $createInlineProjectionHandler(
+      userProfileProjection: UserProfileProjection(),
+      userProfileStore: profileStore,
+    ),
   );
 
   final streamId = const StreamId('user-123');
@@ -127,9 +117,8 @@ void main() async {
   print('Key Takeaways:');
   print('  1. Projections are defined with @Projection annotation');
   print('  2. Generated mixin provides type-safe apply methods');
-  print('  3. Generated registerAll wires all projections in one call');
-  print('  4. Framework-provided ProjectionCommitHandler bridges the');
-  print('     executor into the commit lifecycle — no adapters needed');
-  print('  5. SingleStreamProjection no longer requires extractKey');
+  print('  3. Generated \$createInlineProjectionHandler wires');
+  print('     registry, executor, and handler in a single call');
+  print('  4. SingleStreamProjection no longer requires extractKey');
   print('═══════════════════════════════════════════════════════════════════');
 }
