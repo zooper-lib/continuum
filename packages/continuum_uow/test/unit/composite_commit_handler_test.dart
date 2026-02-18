@@ -89,7 +89,7 @@ void main() {
 
     test('should handle empty handler list', () async {
       // Arrange
-      final composite = CompositeCommitHandler([]);
+      final composite = const CompositeCommitHandler([]);
       final operations = [const _FakeOperation('op1')];
 
       // Act — should complete without error
