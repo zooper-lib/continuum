@@ -4,7 +4,7 @@
 /// This example shows how to:
 /// - Define a projection using `@Projection` annotation
 /// - Register projections with the registry
-/// - Wire the projection executor as a CommitHandler so projections
+/// - Wire the framework-provided [ProjectionCommitHandler] so projections
 ///   update automatically on every commit
 library;
 
@@ -33,10 +33,12 @@ void main() async {
   final profileStore = InMemoryReadModelStore<UserProfile, StreamId>();
 
   // Create projection registry and register our projection.
+  // The generated registerAll extension wires all discovered
+  // projections in a single type-safe call.
   final registry = ProjectionRegistry();
-  registry.registerInline(
-    UserProfileProjection(),
-    profileStore,
+  registry.registerAll(
+    userProfileProjection: UserProfileProjection(),
+    userProfileStore: profileStore,
   );
 
   // Create the inline projection executor.
@@ -49,19 +51,19 @@ void main() async {
   );
 
   // Wire everything together with TransactionalRunner.
-  // The projection commit handler is called automatically after every
-  // successful commit — no manual executor calls needed.
+  // The framework-provided ProjectionCommitHandler bridges the executor
+  // into the commit handler contract — no hand-written adapter needed.
   //
   // For multiple commit handlers (e.g., projections + event bus + analytics),
-  // use the framework-provided CompositeCommitHandler:
+  // use CompositeCommitHandler:
   //   final handler = CompositeCommitHandler([
-  //     _ProjectionCommitHandler(projectionExecutor),
+  //     ProjectionCommitHandler(executor: projectionExecutor),
   //     EventBusCommitHandler(eventBus),
   //     AnalyticsCommitHandler(analytics),
   //   ]);
   final runner = TransactionalRunner(
     store: store,
-    commitHandler: _ProjectionCommitHandler(projectionExecutor),
+    commitHandler: ProjectionCommitHandler(projectionExecutor),
   );
 
   final streamId = const StreamId('user-123');
@@ -125,26 +127,9 @@ void main() async {
   print('Key Takeaways:');
   print('  1. Projections are defined with @Projection annotation');
   print('  2. Generated mixin provides type-safe apply methods');
-  print('  3. Wire InlineProjectionExecutor as a CommitHandler so');
-  print('     projections update automatically — no manual calls');
-  print('  4. Read models are optimized for specific query patterns');
+  print('  3. Generated registerAll wires all projections in one call');
+  print('  4. Framework-provided ProjectionCommitHandler bridges the');
+  print('     executor into the commit lifecycle — no adapters needed');
+  print('  5. SingleStreamProjection no longer requires extractKey');
   print('═══════════════════════════════════════════════════════════════════');
-}
-
-/// Bridges [InlineProjectionExecutor] into the [CommitHandler] contract.
-///
-/// The executor lives in `continuum` (L0) and cannot depend on
-/// `continuum_uow` (L1) where [CommitHandler] is defined. This adapter
-/// closes the gap at the application wiring layer.
-final class _ProjectionCommitHandler implements CommitHandler {
-  /// The executor to delegate committed operations to.
-  final InlineProjectionExecutor _executor;
-
-  /// Creates a commit handler that delegates to [executor].
-  _ProjectionCommitHandler(this._executor);
-
-  @override
-  Future<void> onCommitAsync(List<Operation> committedOperations) async {
-    await _executor.executeAsync(committedOperations);
-  }
 }

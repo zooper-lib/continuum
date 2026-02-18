@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:glob/glob.dart';
 import 'package:source_gen/source_gen.dart';
+
+import 'projection_discovery.dart';
 
 const List<String> _generatedDartFileSuffixesToIgnore = <String>[
   '.freezed.dart',
@@ -14,27 +17,14 @@ const List<String> _generatedDartFileSuffixesToIgnore = <String>[
 ///
 /// This builder runs after all per-aggregate and per-projection generators have completed.
 /// It scans the entire package for bounded `AggregateRoot` types and `@Projection()` annotations and generates
-/// a single `lib/continuum.g.dart` file containing `$aggregateList` and `$projectionList`.
-///
-/// Users can then simply write:
-/// ```dart
-/// import 'continuum.g.dart';
-///
-/// final store = EventSourcingStore(
-///   eventStore: InMemoryEventStore(),
-///   aggregates: $aggregateList,
-/// );
-///
-/// for (final projection in $projectionList) {
-///   registry.registerGeneratedInline(projection, ...);
-/// }
-/// ```
+/// a single `lib/continuum.g.dart` file containing `$aggregateList`, `$projectionList`,
+/// and a `registerAll` extension method on [ProjectionRegistry].
 class CombiningBuilder implements Builder {
   /// Type checker for bounded's AggregateRoot base class.
   static const _aggregateRootChecker = TypeChecker.fromUrl('package:bounded/src/aggregate_root.dart#AggregateRoot');
 
-  /// Type checker for the @Projection annotation.
-  static const _projectionChecker = TypeChecker.fromUrl('package:continuum/src/annotations/projection.dart#Projection');
+  /// Discovery for extracting full projection metadata.
+  final _projectionDiscovery = ProjectionDiscovery();
 
   @override
   Map<String, List<String>> get buildExtensions => {
@@ -46,7 +36,7 @@ class CombiningBuilder implements Builder {
     // Find all Dart files in lib/
     final dartFiles = Glob('lib/**.dart');
     final aggregateInfos = <_DiscoveredInfo>[];
-    final projectionInfos = <_DiscoveredInfo>[];
+    final projectionDetailInfos = <_ProjectionDetailInfo>[];
 
     await for (final input in buildStep.findAssets(dartFiles)) {
       // Skip generated files to avoid cycles and non-library `part of` files.
@@ -74,30 +64,49 @@ class CombiningBuilder implements Builder {
         }
       }
 
-      // Find all classes annotated with @Projection.
-      for (final element in library.classes) {
-        if (_projectionChecker.hasAnnotationOf(element)) {
-          projectionInfos.add(
-            _DiscoveredInfo(
-              className: element.displayName,
-              importPath: importPath,
-            ),
-          );
-        }
+      // Discover projections with full type information for registerAll emission.
+      final projections = _projectionDiscovery.discoverProjections(library);
+      for (final projection in projections) {
+        // Collect import URIs for the read model type and key type so the
+        // generated file can reference them in registerAll parameters.
+        final readModelImportPath = _getImportPathForType(
+          projection.readModelType,
+          buildStep.inputId.package,
+        );
+        final keyImportPath = _getImportPathForType(
+          projection.keyType,
+          buildStep.inputId.package,
+        );
+
+        projectionDetailInfos.add(
+          _ProjectionDetailInfo(
+            className: projection.className,
+            importPath: importPath,
+            readModelTypeName: projection.readModelTypeName,
+            keyTypeName: projection.keyTypeName ?? 'StreamId',
+            isSingleStream: projection.isSingleStream,
+            lifecycle: projection.lifecycle,
+            readModelImportPath: readModelImportPath,
+            keyImportPath: keyImportPath,
+          ),
+        );
       }
     }
 
     // Skip if neither aggregates nor projections found.
-    if (aggregateInfos.isEmpty && projectionInfos.isEmpty) return;
+    if (aggregateInfos.isEmpty && projectionDetailInfos.isEmpty) return;
 
     // Sort for deterministic output.
     aggregateInfos.sort((a, b) => a.className.compareTo(b.className));
-    projectionInfos.sort((a, b) => a.className.compareTo(b.className));
+    projectionDetailInfos.sort((a, b) => a.className.compareTo(b.className));
 
-    // Collect unique import paths.
+    // Collect unique import paths from all sources.
     final allImportPaths = <String>{
       ...aggregateInfos.map((i) => i.importPath),
-      ...projectionInfos.map((i) => i.importPath),
+      ...projectionDetailInfos.map((i) => i.importPath),
+      // Add type import paths needed for registerAll parameter types.
+      ...projectionDetailInfos.map((i) => i.readModelImportPath).whereType<String>(),
+      ...projectionDetailInfos.map((i) => i.keyImportPath).whereType<String>(),
     }.toList()..sort();
 
     // Generate the combining file.
@@ -123,13 +132,6 @@ class CombiningBuilder implements Builder {
       buffer.writeln('///');
       buffer.writeln('/// Pass this list to [EventSourcingStore] for automatic');
       buffer.writeln('/// registration of all serializers, factories, and appliers.');
-      buffer.writeln('///');
-      buffer.writeln('/// ```dart');
-      buffer.writeln('/// final store = EventSourcingStore(');
-      buffer.writeln('///   eventStore: InMemoryEventStore(),');
-      buffer.writeln('///   aggregates: \$aggregateList,');
-      buffer.writeln('/// );');
-      buffer.writeln('/// ```');
       buffer.writeln('final List<GeneratedAggregate> \$aggregateList = [');
 
       for (final info in aggregateInfos) {
@@ -141,23 +143,22 @@ class CombiningBuilder implements Builder {
     }
 
     // Generate $projectionList if any projections found.
-    if (projectionInfos.isNotEmpty) {
+    if (projectionDetailInfos.isNotEmpty) {
       buffer.writeln('/// All discovered projections in this package.');
       buffer.writeln('///');
-      buffer.writeln('/// Use this list to register all projections with the registry.');
-      buffer.writeln('///');
-      buffer.writeln('/// ```dart');
-      buffer.writeln('/// for (final bundle in \$projectionList) {');
-      buffer.writeln('///   // Register with appropriate lifecycle and store');
-      buffer.writeln('/// }');
-      buffer.writeln('/// ```');
+      buffer.writeln('/// Use this list to register all projections with the registry,');
+      buffer.writeln('/// or use the generated [ProjectionRegistryExtensions.registerAll] method.');
       buffer.writeln('final List<GeneratedProjection> \$projectionList = [');
 
-      for (final info in projectionInfos) {
+      for (final info in projectionDetailInfos) {
         buffer.writeln('  \$${info.className},');
       }
 
       buffer.writeln('];');
+      buffer.writeln();
+
+      // Emit registerAll extension on ProjectionRegistry.
+      _emitRegisterAllExtension(buffer, projectionDetailInfos);
     }
 
     // Write the output.
@@ -168,9 +169,110 @@ class CombiningBuilder implements Builder {
 
     await buildStep.writeAsString(outputId, buffer.toString());
   }
+
+  /// Emits the `registerAll` extension method on [ProjectionRegistry].
+  ///
+  /// For each discovered projection, generates a named parameter pair
+  /// (projection instance + store) and calls the appropriate registration
+  /// method based on lifecycle.
+  void _emitRegisterAllExtension(
+    StringBuffer buffer,
+    List<_ProjectionDetailInfo> projections,
+  ) {
+    buffer.writeln('/// Generated registration extension for all discovered projections.');
+    buffer.writeln('///');
+    buffer.writeln('/// Registers all projections in a single call with named parameters');
+    buffer.writeln('/// for each projection instance and its corresponding store.');
+    buffer.writeln('extension \$ProjectionRegistryExtensions on ProjectionRegistry {');
+    buffer.writeln('  /// Registers all discovered projections with their stores.');
+    buffer.writeln('  ///');
+    buffer.writeln('  /// Each projection is registered with the correct lifecycle');
+    buffer.writeln('  /// (inline or async) and its generated [GeneratedProjection] bundle.');
+    buffer.writeln('  void registerAll({');
+
+    // Emit named parameters for each projection.
+    for (final info in projections) {
+      final paramBaseName = _toParameterBaseName(info.className);
+      final projectionParamName = '${paramBaseName}Projection';
+      final storeParamName = '${paramBaseName}Store';
+
+      buffer.writeln('    required ${info.className} $projectionParamName,');
+      buffer.writeln('    required ReadModelStore<${info.readModelTypeName}, ${info.keyTypeName}> $storeParamName,');
+    }
+
+    buffer.writeln('  }) {');
+
+    // Emit registration calls for each projection.
+    for (final info in projections) {
+      final paramBaseName = _toParameterBaseName(info.className);
+      final projectionParamName = '${paramBaseName}Projection';
+      final storeParamName = '${paramBaseName}Store';
+      final bundleName = '\$${info.className}';
+      final registerMethod = info.lifecycle == 'async' ? 'registerGeneratedAsync' : 'registerGeneratedInline';
+
+      buffer.writeln('    $registerMethod(');
+      buffer.writeln('      $bundleName,');
+      buffer.writeln('      $projectionParamName,');
+      buffer.writeln('      $storeParamName,');
+      buffer.writeln('    );');
+    }
+
+    buffer.writeln('  }');
+    buffer.writeln('}');
+  }
+
+  /// Converts a class name to a parameter base name by lowercasing the first
+  /// character and stripping the `Projection` suffix if present.
+  ///
+  /// `UserProfileProjection` → `userProfile`
+  /// `OrderSummary` → `orderSummary`
+  String _toParameterBaseName(String className) {
+    // Strip "Projection" suffix if present.
+    var base = className;
+    if (base.endsWith('Projection')) {
+      base = base.substring(0, base.length - 'Projection'.length);
+    }
+
+    // Lowercase the first character.
+    return base[0].toLowerCase() + base.substring(1);
+  }
+
+  /// Returns a relative or package import path for a [DartType], or `null`
+  /// if the type needs no additional import (dart:core, continuum package, etc.).
+  String? _getImportPathForType(DartType? type, String currentPackage) {
+    if (type == null) return null;
+
+    final element = type.element;
+    if (element == null) return null;
+
+    final library = element.library;
+    if (library == null) return null;
+
+    final uri = library.uri;
+
+    // Skip dart:core types (int, String, bool, etc.).
+    if (uri.scheme == 'dart') return null;
+
+    if (uri.scheme == 'package') {
+      final packageName = uri.pathSegments.first;
+
+      // Skip types from the continuum package — already imported.
+      if (packageName == 'continuum') return null;
+
+      // Same package — use a relative import (consistent with other imports).
+      if (packageName == currentPackage) {
+        return uri.pathSegments.skip(1).join('/');
+      }
+
+      // External package — use the full package: URI.
+      return uri.toString();
+    }
+
+    return null;
+  }
 }
 
-/// Internal info about a discovered aggregate or projection.
+/// Internal info about a discovered aggregate.
 class _DiscoveredInfo {
   /// The class name.
   final String className;
@@ -182,5 +284,47 @@ class _DiscoveredInfo {
   _DiscoveredInfo({
     required this.className,
     required this.importPath,
+  });
+}
+
+/// Internal info about a discovered projection with full type metadata.
+///
+/// Carries the additional read model type, key type, and lifecycle
+/// information needed to emit the `registerAll` extension.
+class _ProjectionDetailInfo {
+  /// The class name.
+  final String className;
+
+  /// The import path relative to lib/ for the file containing this projection.
+  final String importPath;
+
+  /// The read model type name (e.g., `UserProfile`).
+  final String readModelTypeName;
+
+  /// The key type name (e.g., `StreamId` for single-stream, `CustomerId` for multi-stream).
+  final String keyTypeName;
+
+  /// Whether this is a single-stream projection.
+  final bool isSingleStream;
+
+  /// The lifecycle (`'inline'` or `'async'`).
+  final String lifecycle;
+
+  /// Import path for the read model type, or `null` if no additional import needed.
+  final String? readModelImportPath;
+
+  /// Import path for the key type, or `null` if no additional import needed.
+  final String? keyImportPath;
+
+  /// Creates projection detail info.
+  _ProjectionDetailInfo({
+    required this.className,
+    required this.importPath,
+    required this.readModelTypeName,
+    required this.keyTypeName,
+    required this.isSingleStream,
+    required this.lifecycle,
+    this.readModelImportPath,
+    this.keyImportPath,
   });
 }

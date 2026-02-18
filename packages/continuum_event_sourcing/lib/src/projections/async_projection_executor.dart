@@ -94,7 +94,11 @@ final class AsyncProjectionExecutor {
   /// Applies a single event to a single projection's read model.
   ///
   /// Extracts the domain event (an [Operation]) from the [StoredEvent]
-  /// and delegates to the projection's [extractKey] and [apply] methods.
+  /// and delegates to the projection's [apply] method.
+  ///
+  /// For [SingleStreamProjection], uses [StoredEvent.streamId] as the
+  /// key directly. For multi-stream projections, delegates to
+  /// [ProjectionBase.extractKey].
   Future<void> _applyEventToProjectionAsync(
     ProjectionRegistration<Object, Object> registration,
     StoredEvent event,
@@ -111,7 +115,7 @@ final class AsyncProjectionExecutor {
       );
     }
 
-    final key = projection.extractKey(domainEvent);
+    final key = projection is SingleStreamProjection ? event.streamId : projection.extractKey(domainEvent);
 
     var readModel = await store.loadAsync(key);
     readModel ??= projection.createInitial(key);

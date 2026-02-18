@@ -21,14 +21,16 @@ void main() {
   });
 
   group('SingleStreamProjection', () {
-    test('extractKey returns the stream ID from the operation', () {
+    test('extractKey throws UnsupportedError', () {
       final projection = _TestSingleStreamProjection();
       final operation = const _TestOperationA(streamId: StreamId('stream-123'));
 
-      final key = projection.extractKey(operation);
-
-      // Key must be derived from the operation's domain data.
-      expect(key, equals(const StreamId('stream-123')));
+      // SingleStreamProjection.extractKey must not be called —
+      // the executor derives the key from CommittedEntry.streamId.
+      expect(
+        () => projection.extractKey(operation),
+        throwsA(isA<UnsupportedError>()),
+      );
     });
 
     test('createInitial creates read model for stream ID', () {
@@ -158,15 +160,6 @@ class _TestSingleStreamProjection extends SingleStreamProjection<_TestReadModel>
 
   @override
   String get projectionName => 'test-single-stream';
-
-  @override
-  StreamId extractKey(Operation operation) {
-    return switch (operation) {
-      _TestOperationA(:final streamId) => streamId,
-      _TestOperationB(:final streamId) => streamId,
-      _ => throw ArgumentError('Unsupported operation type: ${operation.runtimeType}'),
-    };
-  }
 
   @override
   _TestReadModel createInitial(StreamId streamId) {

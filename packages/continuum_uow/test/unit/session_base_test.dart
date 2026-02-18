@@ -86,15 +86,21 @@ final class _InMemoryTestSession extends SessionBase {
   }
 
   @override
-  Future<List<Operation>> saveChangesAsync({int maxRetries = 1}) async {
+  Future<CommitBatch> saveChangesAsync({int maxRetries = 1}) async {
     final pendingEntries = trackedEntities.entries.where((e) => e.value.pendingOperations.isNotEmpty).toList();
 
     // Apply deferred operations before saving.
     applyDeferredOperations(pendingEntries);
 
-    // Collect committed operations before clearing.
-    final committedOperations = <Operation>[
-      for (final entry in pendingEntries) ...entry.value.pendingOperations,
+    // Build committed entries grouped by stream.
+    final entries = <CommittedEntry>[
+      for (final entry in pendingEntries)
+        CommittedEntry(
+          streamId: entry.key,
+          operations: [
+            for (final op in entry.value.pendingOperations) CommittedOperation(operation: op),
+          ],
+        ),
     ];
 
     // Record what was saved for test assertions.
@@ -106,7 +112,7 @@ final class _InMemoryTestSession extends SessionBase {
       trackedEntities[entry.key] = entry.value.withClearedPendingOperations();
     }
 
-    return committedOperations;
+    return CommitBatch(entries: entries);
   }
 
   @override

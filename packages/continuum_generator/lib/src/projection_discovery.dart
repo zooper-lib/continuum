@@ -69,8 +69,19 @@ final class ProjectionDiscovery {
         );
       }
 
-      // Infer read model type and key type from base class.
-      final (readModelType, keyType) = _inferTypesFromBaseClass(element);
+      // Extract lifecycle from annotation.
+      // ProjectionLifecycle enum: inline = index 0, async = index 1.
+      final lifecycleField = annotation.getField('lifecycle');
+      String lifecycle = 'inline';
+      if (lifecycleField != null && !lifecycleField.isNull) {
+        final index = lifecycleField.getField('index')?.toIntValue();
+        if (index == 1) {
+          lifecycle = 'async';
+        }
+      }
+
+      // Infer read model type, key type, and whether single-stream from base class.
+      final (readModelType, keyType, isSingleStream) = _inferTypesFromBaseClass(element);
 
       projections.add(
         ProjectionInfo(
@@ -79,6 +90,8 @@ final class ProjectionDiscovery {
           eventTypes: eventTypes,
           readModelType: readModelType,
           keyType: keyType,
+          isSingleStream: isSingleStream,
+          lifecycle: lifecycle,
         ),
       );
     }
@@ -86,11 +99,12 @@ final class ProjectionDiscovery {
     return projections;
   }
 
-  /// Infers the read model type and key type from the projection's base class.
+  /// Infers the read model type, key type, and single-stream status from the
+  /// projection's base class.
   ///
-  /// - `SingleStreamProjection<T>` → readModel: T, key: StreamId
-  /// - `MultiStreamProjection<T, K>` → readModel: T, key: K
-  (DartType?, DartType?) _inferTypesFromBaseClass(ClassElement element) {
+  /// - `SingleStreamProjection<T>` → readModel: T, key: null (StreamId), isSingleStream: true
+  /// - `MultiStreamProjection<T, K>` → readModel: T, key: K, isSingleStream: false
+  (DartType?, DartType?, bool) _inferTypesFromBaseClass(ClassElement element) {
     // Check all supertypes to find the projection base class.
     for (final supertype in element.allSupertypes) {
       final superElement = supertype.element;
@@ -100,7 +114,7 @@ final class ProjectionDiscovery {
         final typeArgs = supertype.typeArguments;
         if (typeArgs.isNotEmpty) {
           // SingleStreamProjection<T> has StreamId as key type (built-in).
-          return (typeArgs[0], null);
+          return (typeArgs[0], null, true);
         }
       }
 
@@ -108,7 +122,7 @@ final class ProjectionDiscovery {
       if (_multiStreamProjectionChecker.isExactlyType(supertype)) {
         final typeArgs = supertype.typeArguments;
         if (typeArgs.length >= 2) {
-          return (typeArgs[0], typeArgs[1]);
+          return (typeArgs[0], typeArgs[1], false);
         }
       }
 
@@ -117,18 +131,18 @@ final class ProjectionDiscovery {
         if (_singleStreamProjectionChecker.isAssignableFromType(supertype) && !_multiStreamProjectionChecker.isAssignableFromType(supertype)) {
           final typeArgs = supertype.typeArguments;
           if (typeArgs.isNotEmpty) {
-            return (typeArgs[0], null);
+            return (typeArgs[0], null, true);
           }
         }
         if (_multiStreamProjectionChecker.isAssignableFromType(supertype)) {
           final typeArgs = supertype.typeArguments;
           if (typeArgs.length >= 2) {
-            return (typeArgs[0], typeArgs[1]);
+            return (typeArgs[0], typeArgs[1], false);
           }
         }
       }
     }
 
-    return (null, null);
+    return (null, null, false);
   }
 }

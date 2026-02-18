@@ -109,8 +109,8 @@ void main() {
       final committed = await session.saveChangesAsync();
 
       // Assert — one creation event persisted with noStream expected version.
-      expect(committed, hasLength(1));
-      expect(committed.first, isA<CounterCreated>());
+      expect(committed.flatOperations, hasLength(1));
+      expect(committed.flatOperations.first, isA<CounterCreated>());
 
       final captured = verify(
         eventStore.appendEventsAsync(streamId, captureAny, captureAny, aggregateType: anyNamed('aggregateType')),
@@ -382,12 +382,12 @@ void main() {
       final committed = await session.saveChangesAsync();
 
       // Assert — both events returned in order.
-      expect(committed, hasLength(2));
-      expect(committed[0], isA<CounterCreated>());
-      expect(committed[1], isA<CounterIncremented>());
+      expect(committed.flatOperations, hasLength(2));
+      expect(committed.flatOperations[0], isA<CounterCreated>());
+      expect(committed.flatOperations[1], isA<CounterIncremented>());
     });
 
-    test('returns empty list when no events are pending', () async {
+    test('returns empty batch when no events are pending', () async {
       // Arrange — session with nothing staged.
       final session = store.openSession();
 
@@ -396,9 +396,9 @@ void main() {
 
       // Assert
       expect(
-        committed,
-        isEmpty,
-        reason: 'No pending events → empty committed list.',
+        committed.isEmpty,
+        isTrue,
+        reason: 'No pending events → empty committed batch.',
       );
     });
 
@@ -424,7 +424,7 @@ void main() {
 
       // Assert — one event per stream.
       expect(
-        committed,
+        committed.flatOperations,
         hasLength(2),
         reason: 'Two streams with one event each → two committed events.',
       );

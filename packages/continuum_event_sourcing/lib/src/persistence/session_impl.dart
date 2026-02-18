@@ -13,9 +13,10 @@ import 'stored_event.dart';
 /// event-sourcing-specific load (event replay) and save (event store append)
 /// operations.
 ///
-/// The [saveChangesAsync] method returns `Future<List<ContinuumEvent>>`
-/// (narrowing the base `Future<void>` return). It also validates that
-/// all pending operations are [ContinuumEvent] instances before persisting.
+/// The [saveChangesAsync] method returns a [CommitBatch] with
+/// [CommittedOperation] entries that include `streamVersion` metadata.
+/// It also validates that all pending operations are [ContinuumEvent]
+/// instances before persisting.
 final class SessionImpl extends SessionBase {
   /// The underlying event store for persistence.
   final EventStore _eventStore;
@@ -245,7 +246,7 @@ final class SessionImpl extends SessionBase {
   }
 
   @override
-  Future<List<ContinuumEvent>> saveChangesAsync({int maxRetries = 1}) async {
+  Future<CommitBatch> saveChangesAsync({int maxRetries = 1}) async {
     // Validate that all pending operations are ContinuumEvent instances.
     // The UoW layer accepts any Operation, but ES persistence requires
     // ContinuumEvent for serialization and event store append.
@@ -265,8 +266,8 @@ final class SessionImpl extends SessionBase {
 
     for (var attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        final committedEvents = await _persistPendingEventsAsync();
-        return committedEvents;
+        final batch = await _persistPendingEventsAsync();
+        return batch;
       } on ConcurrencyException {
         final isLastAttempt = attempt == maxRetries;
         if (isLastAttempt) {
@@ -277,11 +278,11 @@ final class SessionImpl extends SessionBase {
       }
     }
 
-    return [];
+    return CommitBatch.empty;
   }
 
   /// Core persistence logic extracted so [saveChangesAsync] can retry it.
-  Future<List<ContinuumEvent>> _persistPendingEventsAsync() async {
+  Future<CommitBatch> _persistPendingEventsAsync() async {
     final pendingEntries = <MapEntry<StreamId, TrackedEntity>>[];
     for (final entry in trackedEntities.entries) {
       if (entry.value.pendingOperations.isNotEmpty) {
@@ -289,9 +290,9 @@ final class SessionImpl extends SessionBase {
       }
     }
 
-    if (pendingEntries.isEmpty) return [];
+    if (pendingEntries.isEmpty) return CommitBatch.empty;
 
-    final allCommittedEvents = <ContinuumEvent>[];
+    final committedEntries = <CommittedEntry>[];
 
     // Apply deferred operations before persistence so entity state is correct.
     applyDeferredOperations(pendingEntries);
@@ -300,6 +301,7 @@ final class SessionImpl extends SessionBase {
       // Atomic multi-stream path: batch all streams into one call.
       final batches = <StreamId, StreamAppendBatch>{};
       final newLoadedVersions = <StreamId, int>{};
+      final committedOpsPerStream = <StreamId, List<CommittedOperation>>{};
 
       for (final entry in pendingEntries) {
         final streamId = entry.key;
@@ -308,6 +310,7 @@ final class SessionImpl extends SessionBase {
         final expectedVersion = state.loadedVersion == -1 ? ExpectedVersion.noStream : ExpectedVersion.exact(state.loadedVersion);
 
         final storedEvents = <StoredEvent>[];
+        final committedOps = <CommittedOperation>[];
         var nextVersion = state.loadedVersion + 1;
 
         for (final operation in state.pendingOperations) {
@@ -322,7 +325,12 @@ final class SessionImpl extends SessionBase {
             data: serialized.data,
           );
           storedEvents.add(storedEvent);
-          allCommittedEvents.add(event);
+          committedOps.add(
+            CommittedOperation(
+              operation: event,
+              streamVersion: nextVersion,
+            ),
+          );
           nextVersion++;
         }
 
@@ -332,11 +340,13 @@ final class SessionImpl extends SessionBase {
           aggregateType: state.entityType.toString(),
         );
         newLoadedVersions[streamId] = nextVersion - 1;
+        committedOpsPerStream[streamId] = committedOps;
       }
 
       await _eventStore.appendEventsToStreamsAsync(batches);
 
-      // Update loaded versions after successful persistence.
+      // Update loaded versions after successful persistence and build
+      // committed entries.
       for (final entry in pendingEntries) {
         final streamId = entry.key;
         final state = entry.value;
@@ -345,9 +355,15 @@ final class SessionImpl extends SessionBase {
           entityType: state.entityType,
           loadedVersion: newLoadedVersions[streamId]!,
         );
+        committedEntries.add(
+          CommittedEntry(
+            streamId: streamId,
+            operations: committedOpsPerStream[streamId]!,
+          ),
+        );
       }
 
-      return allCommittedEvents;
+      return CommitBatch(entries: committedEntries);
     }
 
     // Fallback: persist streams independently.
@@ -358,6 +374,7 @@ final class SessionImpl extends SessionBase {
       final expectedVersion = state.loadedVersion == -1 ? ExpectedVersion.noStream : ExpectedVersion.exact(state.loadedVersion);
 
       final storedEvents = <StoredEvent>[];
+      final committedOps = <CommittedOperation>[];
       var nextVersion = state.loadedVersion + 1;
 
       for (final operation in state.pendingOperations) {
@@ -372,7 +389,12 @@ final class SessionImpl extends SessionBase {
           data: serialized.data,
         );
         storedEvents.add(storedEvent);
-        allCommittedEvents.add(event);
+        committedOps.add(
+          CommittedOperation(
+            operation: event,
+            streamVersion: nextVersion,
+          ),
+        );
         nextVersion++;
       }
 
@@ -388,9 +410,16 @@ final class SessionImpl extends SessionBase {
         entityType: state.entityType,
         loadedVersion: nextVersion - 1,
       );
+
+      committedEntries.add(
+        CommittedEntry(
+          streamId: streamId,
+          operations: committedOps,
+        ),
+      );
     }
 
-    return allCommittedEvents;
+    return CommitBatch(entries: committedEntries);
   }
 
   /// Reloads all streams that still carry pending events.

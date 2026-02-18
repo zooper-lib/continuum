@@ -36,6 +36,9 @@ export 'src/persistence/event_serializer_registry.dart';
 export 'src/persistence/generated_aggregate.dart';
 
 // Projection system
+export 'src/projections/commit_batch.dart';
+export 'src/projections/committed_entry.dart';
+export 'src/projections/committed_operation.dart';
 export 'src/projections/generated_projection.dart';
 export 'src/projections/inline_projection_executor.dart';
 export 'src/projections/multi_stream_projection.dart';

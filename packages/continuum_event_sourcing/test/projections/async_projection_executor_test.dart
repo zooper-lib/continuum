@@ -388,9 +388,6 @@ class _CounterProjection extends SingleStreamProjection<_CounterReadModel> {
   String get projectionName => _name;
 
   @override
-  StreamId extractKey(Operation operation) => (operation as _TestEvent).streamId;
-
-  @override
   _CounterReadModel createInitial(StreamId streamId) {
     return _CounterReadModel(streamId: streamId.value, count: 0);
   }
@@ -479,9 +476,6 @@ final class _CounterProjectionForA extends SingleStreamProjection<int> {
   String get projectionName => 'counter-a';
 
   @override
-  StreamId extractKey(Operation operation) => (operation as _TestEventA).streamId;
-
-  @override
   int createInitial(StreamId streamId) => 0;
 
   @override
@@ -494,9 +488,6 @@ final class _CounterProjectionForB extends SingleStreamProjection<int> {
 
   @override
   String get projectionName => 'counter-b';
-
-  @override
-  StreamId extractKey(Operation operation) => (operation as _TestEventB).streamId;
 
   @override
   int createInitial(StreamId streamId) => 0;
@@ -513,9 +504,6 @@ final class _FailingProjectionForA extends SingleStreamProjection<int> {
   String get projectionName => 'failing-a';
 
   @override
-  StreamId extractKey(Operation operation) => (operation as _TestEventA).streamId;
-
-  @override
   int createInitial(StreamId streamId) => 0;
 
   @override
@@ -530,9 +518,6 @@ class _FailingProjection extends SingleStreamProjection<int> {
 
   @override
   String get projectionName => 'failing';
-
-  @override
-  StreamId extractKey(Operation operation) => (operation as _TestEvent).streamId;
 
   @override
   int createInitial(StreamId streamId) => 0;

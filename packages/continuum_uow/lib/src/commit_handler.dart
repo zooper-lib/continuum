@@ -13,8 +13,9 @@ import 'package:continuum/continuum.dart';
 abstract interface class CommitHandler {
   /// Called after operations have been successfully persisted.
   ///
-  /// Receives the [committedOperations] in application order.
-  /// Not called when the action throws, when [saveChangesAsync]
-  /// fails, or when no operations were committed (empty list).
-  Future<void> onCommitAsync(List<Operation> committedOperations);
+  /// Receives a [CommitBatch] containing the committed operations
+  /// grouped by stream. Not called when the action throws, when
+  /// [saveChangesAsync] fails, or when no operations were committed
+  /// (empty batch).
+  Future<void> onCommitAsync(CommitBatch batch);
 }

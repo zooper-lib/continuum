@@ -11,8 +11,8 @@ final class _StubSession implements Session {
   bool saveWasCalled = false;
   int saveCallCount = 0;
 
-  /// Operations to return from [saveChangesAsync].
-  List<Operation> operationsToReturn = [];
+  /// Batch to return from [saveChangesAsync].
+  CommitBatch batchToReturn = CommitBatch.empty;
 
   @override
   Future<TAggregate> loadAsync<TAggregate>(StreamId streamId) async {
@@ -33,10 +33,10 @@ final class _StubSession implements Session {
   }
 
   @override
-  Future<List<Operation>> saveChangesAsync({int maxRetries = 1}) async {
+  Future<CommitBatch> saveChangesAsync({int maxRetries = 1}) async {
     saveWasCalled = true;
     saveCallCount++;
-    return operationsToReturn;
+    return batchToReturn;
   }
 
   @override
@@ -50,12 +50,12 @@ final class _StubSession implements Session {
 final class _StubSessionStore implements SessionStore {
   final List<_StubSession> createdSessions = [];
 
-  /// Operations that newly created sessions will return from save.
-  List<Operation> defaultOperationsToReturn = [];
+  /// Batch that newly created sessions will return from save.
+  CommitBatch defaultBatchToReturn = CommitBatch.empty;
 
   @override
   Session openSession() {
-    final session = _StubSession()..operationsToReturn = List.of(defaultOperationsToReturn);
+    final session = _StubSession()..batchToReturn = defaultBatchToReturn;
     createdSessions.add(session);
     return session;
   }
@@ -70,24 +70,24 @@ final class _FakeOperation implements Operation {
   const _FakeOperation(this.label);
 }
 
-/// A CommitHandler that records calls and received operations.
+/// A CommitHandler that records calls and received batches.
 final class _RecordingCommitHandler implements CommitHandler {
   int callCount = 0;
 
-  /// All operations received across all calls.
-  final List<List<Operation>> receivedOperations = [];
+  /// All batches received across all calls.
+  final List<CommitBatch> receivedBatches = [];
 
   @override
-  Future<void> onCommitAsync(List<Operation> committedOperations) async {
+  Future<void> onCommitAsync(CommitBatch batch) async {
     callCount++;
-    receivedOperations.add(committedOperations);
+    receivedBatches.add(batch);
   }
 }
 
 /// A CommitHandler that throws.
 final class _FailingCommitHandler implements CommitHandler {
   @override
-  Future<void> onCommitAsync(List<Operation> committedOperations) async {
+  Future<void> onCommitAsync(CommitBatch batch) async {
     throw StateError('CommitHandler failure');
   }
 }
@@ -216,7 +216,17 @@ void main() {
       test('should call CommitHandler with committed operations after save', () async {
         // Arrange — configure the session to return committed operations
         final operations = [const _FakeOperation('op-1'), const _FakeOperation('op-2')];
-        final store = _StubSessionStore()..defaultOperationsToReturn = operations;
+        final batch = CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('test-stream'),
+              operations: [
+                for (final op in operations) CommittedOperation(operation: op),
+              ],
+            ),
+          ],
+        );
+        final store = _StubSessionStore()..defaultBatchToReturn = batch;
         final handler = _RecordingCommitHandler();
         final runner = TransactionalRunner(
           store: store,
@@ -228,13 +238,13 @@ void main() {
           return null;
         });
 
-        // Assert — handler should have received the committed operations
+        // Assert — handler should have received the committed batch
         expect(handler.callCount, equals(1));
-        expect(handler.receivedOperations.first, equals(operations));
+        expect(handler.receivedBatches.first.flatOperations, equals(operations));
       });
 
       test('should not call CommitHandler when no operations committed', () async {
-        // Arrange — session returns empty list (no pending operations)
+        // Arrange — session returns empty batch (no pending operations)
         final store = _StubSessionStore();
         final handler = _RecordingCommitHandler();
         final runner = TransactionalRunner(
@@ -253,7 +263,15 @@ void main() {
 
       test('should not call CommitHandler when action throws', () async {
         // Arrange
-        final store = _StubSessionStore()..defaultOperationsToReturn = [const _FakeOperation('op-1')];
+        final batch = const CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: StreamId('s'),
+              operations: [CommittedOperation(operation: _FakeOperation('op-1'))],
+            ),
+          ],
+        );
+        final store = _StubSessionStore()..defaultBatchToReturn = batch;
         final handler = _RecordingCommitHandler();
         final runner = TransactionalRunner(
           store: store,
@@ -275,8 +293,16 @@ void main() {
       });
 
       test('should propagate CommitHandler exception', () async {
-        // Arrange — configure operations so the handler is actually called
-        final store = _StubSessionStore()..defaultOperationsToReturn = [const _FakeOperation('op-1')];
+        // Arrange — configure batch so the handler is actually called
+        final batch = const CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: StreamId('s'),
+              operations: [CommittedOperation(operation: _FakeOperation('op-1'))],
+            ),
+          ],
+        );
+        final store = _StubSessionStore()..defaultBatchToReturn = batch;
         final runner = TransactionalRunner(
           store: store,
           commitHandler: _FailingCommitHandler(),
@@ -299,7 +325,17 @@ void main() {
           const _FakeOperation('second'),
           const _FakeOperation('third'),
         ];
-        final store = _StubSessionStore()..defaultOperationsToReturn = operations;
+        final batch = CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('test-stream'),
+              operations: [
+                for (final op in operations) CommittedOperation(operation: op),
+              ],
+            ),
+          ],
+        );
+        final store = _StubSessionStore()..defaultBatchToReturn = batch;
         final handler = _RecordingCommitHandler();
         final runner = TransactionalRunner(
           store: store,
@@ -310,7 +346,7 @@ void main() {
         await runner.runAsync(() async => null);
 
         // Assert — operations received in the same order
-        final received = handler.receivedOperations.first;
+        final received = handler.receivedBatches.first.flatOperations;
         expect(received, hasLength(3));
         expect((received[0] as _FakeOperation).label, equals('first'));
         expect((received[1] as _FakeOperation).label, equals('second'));

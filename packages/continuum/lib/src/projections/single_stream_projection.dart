@@ -5,13 +5,24 @@ import 'projection_base.dart';
 /// Projection that derives a read model from a single aggregate stream.
 ///
 /// Uses [StreamId] as the read model key. Subclasses implement
-/// [extractKey], [createInitial], and [apply] for domain-specific logic.
+/// [createInitial] and [apply] for domain-specific logic.
 ///
-/// Unlike multi-stream projections, the key type is fixed to [StreamId]
-/// which represents a single aggregate instance.
+/// Key extraction is handled automatically by the framework — the
+/// executor derives the [StreamId] from the [CommittedEntry] that
+/// carries each operation, so subclasses do not implement [extractKey].
 abstract class SingleStreamProjection<TReadModel> extends ProjectionBase<TReadModel, StreamId> {
+  /// Key extraction is handled by the executor via [CommittedEntry.streamId].
+  ///
+  /// This override exists only to satisfy the [ProjectionBase] contract.
+  /// It must not be called directly — the inline and async executors
+  /// bypass it for single-stream projections.
   @override
-  StreamId extractKey(Operation operation);
+  StreamId extractKey(Operation operation) {
+    throw UnsupportedError(
+      'SingleStreamProjection does not use extractKey. '
+      'The executor derives the key from CommittedEntry.streamId.',
+    );
+  }
 
   @override
   TReadModel createInitial(StreamId streamId);

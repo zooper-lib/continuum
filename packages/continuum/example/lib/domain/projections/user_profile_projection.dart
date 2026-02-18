@@ -54,17 +54,6 @@ class UserProfile {
 )
 class UserProfileProjection extends SingleStreamProjection<UserProfile> with _$UserProfileProjectionHandlers {
   @override
-  StreamId extractKey(Operation operation) {
-    // Each event type carries the user ID needed to key the read model.
-    return switch (operation) {
-      UserRegistered(:final userId) => StreamId(userId.value),
-      EmailChanged(:final userId) => StreamId(userId!.value),
-      UserDeactivated(:final userId) => StreamId(userId!.value),
-      _ => throw ArgumentError('Cannot extract key from ${operation.runtimeType}'),
-    };
-  }
-
-  @override
   UserProfile createInitial(StreamId streamId) => UserProfile(
     name: '',
     email: '',

@@ -4,7 +4,7 @@ import 'package:analyzer/dart/element/type.dart';
 /// Represents a projection discovered during code generation.
 ///
 /// Contains information about the projection class, its name,
-/// handled event types, and the read model type.
+/// handled event types, the read model type, and the execution lifecycle.
 final class ProjectionInfo {
   /// The class element representing the projection.
   final ClassElement element;
@@ -26,6 +26,18 @@ final class ProjectionInfo {
   /// For `MultiStreamProjection<T, K>`, this is `K`.
   final DartType? keyType;
 
+  /// Whether this is a single-stream projection.
+  ///
+  /// When `true`, the key type is `StreamId` and the executor
+  /// derives the key from the committed entry's stream identity.
+  final bool isSingleStream;
+
+  /// The execution lifecycle for this projection.
+  ///
+  /// Either `'inline'` or `'async'`, extracted from the `@Projection`
+  /// annotation's `lifecycle` parameter.
+  final String lifecycle;
+
   /// Creates a projection info with the given properties.
   ProjectionInfo({
     required this.element,
@@ -33,6 +45,8 @@ final class ProjectionInfo {
     required this.eventTypes,
     this.readModelType,
     this.keyType,
+    this.isSingleStream = false,
+    this.lifecycle = 'inline',
   });
 
   /// The name of the projection class.

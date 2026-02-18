@@ -35,11 +35,11 @@ abstract interface class Session {
 
   /// Persists all pending operations atomically.
   ///
-  /// Returns the list of [Operation] instances that were committed,
-  /// in application order. Returns an empty list when there are no
+  /// Returns a [CommitBatch] containing the committed operations
+  /// grouped by stream. Returns an empty batch when there are no
   /// pending operations. The [maxRetries] parameter controls how
   /// many times the save should be retried on concurrency conflicts.
-  Future<List<Operation>> saveChangesAsync({int maxRetries = 1});
+  Future<CommitBatch> saveChangesAsync({int maxRetries = 1});
 
   /// Discards all pending operations for the given [streamId].
   ///

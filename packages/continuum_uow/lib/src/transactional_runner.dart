@@ -57,13 +57,14 @@ final class TransactionalRunner {
     );
 
     // Auto-commit pending operations after the action completes
-    // successfully. Returns the committed operations in application order.
-    final committedOperations = await session.saveChangesAsync();
+    // successfully. Returns a batch of committed operations grouped
+    // by stream.
+    final batch = await session.saveChangesAsync();
 
     // Publish through the handler if configured and operations were
-    // actually committed. Empty commits are skipped per spec.
-    if (_commitHandler != null && committedOperations.isNotEmpty) {
-      await _commitHandler.onCommitAsync(committedOperations);
+    // actually committed. Empty batches are skipped per spec.
+    if (_commitHandler != null && batch.isNotEmpty) {
+      await _commitHandler.onCommitAsync(batch);
     }
 
     return result;

@@ -17,7 +17,16 @@ void main() {
       final operation = const _TestOperation(streamId: StreamId('stream-1'));
 
       // Should not throw — no projections means no work.
-      await executor.executeAsync([operation]);
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
       expect(store.length, equals(0));
     });
@@ -28,7 +37,16 @@ void main() {
       executor = InlineProjectionExecutor(registry: registry);
 
       final operation = const _TestOperation(streamId: StreamId('stream-1'));
-      await executor.executeAsync([operation]);
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
       final readModel = await store.loadAsync(const StreamId('stream-1'));
       expect(readModel, isNotNull);
@@ -47,7 +65,16 @@ void main() {
       );
 
       final operation = const _TestOperation(streamId: StreamId('stream-1'));
-      await executor.executeAsync([operation]);
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
       final readModel = await store.loadAsync(const StreamId('stream-1'));
       expect(readModel!.count, equals(6));
@@ -58,13 +85,20 @@ void main() {
       registry.registerInline(projection, store);
       executor = InlineProjectionExecutor(registry: registry);
 
-      final operations = [
-        const _TestOperation(streamId: StreamId('stream-1')),
-        const _TestOperation(streamId: StreamId('stream-1')),
-        const _TestOperation(streamId: StreamId('stream-1')),
-      ];
-
-      await executor.executeAsync(operations);
+      await executor.executeAsync(
+        const CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: StreamId('stream-1'),
+              operations: [
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+              ],
+            ),
+          ],
+        ),
+      );
 
       final readModel = await store.loadAsync(const StreamId('stream-1'));
       expect(readModel!.count, equals(3));
@@ -75,13 +109,25 @@ void main() {
       registry.registerInline(projection, store);
       executor = InlineProjectionExecutor(registry: registry);
 
-      final operations = [
-        const _TestOperation(streamId: StreamId('stream-1')),
-        const _TestOperation(streamId: StreamId('stream-2')),
-        const _TestOperation(streamId: StreamId('stream-1')),
-      ];
-
-      await executor.executeAsync(operations);
+      await executor.executeAsync(
+        const CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: StreamId('stream-1'),
+              operations: [
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+              ],
+            ),
+            CommittedEntry(
+              streamId: StreamId('stream-2'),
+              operations: [
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-2'))),
+              ],
+            ),
+          ],
+        ),
+      );
 
       final readModel1 = await store.loadAsync(const StreamId('stream-1'));
       final readModel2 = await store.loadAsync(const StreamId('stream-2'));
@@ -101,7 +147,16 @@ void main() {
       executor = InlineProjectionExecutor(registry: registry);
 
       final operation = const _TestOperation(streamId: StreamId('stream-1'));
-      await executor.executeAsync([operation]);
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
       final readModel1 = await store1.loadAsync(const StreamId('stream-1'));
       final readModel2 = await store2.loadAsync(const StreamId('stream-1'));
@@ -121,7 +176,16 @@ void main() {
       executor = InlineProjectionExecutor(registry: registry);
 
       final operation = const _TestOperation(streamId: StreamId('stream-1'));
-      await executor.executeAsync([operation]);
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
       // Async projections must NOT be executed by the inline executor.
       expect(inlineStore.length, equals(1));
@@ -139,7 +203,16 @@ void main() {
 
       // Inline projections must propagate errors — they run within the commit.
       await expectLater(
-        executor.executeAsync([operation]),
+        executor.executeAsync(
+          CommitBatch(
+            entries: [
+              CommittedEntry(
+                streamId: const StreamId('stream-1'),
+                operations: [CommittedOperation(operation: operation)],
+              ),
+            ],
+          ),
+        ),
         throwsA(isA<StateError>()),
       );
     });
@@ -155,7 +228,16 @@ void main() {
       final operationA = const _TestOperationA(streamId: StreamId('stream-1'));
 
       // Act.
-      await executor.executeAsync([operationA]);
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operationA)],
+            ),
+          ],
+        ),
+      );
 
       // Assert: Only the matching projection should be updated.
       // This matters because unrelated projections must not mutate read models.
@@ -209,9 +291,6 @@ class _CounterProjection extends SingleStreamProjection<_CounterReadModel> {
   String get projectionName => _name;
 
   @override
-  StreamId extractKey(Operation operation) => (operation as _TestOperation).streamId;
-
-  @override
   _CounterReadModel createInitial(StreamId streamId) {
     return _CounterReadModel(streamId: streamId.value, count: 0);
   }
@@ -234,9 +313,6 @@ class _FailingProjection extends SingleStreamProjection<int> {
   String get projectionName => 'failing';
 
   @override
-  StreamId extractKey(Operation operation) => (operation as _TestOperation).streamId;
-
-  @override
   int createInitial(StreamId streamId) => 0;
 
   @override
@@ -254,9 +330,6 @@ final class _CounterProjectionForA extends SingleStreamProjection<int> {
   String get projectionName => 'counter-a';
 
   @override
-  StreamId extractKey(Operation operation) => (operation as _TestOperationA).streamId;
-
-  @override
   int createInitial(StreamId streamId) => 0;
 
   @override
@@ -270,9 +343,6 @@ final class _CounterProjectionForB extends SingleStreamProjection<int> {
 
   @override
   String get projectionName => 'counter-b';
-
-  @override
-  StreamId extractKey(Operation operation) => (operation as _TestOperationB).streamId;
 
   @override
   int createInitial(StreamId streamId) => 0;

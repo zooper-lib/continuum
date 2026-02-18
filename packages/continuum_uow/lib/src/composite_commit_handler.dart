@@ -4,7 +4,7 @@ import 'commit_handler.dart';
 
 /// Executes multiple commit handlers sequentially.
 ///
-/// Each handler is called with the same operation list in the order they
+/// Each handler is called with the same [CommitBatch] in the order they
 /// appear in [handlers]. If any handler throws, the exception propagates
 /// immediately and subsequent handlers are not called.
 ///
@@ -29,9 +29,9 @@ final class CompositeCommitHandler implements CommitHandler {
   final List<CommitHandler> handlers;
 
   @override
-  Future<void> onCommitAsync(List<Operation> operations) async {
+  Future<void> onCommitAsync(CommitBatch batch) async {
     for (final handler in handlers) {
-      await handler.onCommitAsync(operations);
+      await handler.onCommitAsync(batch);
     }
   }
 }

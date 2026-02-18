@@ -115,8 +115,8 @@ void main() {
 
         final committedEvents = await session.saveChangesAsync(maxRetries: 0);
 
-        // saveChangesAsync now returns the committed events.
-        expect(committedEvents, hasLength(2));
+        // saveChangesAsync returns a CommitBatch with the committed events.
+        expect(committedEvents.flatOperations, hasLength(2));
 
         final captured = verify(
           eventStore.appendEventsAsync(streamId, ExpectedVersion.noStream, captureAny, aggregateType: anyNamed('aggregateType')),
@@ -160,8 +160,8 @@ void main() {
 
       final committedEvents = await session.saveChangesAsync(maxRetries: 0);
 
-      // saveChangesAsync returns committed events.
-      expect(committedEvents, hasLength(1));
+      // saveChangesAsync returns a CommitBatch with committed events.
+      expect(committedEvents.flatOperations, hasLength(1));
 
       final captured = verify(
         eventStore.appendEventsAsync(streamId, ExpectedVersion.exact(0), captureAny, aggregateType: anyNamed('aggregateType')),

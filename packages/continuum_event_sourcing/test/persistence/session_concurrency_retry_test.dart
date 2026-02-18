@@ -520,7 +520,7 @@ void main() {
       final committedEvents = await session.saveChangesAsync(maxRetries: 5);
 
       // Assert — returns committed events.
-      expect(committedEvents, hasLength(1));
+      expect(committedEvents.flatOperations, hasLength(1));
 
       // Only the initial load, no reloads for retry.
       verify(eventStore.loadStreamAsync(streamId)).called(1);

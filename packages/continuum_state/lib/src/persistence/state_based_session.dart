@@ -90,7 +90,7 @@ final class StateBasedSession extends SessionBase {
   }
 
   @override
-  Future<List<Operation>> saveChangesAsync({int maxRetries = 1}) async {
+  Future<CommitBatch> saveChangesAsync({int maxRetries = 1}) async {
     // Collect all entities with pending operations.
     final pendingEntries = <MapEntry<StreamId, TrackedEntity>>[];
     for (final entry in trackedEntities.entries) {
@@ -99,13 +99,7 @@ final class StateBasedSession extends SessionBase {
       }
     }
 
-    if (pendingEntries.isEmpty) return [];
-
-    // Snapshot the committed operations before clearing them, so we
-    // can return them to the caller in application order.
-    final committedOperations = <Operation>[
-      for (final entry in pendingEntries) ...entry.value.pendingOperations,
-    ];
+    if (pendingEntries.isEmpty) return CommitBatch.empty;
 
     // In deferred mode, apply all pending operations to entities before
     // persisting so the adapter receives the post-operation state.
@@ -116,6 +110,9 @@ final class StateBasedSession extends SessionBase {
     final failedStreams = <StreamId>[];
     Object? firstFailure;
 
+    // Build committed entries grouped by stream.
+    final committedEntries = <CommittedEntry>[];
+
     // Persist each stream independently via its adapter.
     for (final entry in pendingEntries) {
       final streamId = entry.key;
@@ -124,6 +121,17 @@ final class StateBasedSession extends SessionBase {
       try {
         await _persistStreamWithRetry(streamId, state, maxRetries: maxRetries);
         savedStreams.add(streamId);
+
+        // Build the committed entry for this stream. State-based
+        // sessions have no version or sequence metadata.
+        committedEntries.add(
+          CommittedEntry(
+            streamId: streamId,
+            operations: [
+              for (final op in state.pendingOperations) CommittedOperation(operation: op),
+            ],
+          ),
+        );
 
         // Clear pending operations for this successfully saved stream.
         trackedEntities[streamId] = state.withClearedPendingOperations();
@@ -143,7 +151,7 @@ final class StateBasedSession extends SessionBase {
       );
     }
 
-    return committedOperations;
+    return CommitBatch(entries: committedEntries);
   }
 
   /// Persists a single stream with concurrency retry logic.

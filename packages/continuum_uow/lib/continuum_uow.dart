@@ -5,11 +5,13 @@
 /// point for custom persistence strategies.
 library;
 
+export 'src/async_projection_commit_handler.dart';
 export 'src/commit_handler.dart';
 export 'src/composite_commit_handler.dart';
 export 'src/concurrency_exception.dart';
 export 'src/invalid_operation_exception.dart';
 export 'src/partial_save_exception.dart';
+export 'src/projection_commit_handler.dart';
 export 'src/session.dart';
 export 'src/session_base.dart';
 export 'src/session_store.dart';
