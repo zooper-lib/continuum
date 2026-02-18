@@ -4,12 +4,14 @@
 /// This example shows how to:
 /// - Define a projection using `@Projection` annotation
 /// - Register projections with the registry
-/// - Execute inline projections after committing events
+/// - Wire the projection executor as a CommitHandler so projections
+///   update automatically on every commit
 library;
 
 import 'package:continuum/continuum.dart';
 import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 
 import 'continuum.g.dart';
 import 'domain/events/email_changed.dart';
@@ -27,45 +29,61 @@ void main() async {
   // --- Setup ---
   print('Setting up event store and projections...');
 
-  // Create read model store for profiles
+  // Create read model store for profiles.
   final profileStore = InMemoryReadModelStore<UserProfile, StreamId>();
 
-  // Create projection registry and register our projection
+  // Create projection registry and register our projection.
   final registry = ProjectionRegistry();
   registry.registerInline(
     UserProfileProjection(),
     profileStore,
   );
 
-  // Create the inline projection executor
+  // Create the inline projection executor.
   final projectionExecutor = InlineProjectionExecutor(registry: registry);
 
-  // Create event sourcing store
+  // Create event sourcing store.
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
     aggregates: $aggregateList,
   );
 
+  // Wire everything together with TransactionalRunner.
+  // The projection commit handler is called automatically after every
+  // successful commit — no manual executor calls needed.
+  //
+  // For multiple commit handlers (e.g., projections + event bus + analytics),
+  // use the framework-provided CompositeCommitHandler:
+  //   final handler = CompositeCommitHandler([
+  //     _ProjectionCommitHandler(projectionExecutor),
+  //     EventBusCommitHandler(eventBus),
+  //     AnalyticsCommitHandler(analytics),
+  //   ]);
+  final runner = TransactionalRunner(
+    store: store,
+    commitHandler: _ProjectionCommitHandler(projectionExecutor),
+  );
+
   final streamId = const StreamId('user-123');
   final userId = const UserId('user-123');
 
-  // --- Create User via Events ---
+  // --- Create User ---
   print('');
-  print('Creating user via events...');
+  print('Creating user...');
 
-  final session = store.openSession();
-  final creationEvent = UserRegistered(
-    userId: userId,
-    email: 'alice@example.com',
-    name: 'Alice Smith',
-  );
-  await session.applyAsync<User>(streamId, creationEvent);
-  await session.saveChangesAsync();
+  await runner.runAsync(() async {
+    final session = TransactionalRunner.currentSession;
+    await session.applyAsync<User>(
+      streamId,
+      UserRegistered(
+        userId: userId,
+        email: 'alice@example.com',
+        name: 'Alice Smith',
+      ),
+    );
+  });
 
-  // Feed committed operations to projections
-  await projectionExecutor.executeAsync([creationEvent]);
-
-  // Read profile from projection
+  // The projection was updated automatically during the commit.
   var profile = await profileStore.loadAsync(streamId);
   print('  Profile after registration: $profile');
 
@@ -73,14 +91,14 @@ void main() async {
   print('');
   print('Updating email...');
 
-  final updateSession = store.openSession();
-  await updateSession.loadAsync<User>(streamId);
-  final emailEvent = EmailChanged(newEmail: 'alice@company.com', userId: userId);
-  await updateSession.applyAsync<User>(streamId, emailEvent);
-  await updateSession.saveChangesAsync();
-
-  // Feed committed operations to projections
-  await projectionExecutor.executeAsync([emailEvent]);
+  await runner.runAsync(() async {
+    final session = TransactionalRunner.currentSession;
+    await session.loadAsync<User>(streamId);
+    await session.applyAsync<User>(
+      streamId,
+      EmailChanged(newEmail: 'alice@company.com', userId: userId),
+    );
+  });
 
   profile = await profileStore.loadAsync(streamId);
   print('  Profile after email change: $profile');
@@ -89,17 +107,14 @@ void main() async {
   print('');
   print('Deactivating user...');
 
-  final deactivateSession = store.openSession();
-  await deactivateSession.loadAsync<User>(streamId);
-  final deactivateEvent = UserDeactivated(
-    deactivatedAt: DateTime.now(),
-    userId: userId,
-  );
-  await deactivateSession.applyAsync<User>(streamId, deactivateEvent);
-  await deactivateSession.saveChangesAsync();
-
-  // Feed committed operations to projections
-  await projectionExecutor.executeAsync([deactivateEvent]);
+  await runner.runAsync(() async {
+    final session = TransactionalRunner.currentSession;
+    await session.loadAsync<User>(streamId);
+    await session.applyAsync<User>(
+      streamId,
+      UserDeactivated(deactivatedAt: DateTime.now(), userId: userId),
+    );
+  });
 
   profile = await profileStore.loadAsync(streamId);
   print('  Profile after deactivation: $profile');
@@ -110,9 +125,26 @@ void main() async {
   print('Key Takeaways:');
   print('  1. Projections are defined with @Projection annotation');
   print('  2. Generated mixin provides type-safe apply methods');
-  print('  3. Projections work with Operation — decoupled from event');
-  print('     sourcing infrastructure. Feed events directly via');
-  print('     InlineProjectionExecutor or a CommitHandler');
+  print('  3. Wire InlineProjectionExecutor as a CommitHandler so');
+  print('     projections update automatically — no manual calls');
   print('  4. Read models are optimized for specific query patterns');
   print('═══════════════════════════════════════════════════════════════════');
+}
+
+/// Bridges [InlineProjectionExecutor] into the [CommitHandler] contract.
+///
+/// The executor lives in `continuum` (L0) and cannot depend on
+/// `continuum_uow` (L1) where [CommitHandler] is defined. This adapter
+/// closes the gap at the application wiring layer.
+final class _ProjectionCommitHandler implements CommitHandler {
+  /// The executor to delegate committed operations to.
+  final InlineProjectionExecutor _executor;
+
+  /// Creates a commit handler that delegates to [executor].
+  _ProjectionCommitHandler(this._executor);
+
+  @override
+  Future<void> onCommitAsync(List<Operation> committedOperations) async {
+    await _executor.executeAsync(committedOperations);
+  }
 }

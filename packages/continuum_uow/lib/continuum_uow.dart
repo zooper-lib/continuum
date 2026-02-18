@@ -6,6 +6,7 @@
 library;
 
 export 'src/commit_handler.dart';
+export 'src/composite_commit_handler.dart';
 export 'src/concurrency_exception.dart';
 export 'src/invalid_operation_exception.dart';
 export 'src/partial_save_exception.dart';
