@@ -10,11 +10,11 @@ environment:
 resolution: workspace
 
 dependencies:
-  continuum:
+  continuum: ^5.0.0
   meta: ^1.15.0
 
 dev_dependencies:
-  continuum_store_memory:
+  continuum_store_memory: ^5.0.0
   lints: ^6.0.0
   mockito: ^5.4.0
   test: ^1.25.6
