@@ -17,15 +17,14 @@
 ///   store_atomic_rollback.dart      - Atomic rollback on conflict
 ///
 /// STATE-BASED PERSISTENCE (StateBasedStore + Adapter):
-///   store_state_based.dart           - State-based backend persistence
+///   store_state_based.dart                - State-based backend persistence
+///   store_state_based_transactional.dart  - State-based with TransactionalRunner
 ///
 /// PROJECTIONS (Read Models):
 ///   projection_example.dart         - Projection with code generation
 ///
 /// HYBRID MODE (Frontend Events + Backend State):
-///   hybrid_optimistic_creation.dart - Optimistic user creation
-///   hybrid_profile_edit.dart        - Instant feedback when editing
-///   hybrid_multi_step_form.dart     - Multi-step forms with cancel
+///   (removed - hybrid examples consolidated into state-based examples)
 ///
 /// To run any example:
 ///   cd example
@@ -53,15 +52,14 @@ void main() {
   print('  store_atomic_rollback.dart      - Atomic rollback on conflict');
   print('');
   print('STATE-BASED PERSISTENCE (StateBasedStore + Adapter):');
-  print('  store_state_based.dart           - State-based backend persistence');
+  print('  store_state_based.dart                - State-based backend persistence');
+  print('  store_state_based_transactional.dart  - State-based with TransactionalRunner');
   print('');
   print('PROJECTIONS (Read Models):');
   print('  projection_example.dart         - Projection with code generation');
   print('');
   print('HYBRID MODE (Frontend Events + Backend State):');
-  print('  hybrid_optimistic_creation.dart - Optimistic user creation');
-  print('  hybrid_profile_edit.dart        - Instant feedback editing');
-  print('  hybrid_multi_step_form.dart     - Multi-step forms with cancel');
+  print('  (removed - see store_state_based_transactional.dart)');
   print('');
   print('Run any example:');
   print('  dart run aggregate_creation.dart');

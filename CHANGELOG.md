@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Removed obsolete hybrid examples from the `example/` package. The
+  following example files and their helper DTOs were removed because the
+  recommended pattern is now demonstrated in
+  `example/lib/store_state_based_transactional.dart`:
+  - `example/lib/hybrid_optimistic_creation.dart`
+  - `example/lib/hybrid_profile_edit.dart`
+  - `example/lib/hybrid_multi_step_form.dart`
+  - `example/lib/hybrid/backend_api.dart`
+  - `example/lib/hybrid/dtos.dart`
+
+
 ## [5.0.0] - 2026-02-19
 
 ### Breaking Changes
