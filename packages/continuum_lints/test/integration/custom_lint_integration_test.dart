@@ -145,7 +145,7 @@ String _fixturePubspecYaml() {
       '  sdk: ">=3.10.0 <4.0.0"\n'
       '\n'
       'dependencies:\n'
-      '  bounded: ^1.0.0\n'
+      '  bounded: ^2.0.0\n'
       '  continuum:\n'
       '    path: ${_workspacePath('packages/continuum')}\n'
       '\n'
@@ -177,20 +177,20 @@ String _fixtureMainDart() {
   // The mixin name must match the generator convention: _$<Aggregate>EventHandlers.
   // We declare it manually so that the test doesn't need build_runner.
   return r''
-  "import 'package:bounded/bounded.dart';\n"
+      "import 'package:bounded/bounded.dart';\n"
       "import 'package:continuum/continuum.dart';\n"
       '\n'
-  'final class AudioFileId extends TypedIdentity<String> {\n'
-  '  const AudioFileId(super.value);\n'
-  '}\n'
-  '\n'
+      'final class AudioFileId extends TypedIdentity<String> {\n'
+      '  const AudioFileId(super.value);\n'
+      '}\n'
+      '\n'
       'mixin _\$AudioFileEventHandlers {\n'
       '  void applyAudioFileDeletedEvent();\n'
       '}\n'
       '\n'
-  'class AudioFile extends AggregateRoot<AudioFileId> with _\$AudioFileEventHandlers {\n'
-  '  AudioFile(super.id);\n'
-  '}\n';
+      'class AudioFile extends AggregateRoot<AudioFileId> with _\$AudioFileEventHandlers {\n'
+      '  AudioFile(super.id);\n'
+      '}\n';
 }
 
 String _workspacePath(String relativeWorkspacePath) {

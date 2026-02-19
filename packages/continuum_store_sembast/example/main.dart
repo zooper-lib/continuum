@@ -21,9 +21,11 @@ library;
 import 'dart:io';
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_sembast/continuum_store_sembast.dart';
 import 'package:continuum_store_sembast_example/continuum.g.dart';
 import 'package:continuum_store_sembast_example/domain/user.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 import 'package:sembast/sembast_io.dart';
 
 void main() async {
@@ -50,8 +52,8 @@ void main() async {
   print('Creating a user...');
   final userId = const StreamId('user-001');
 
-  ContinuumSession session = store.openSession();
-  final user = session.startStream<User>(
+  Session session = store.openSession();
+  final user = await session.applyAsync<User>(
     userId,
     UserRegistered(
       userId: const UserId('user-001'),

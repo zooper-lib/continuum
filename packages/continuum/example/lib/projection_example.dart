@@ -3,12 +3,14 @@
 /// Demonstrates using projections with code generation.
 /// This example shows how to:
 /// - Define a projection using `@Projection` annotation
-/// - Register projections with the registry
-/// - Use inline projections for strongly consistent reads
+/// - Wire projections with a single generated function call
+/// - Projections update automatically on every commit
 library;
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 
 import 'continuum.g.dart';
 import 'domain/events/email_changed.dart';
@@ -26,42 +28,54 @@ void main() async {
   // --- Setup ---
   print('Setting up event store and projections...');
 
-  // Create read model store for profiles
+  // Create read model store for profiles.
   final profileStore = InMemoryReadModelStore<UserProfile, StreamId>();
 
-  // Create projection registry and register our projection
-  final registry = ProjectionRegistry();
-  registry.registerInline(
-    UserProfileProjection(),
-    profileStore,
-  );
-
-  // Create event sourcing store with projections
+  // Create event sourcing store.
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
     aggregates: $aggregateList,
-    projections: registry,
+  );
+
+  // Wire everything together with TransactionalRunner.
+  // The generated $createInlineProjectionHandler collapses registry
+  // creation, projection registration, and handler setup into one call.
+  //
+  // For multiple commit handlers (e.g., projections + event bus + analytics),
+  // use CompositeCommitHandler:
+  //   final handler = CompositeCommitHandler([
+  //     $createInlineProjectionHandler(...),
+  //     EventBusCommitHandler(eventBus),
+  //     AnalyticsCommitHandler(analytics),
+  //   ]);
+  final runner = TransactionalRunner(
+    store: store,
+    commitHandler: $createInlineProjectionHandler(
+      userProfileProjection: UserProfileProjection(),
+      userProfileStore: profileStore,
+    ),
   );
 
   final streamId = const StreamId('user-123');
   final userId = const UserId('user-123');
 
-  // --- Create User via Events ---
+  // --- Create User ---
   print('');
-  print('Creating user via events...');
+  print('Creating user...');
 
-  final session = store.openSession();
-  session.startStream<User>(
-    streamId,
-    UserRegistered(
-      userId: userId,
-      email: 'alice@example.com',
-      name: 'Alice Smith',
-    ),
-  );
-  await session.saveChangesAsync();
+  await runner.runAsync(() async {
+    final session = TransactionalRunner.currentSession;
+    await session.applyAsync<User>(
+      streamId,
+      UserRegistered(
+        userId: userId,
+        email: 'alice@example.com',
+        name: 'Alice Smith',
+      ),
+    );
+  });
 
-  // Read profile from projection (inline = always up to date)
+  // The projection was updated automatically during the commit.
   var profile = await profileStore.loadAsync(streamId);
   print('  Profile after registration: $profile');
 
@@ -69,13 +83,14 @@ void main() async {
   print('');
   print('Updating email...');
 
-  final updateSession = store.openSession();
-  await updateSession.loadAsync<User>(streamId);
-  updateSession.append(
-    streamId,
-    EmailChanged(newEmail: 'alice@company.com'),
-  );
-  await updateSession.saveChangesAsync();
+  await runner.runAsync(() async {
+    final session = TransactionalRunner.currentSession;
+    await session.loadAsync<User>(streamId);
+    await session.applyAsync<User>(
+      streamId,
+      EmailChanged(newEmail: 'alice@company.com', userId: userId),
+    );
+  });
 
   profile = await profileStore.loadAsync(streamId);
   print('  Profile after email change: $profile');
@@ -84,13 +99,14 @@ void main() async {
   print('');
   print('Deactivating user...');
 
-  final deactivateSession = store.openSession();
-  await deactivateSession.loadAsync<User>(streamId);
-  deactivateSession.append(
-    streamId,
-    UserDeactivated(deactivatedAt: DateTime.now()),
-  );
-  await deactivateSession.saveChangesAsync();
+  await runner.runAsync(() async {
+    final session = TransactionalRunner.currentSession;
+    await session.loadAsync<User>(streamId);
+    await session.applyAsync<User>(
+      streamId,
+      UserDeactivated(deactivatedAt: DateTime.now(), userId: userId),
+    );
+  });
 
   profile = await profileStore.loadAsync(streamId);
   print('  Profile after deactivation: $profile');
@@ -101,7 +117,8 @@ void main() async {
   print('Key Takeaways:');
   print('  1. Projections are defined with @Projection annotation');
   print('  2. Generated mixin provides type-safe apply methods');
-  print('  3. Inline projections update atomically with event writes');
-  print('  4. Read models are optimized for specific query patterns');
+  print('  3. Generated \$createInlineProjectionHandler wires');
+  print('     registry, executor, and handler in a single call');
+  print('  4. SingleStreamProjection no longer requires extractKey');
   print('═══════════════════════════════════════════════════════════════════');
 }

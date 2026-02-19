@@ -180,6 +180,200 @@ class NotAnAggregate {}
         outputs: const {},
       );
     });
+
+    test('generates registerAll extension for single-stream inline projection', () async {
+      // Arrange: A single-stream inline projection should produce a registerAll
+      // extension with the correct parameter types (StreamId key) and call
+      // registerGeneratedInline.
+      final builder = continuumCombiningBuilder(const BuilderOptions({}));
+
+      await testBuilder(
+        builder,
+        {
+          'continuum_generator|lib/user_profile_projection.dart': """
+import 'package:continuum/src/annotations/projection.dart';
+import 'package:continuum/src/projections/single_stream_projection.dart';
+import 'package:continuum/src/events/continuum_event.dart';
+
+class UserRegistered implements ContinuumEvent {
+  const UserRegistered();
+  @override String get id => 'id';
+  @override DateTime get occurredOn => DateTime(1970);
+  @override Map<String, Object?> get metadata => const {};
+}
+
+@Projection(name: 'user-profile', events: [UserRegistered])
+class UserProfileProjection extends SingleStreamProjection<int> {
+  @override
+  int createInitial(streamId) => 0;
+
+  @override
+  int apply(int current, operation) => current;
+}
+""",
+        },
+        rootPackage: 'continuum_generator',
+        packageConfig: packageConfig,
+        readerWriter: readerWriter,
+        outputs: {
+          'continuum_generator|lib/continuum.g.dart': decodedMatches(
+            allOf(
+              // Verify $projectionList is emitted.
+              contains(r'$UserProfileProjection,'),
+              // Verify registerAll extension is emitted.
+              contains(r'extension $ProjectionRegistryExtensions on ProjectionRegistry'),
+              contains('void registerAll('),
+              // Verify parameter names are correct.
+              contains('required UserProfileProjection userProfileProjection'),
+              // Verify store type uses StreamId for single-stream.
+              contains('required ReadModelStore<int, StreamId> userProfileStore'),
+              // Verify inline lifecycle registration.
+              contains('registerGeneratedInline('),
+              // Verify the bundle variable is passed.
+              contains(r'$UserProfileProjection,'),
+            ),
+          ),
+        },
+      );
+    });
+
+    test('generates \$createInlineProjectionHandler for inline projections', () async {
+      // Arrange: An inline projection should produce a $createInlineProjectionHandler
+      // function that returns CommitHandler and internally creates registry + executor + handler.
+      final builder = continuumCombiningBuilder(const BuilderOptions({}));
+
+      await testBuilder(
+        builder,
+        {
+          'continuum_generator|lib/user_profile_projection.dart': """
+import 'package:continuum/src/annotations/projection.dart';
+import 'package:continuum/src/projections/single_stream_projection.dart';
+import 'package:continuum/src/events/continuum_event.dart';
+
+class UserRegistered implements ContinuumEvent {
+  const UserRegistered();
+  @override String get id => 'id';
+  @override DateTime get occurredOn => DateTime(1970);
+  @override Map<String, Object?> get metadata => const {};
+}
+
+@Projection(name: 'user-profile', events: [UserRegistered])
+class UserProfileProjection extends SingleStreamProjection<int> {
+  @override
+  int createInitial(streamId) => 0;
+
+  @override
+  int apply(int current, operation) => current;
+}
+""",
+        },
+        rootPackage: 'continuum_generator',
+        packageConfig: packageConfig,
+        readerWriter: readerWriter,
+        outputs: {
+          'continuum_generator|lib/continuum.g.dart': decodedMatches(
+            allOf(
+              // Verify the continuum_uow import is present.
+              contains("import 'package:continuum_uow/continuum_uow.dart';"),
+              // Verify the function signature.
+              contains(r'CommitHandler $createInlineProjectionHandler('),
+              contains('required UserProfileProjection userProfileProjection'),
+              contains('required ReadModelStore<int, StreamId> userProfileStore'),
+              // Verify internal wiring.
+              contains('final registry = ProjectionRegistry()'),
+              contains('registry.registerGeneratedInline('),
+              contains('return ProjectionCommitHandler(InlineProjectionExecutor(registry: registry))'),
+            ),
+          ),
+        },
+      );
+    });
+
+    test('does not generate \$createInlineProjectionHandler for async-only projections', () async {
+      // Arrange: When all projections are async, no inline handler function should be emitted.
+      final builder = continuumCombiningBuilder(const BuilderOptions({}));
+
+      await testBuilder(
+        builder,
+        {
+          'continuum_generator|lib/async_projection.dart': """
+import 'package:continuum/src/annotations/projection.dart';
+import 'package:continuum/src/projections/single_stream_projection.dart';
+import 'package:continuum/src/projections/projection_lifecycle.dart';
+import 'package:continuum/src/events/continuum_event.dart';
+
+class OrderPlaced implements ContinuumEvent {
+  const OrderPlaced();
+  @override String get id => 'id';
+  @override DateTime get occurredOn => DateTime(1970);
+  @override Map<String, Object?> get metadata => const {};
+}
+
+@Projection(name: 'order-summary', events: [OrderPlaced], lifecycle: ProjectionLifecycle.async)
+class OrderSummaryProjection extends SingleStreamProjection<int> {
+  @override
+  int createInitial(streamId) => 0;
+
+  @override
+  int apply(int current, operation) => current;
+}
+""",
+        },
+        rootPackage: 'continuum_generator',
+        packageConfig: packageConfig,
+        readerWriter: readerWriter,
+        outputs: {
+          'continuum_generator|lib/continuum.g.dart': decodedMatches(
+            isNot(contains(r'$createInlineProjectionHandler')),
+          ),
+        },
+      );
+    });
+
+    test('generates registerAll with registerGeneratedAsync for async projection', () async {
+      // Arrange: An async projection should call registerGeneratedAsync.
+      final builder = continuumCombiningBuilder(const BuilderOptions({}));
+
+      await testBuilder(
+        builder,
+        {
+          'continuum_generator|lib/async_projection.dart': """
+import 'package:continuum/src/annotations/projection.dart';
+import 'package:continuum/src/projections/single_stream_projection.dart';
+import 'package:continuum/src/projections/projection_lifecycle.dart';
+import 'package:continuum/src/events/continuum_event.dart';
+
+class OrderPlaced implements ContinuumEvent {
+  const OrderPlaced();
+  @override String get id => 'id';
+  @override DateTime get occurredOn => DateTime(1970);
+  @override Map<String, Object?> get metadata => const {};
+}
+
+@Projection(name: 'order-summary', events: [OrderPlaced], lifecycle: ProjectionLifecycle.async)
+class OrderSummaryProjection extends SingleStreamProjection<int> {
+  @override
+  int createInitial(streamId) => 0;
+
+  @override
+  int apply(int current, operation) => current;
+}
+""",
+        },
+        rootPackage: 'continuum_generator',
+        packageConfig: packageConfig,
+        readerWriter: readerWriter,
+        outputs: {
+          'continuum_generator|lib/continuum.g.dart': decodedMatches(
+            allOf(
+              contains('required OrderSummaryProjection orderSummaryProjection'),
+              contains('required ReadModelStore<int, StreamId> orderSummaryStore'),
+              contains('registerGeneratedAsync('),
+            ),
+          ),
+        },
+      );
+    });
   });
 }
 

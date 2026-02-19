@@ -1,38 +1,33 @@
-import 'projection.dart';
+import 'projection_base.dart';
 import 'projection_lifecycle.dart';
 import 'read_model_store.dart';
 
-/// Holds a projection along with its configuration metadata.
+/// Bundles a projection with its lifecycle mode and read model store.
 ///
-/// This class bundles a projection instance with its execution lifecycle
-/// and read model storage, enabling the registry and executors to
-/// correctly route and process events.
+/// Used by [ProjectionRegistry] to manage registered projections.
 final class ProjectionRegistration<TReadModel, TKey> {
-  /// The projection instance that processes events.
+  /// The projection implementation.
   final ProjectionBase<TReadModel, TKey> projection;
 
-  /// The execution lifecycle (inline or async).
+  /// Whether this projection runs inline or async.
   final ProjectionLifecycle lifecycle;
 
-  /// The store for persisting this projection's read models.
+  /// The store for the projection's read models.
   final ReadModelStore<TReadModel, TKey> readModelStore;
 
-  /// Creates a projection registration.
-  ///
-  /// All parameters are required—projections must have a defined lifecycle
-  /// and storage to function correctly.
+  /// Creates a projection registration with the given configuration.
   const ProjectionRegistration({
     required this.projection,
     required this.lifecycle,
     required this.readModelStore,
   });
 
-  /// The unique name identifying this projection.
+  /// The unique name of the registered projection.
   String get projectionName => projection.projectionName;
 
-  /// The set of event types this projection handles.
+  /// The event types handled by the registered projection.
   Set<Type> get handledEventTypes => projection.handledEventTypes;
 
-  /// Checks whether this projection handles the given event type.
+  /// Whether the registered projection handles the given [eventType].
   bool handles(Type eventType) => projection.handles(eventType);
 }

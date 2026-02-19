@@ -1,5 +1,5 @@
+import 'dispatch_registries.dart';
 import 'event_serializer_registry.dart';
-import 'event_sourcing_store.dart';
 
 /// Bundles all generated registries for a single aggregate type.
 ///

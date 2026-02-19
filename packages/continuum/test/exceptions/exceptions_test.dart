@@ -2,35 +2,6 @@ import 'package:continuum/continuum.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('UnsupportedEventException', () {
-    test('should store event type and aggregate type', () {
-      // Arrange & Act
-      final exception = const UnsupportedEventException(
-        eventType: String,
-        aggregateType: int,
-      );
-
-      // Assert - types should be stored
-      expect(exception.eventType, equals(String));
-      expect(exception.aggregateType, equals(int));
-    });
-
-    test('should have meaningful toString', () {
-      // Arrange
-      final exception = const UnsupportedEventException(
-        eventType: String,
-        aggregateType: int,
-      );
-
-      // Act
-      final message = exception.toString();
-
-      // Assert - message should include both types
-      expect(message, contains('String'));
-      expect(message, contains('int'));
-    });
-  });
-
   group('InvalidCreationEventException', () {
     test('should store event type and aggregate type', () {
       // Arrange & Act
@@ -82,42 +53,6 @@ void main() {
 
       // Assert - message should include the event type
       expect(message, contains(eventType));
-    });
-  });
-
-  group('ConcurrencyException', () {
-    test('should store stream ID and version information', () {
-      // Arrange
-      final streamId = const StreamId('stream_123');
-
-      // Act
-      final exception = ConcurrencyException(
-        streamId: streamId,
-        expectedVersion: 5,
-        actualVersion: 7,
-      );
-
-      // Assert - all fields should be stored
-      expect(exception.streamId, equals(streamId));
-      expect(exception.expectedVersion, equals(5));
-      expect(exception.actualVersion, equals(7));
-    });
-
-    test('should have meaningful toString', () {
-      // Arrange
-      final exception = const ConcurrencyException(
-        streamId: StreamId('cart_456'),
-        expectedVersion: 3,
-        actualVersion: 5,
-      );
-
-      // Act
-      final message = exception.toString();
-
-      // Assert - message should include relevant information
-      expect(message, contains('cart_456'));
-      expect(message, contains('3'));
-      expect(message, contains('5'));
     });
   });
 

@@ -19,11 +19,13 @@
 library;
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_example/continuum.g.dart';
 import 'package:continuum_example/domain/events/email_changed.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 
 void main() async {
   print('═══════════════════════════════════════════════════════════════════');
@@ -40,8 +42,8 @@ void main() async {
   final userId1 = const StreamId('user-001');
   final userId2 = const StreamId('user-002');
 
-  ContinuumSession session = store.openSession();
-  session.startStream<User>(
+  Session session = store.openSession();
+  await session.applyAsync<User>(
     userId1,
     UserRegistered(
       userId: const UserId('user-001'),
@@ -49,7 +51,7 @@ void main() async {
       name: 'Alice',
     ),
   );
-  session.startStream<User>(
+  await session.applyAsync<User>(
     userId2,
     UserRegistered(
       userId: const UserId('user-002'),
@@ -77,12 +79,12 @@ void main() async {
 
   // Append changes to BOTH streams within the same session
   print('  [Session] Staging changes for Alice...');
-  session.append(
+  await session.applyAsync<User>(
     userId1,
     EmailChanged(newEmail: 'alice.new@company.com'),
   );
   print('  [Session] Staging changes for Bob...');
-  session.append(
+  await session.applyAsync<User>(
     userId2,
     EmailChanged(newEmail: 'bob.new@company.com'),
   );

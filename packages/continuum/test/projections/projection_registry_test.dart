@@ -1,4 +1,5 @@
 import 'package:continuum/continuum.dart';
+import 'package:continuum_store_memory/continuum_store_memory.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -71,50 +72,50 @@ void main() {
     });
 
     test('getInlineProjectionsForEventType returns matching inline projections', () {
-      final projection1 = _CounterProjection('p1', {_EventA});
-      final projection2 = _CounterProjection('p2', {_EventA, _EventB});
-      final projection3 = _CounterProjection('p3', {_EventB});
+      final projection1 = _CounterProjection('p1', {_OperationA});
+      final projection2 = _CounterProjection('p2', {_OperationA, _OperationB});
+      final projection3 = _CounterProjection('p3', {_OperationB});
       final store = InMemoryReadModelStore<int, StreamId>();
 
       registry.registerInline(projection1, store);
       registry.registerInline(projection2, store);
       registry.registerAsync(projection3, store);
 
-      final matchingA = registry.getInlineProjectionsForEventType(_EventA);
-      final matchingB = registry.getInlineProjectionsForEventType(_EventB);
-      final matchingC = registry.getInlineProjectionsForEventType(_EventC);
+      final matchingA = registry.getInlineProjectionsForEventType(_OperationA);
+      final matchingB = registry.getInlineProjectionsForEventType(_OperationB);
+      final matchingC = registry.getInlineProjectionsForEventType(_OperationC);
 
-      // EventA: p1 (inline) and p2 (inline)
+      // OperationA: p1 (inline) and p2 (inline).
       expect(matchingA.length, equals(2));
       expect(
         matchingA.map((r) => r.projectionName).toSet(),
         equals({'p1', 'p2'}),
       );
 
-      // EventB: only p2 (inline), p3 is async
+      // OperationB: only p2 (inline), p3 is async.
       expect(matchingB.length, equals(1));
       expect(matchingB.first.projectionName, equals('p2'));
 
-      // EventC: no matches
+      // OperationC: no matches.
       expect(matchingC, isEmpty);
     });
 
     test('getAsyncProjectionsForEventType returns matching async projections', () {
-      final projection1 = _CounterProjection('p1', {_EventA});
-      final projection2 = _CounterProjection('p2', {_EventA, _EventB});
+      final projection1 = _CounterProjection('p1', {_OperationA});
+      final projection2 = _CounterProjection('p2', {_OperationA, _OperationB});
       final store = InMemoryReadModelStore<int, StreamId>();
 
       registry.registerInline(projection1, store);
       registry.registerAsync(projection2, store);
 
-      final matchingA = registry.getAsyncProjectionsForEventType(_EventA);
-      final matchingB = registry.getAsyncProjectionsForEventType(_EventB);
+      final matchingA = registry.getAsyncProjectionsForEventType(_OperationA);
+      final matchingB = registry.getAsyncProjectionsForEventType(_OperationB);
 
-      // EventA: only p2 (async), p1 is inline
+      // OperationA: only p2 (async), p1 is inline.
       expect(matchingA.length, equals(1));
       expect(matchingA.first.projectionName, equals('p2'));
 
-      // EventB: p2 (async)
+      // OperationB: p2 (async).
       expect(matchingB.length, equals(1));
       expect(matchingB.first.projectionName, equals('p2'));
     });
@@ -177,9 +178,9 @@ void main() {
         const bundle = GeneratedProjection(
           projectionName: 'gen-inline',
           schemaHash: 'abc123',
-          handledEventTypes: {_EventA, _EventB},
+          handledEventTypes: {_OperationA, _OperationB},
         );
-        final projection = _CounterProjection('gen-inline', {_EventA, _EventB});
+        final projection = _CounterProjection('gen-inline', {_OperationA, _OperationB});
         final store = InMemoryReadModelStore<int, StreamId>();
 
         registry.registerGeneratedInline(bundle, projection, store);
@@ -193,9 +194,9 @@ void main() {
         const bundle = GeneratedProjection(
           projectionName: 'gen-async',
           schemaHash: 'def456',
-          handledEventTypes: {_EventA},
+          handledEventTypes: {_OperationA},
         );
-        final projection = _CounterProjection('gen-async', {_EventA});
+        final projection = _CounterProjection('gen-async', {_OperationA});
         final store = InMemoryReadModelStore<int, StreamId>();
 
         registry.registerGeneratedAsync(bundle, projection, store);
@@ -222,15 +223,15 @@ void main() {
         const bundle1 = GeneratedProjection(
           projectionName: 'duplicate',
           schemaHash: 'hash1',
-          handledEventTypes: {_EventA},
+          handledEventTypes: {_OperationA},
         );
         const bundle2 = GeneratedProjection(
           projectionName: 'duplicate',
           schemaHash: 'hash2',
-          handledEventTypes: {_EventB},
+          handledEventTypes: {_OperationB},
         );
-        final projection1 = _CounterProjection('duplicate', {_EventA});
-        final projection2 = _CounterProjection('duplicate', {_EventB});
+        final projection1 = _CounterProjection('duplicate', {_OperationA});
+        final projection2 = _CounterProjection('duplicate', {_OperationB});
         final store = InMemoryReadModelStore<int, StreamId>();
 
         registry.registerGeneratedInline(bundle1, projection1, store);
@@ -254,18 +255,18 @@ void main() {
 
 // --- Test Fixtures ---
 
-class _EventA {}
+class _OperationA implements Operation {}
 
-class _EventB {}
+class _OperationB implements Operation {}
 
-class _EventC {}
+class _OperationC implements Operation {}
 
 /// Simple projection for testing registry behavior.
 class _CounterProjection extends SingleStreamProjection<int> {
   final String _name;
   final Set<Type> _handledTypes;
 
-  _CounterProjection(this._name, [Set<Type>? handledTypes]) : _handledTypes = handledTypes ?? {_EventA};
+  _CounterProjection(this._name, [Set<Type>? handledTypes]) : _handledTypes = handledTypes ?? {_OperationA};
 
   @override
   Set<Type> get handledEventTypes => _handledTypes;
@@ -274,8 +275,11 @@ class _CounterProjection extends SingleStreamProjection<int> {
   String get projectionName => _name;
 
   @override
+  StreamId extractKey(Operation operation) => const StreamId('default');
+
+  @override
   int createInitial(StreamId streamId) => 0;
 
   @override
-  int apply(int current, StoredEvent event) => current + 1;
+  int apply(int current, Operation operation) => current + 1;
 }

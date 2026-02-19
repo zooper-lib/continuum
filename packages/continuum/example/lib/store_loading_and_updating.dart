@@ -5,18 +5,20 @@
 ///
 /// What you'll learn:
 /// - How loadAsync() rebuilds aggregates by replaying their event history
-/// - How to append mutation events to an aggregate
+/// - How to apply mutation events to an aggregate with applyAsync()
 /// - Why each session is independent (fresh load every time)
 ///
 /// Real-world use case: Editing profiles, updating orders, processing transactions
 library;
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_example/continuum.g.dart';
 import 'package:continuum_example/domain/events/email_changed.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 
 void main() async {
   print('═══════════════════════════════════════════════════════════════════');
@@ -31,8 +33,8 @@ void main() async {
 
   // Setup: Create a user first
   final userId = const StreamId('user-001');
-  ContinuumSession session = store.openSession();
-  session.startStream<User>(
+  Session session = store.openSession();
+  await session.applyAsync<User>(
     userId,
     UserRegistered(
       userId: const UserId('user-001'),
@@ -61,11 +63,11 @@ void main() async {
   print('  [Memory] Aggregate loaded: $user');
   print('');
 
-  // Step 3: Append events to mutate state
-  // append() applies the event to the in-memory aggregate
+  // Step 3: Apply events to mutate state
+  // applyAsync() applies the event to the in-memory aggregate
   // and tracks it for persistence
-  print('  [Session] Appending EmailChanged event...');
-  session.append(
+  print('  [Session] Applying EmailChanged event...');
+  await session.applyAsync<User>(
     userId,
     EmailChanged(
       newEmail: 'alice.smith@company.com',

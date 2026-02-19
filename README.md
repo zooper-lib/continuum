@@ -1,24 +1,62 @@
 # Continuum
 
-An event sourcing library for Dart with code generation support.
+An event sourcing and domain event modeling framework for Dart with code generation support.
 
 ## Overview
 
-Continuum provides a comprehensive event sourcing framework for Dart applications. It includes:
+Continuum provides a comprehensive event sourcing framework for Dart applications, organized into a four-layer architecture:
 
-- **continuum**: Core library with annotations, types, and persistence abstractions
-- **continuum_generator**: Code generator for aggregate and event boilerplate
-- **continuum_store_memory**: In-memory EventStore for testing
-- **continuum_store_hive**: Hive-backed EventStore for local persistence
+| Layer | Package | Purpose |
+|-------|---------|---------|
+| 0 | **`continuum`** | Core types: annotations, events, identity, dispatch registries |
+| 0 | **`continuum_generator`** | Code generator for aggregate and event boilerplate |
+| 1 | **`continuum_uow`** | Unit of Work session engine: sessions, transactional runner, commit handler |
+| 2 | **`continuum_event_sourcing`** | Event sourcing persistence: event stores, serialization, projections |
+| 2 | **`continuum_state`** | State-based persistence: REST/DB adapter-driven aggregate persistence |
+| 3 | **`continuum_store_memory`** | In-memory EventStore for testing |
+| 3 | **`continuum_store_hive`** | Hive-backed EventStore for local persistence |
+| 3 | **`continuum_store_sembast`** | Sembast-backed EventStore for cross-platform persistence |
+
+Additional tooling:
+
+- **`continuum_lints`** — Custom lint rules for aggregates and projections
 
 ## Quick Start
 
 ### 1. Add dependencies
 
+Choose the packages for your use case:
+
+**Event sourcing (local persistence):**
+
 ```yaml
 dependencies:
   continuum: latest
-  continuum_store_memory: latest  # or continuum_store_hive
+  continuum_event_sourcing: latest
+  continuum_store_memory: latest  # or continuum_store_hive / continuum_store_sembast
+
+dev_dependencies:
+  build_runner: ^2.4.0
+  continuum_generator: latest
+```
+
+**State-based (backend-authoritative):**
+
+```yaml
+dependencies:
+  continuum: latest
+  continuum_state: latest
+
+dev_dependencies:
+  build_runner: ^2.4.0
+  continuum_generator: latest
+```
+
+**Event-driven mutation only (no persistence):**
+
+```yaml
+dependencies:
+  continuum: latest
 
 dev_dependencies:
   build_runner: ^2.4.0
@@ -29,31 +67,23 @@ dev_dependencies:
 
 ```dart
 import 'package:continuum/continuum.dart';
-import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
 part 'shopping_cart.g.dart';
 
-// Define the aggregate
-@Aggregate()
-class ShoppingCart with _$ShoppingCartEventHandlers {
-  String id;
+class ShoppingCart extends AggregateRoot<String> with _$ShoppingCartEventHandlers {
   List<String> items;
 
-  ShoppingCart._({required this.id, required this.items});
-
-  // Creation factory for CartCreated events
+  ShoppingCart._({required super.id, required this.items});
   static ShoppingCart createFromCartCreated(CartCreated event) {
     return ShoppingCart._(id: event.cartId, items: []);
   }
 
-  // Apply method for mutation events
   @override
   void applyItemAdded(ItemAdded event) {
     items.add(event.productId);
   }
 }
 
-// Creation event (first event in stream)
 @AggregateEvent(of: ShoppingCart, type: 'cart.created', creation: true)
 class CartCreated implements ContinuumEvent {
   final String cartId;
@@ -69,50 +99,10 @@ class CartCreated implements ContinuumEvent {
 
   @override
   final EventId id;
-
   @override
   final DateTime occurredOn;
-
   @override
   final Map<String, Object?> metadata;
-
-  factory CartCreated.fromJson(Map<String, dynamic> json) {
-    return CartCreated(
-      eventId: EventId(json['eventId'] as String),
-      cartId: json['cartId'] as String,
-    );
-  }
-}
-
-// Mutation event
-@AggregateEvent(of: ShoppingCart, type: 'item.added')
-class ItemAdded implements ContinuumEvent {
-  final String productId;
-
-  ItemAdded({
-    required this.productId,
-    EventId? eventId,
-    DateTime? occurredOn,
-    Map<String, Object?> metadata = const {},
-  }) : id = eventId ?? EventId.fromUlid(),
-       occurredOn = occurredOn ?? DateTime.now(),
-       metadata = Map<String, Object?>.unmodifiable(metadata);
-
-  @override
-  final EventId id;
-
-  @override
-  final DateTime occurredOn;
-
-  @override
-  final Map<String, Object?> metadata;
-
-  factory ItemAdded.fromJson(Map<String, dynamic> json) {
-    return ItemAdded(
-      eventId: EventId(json['eventId'] as String),
-      productId: json['productId'] as String,
-    );
-  }
 }
 ```
 
@@ -125,61 +115,83 @@ dart run build_runner build
 ### 4. Use the event sourcing store
 
 ```dart
-import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
-import 'continuum.g.dart'; // Generated
+import 'continuum.g.dart';
 
-// Create the store
 final store = EventSourcingStore(
   eventStore: InMemoryEventStore(),
   aggregates: $aggregateList,
 );
 
-// Open a session
 final session = store.openSession();
-
-// Start a new stream
-final cart = session.startStream<ShoppingCart>(
+await session.applyAsync<ShoppingCart>(
   StreamId('cart-123'),
-  CartCreated(eventId: EventId('evt-1'), cartId: 'cart-123'),
+  CartCreated(cartId: 'cart-123'),
 );
-
-// Append mutation events
-session.append(
+await session.applyAsync<ShoppingCart>(
   StreamId('cart-123'),
-  ItemAdded(eventId: EventId('evt-2'), productId: 'product-abc'),
+  ItemAdded(productId: 'product-abc'),
 );
-
-// Persist changes
 await session.saveChangesAsync();
+```
+
+### Or use the state-based store
+
+```dart
+import 'package:continuum_state/continuum_state.dart';
+import 'continuum.g.dart';
+
+final store = StateBasedStore(
+  adapters: {ShoppingCart: CartApiAdapter(httpClient)},
+  aggregates: $aggregateList,
+);
+
+final session = store.openSession();
+await session.applyAsync<ShoppingCart>(
+  StreamId('cart-123'),
+  CartCreated(cartId: 'cart-123'),
+);
+await session.saveChangesAsync(); // Adapter persists to backend
 ```
 
 ## Packages
 
 ### continuum
 
-Core library providing:
-- `@Aggregate()` and `@AggregateEvent()` annotations
-- `ContinuumEvent` base contract
-- `EventId` and `StreamId` strong types
-- `ContinuumSession`, `EventStore`, `EventSourcingStore` abstractions
-- Exception types for error handling
+Core library providing annotations (`@Aggregate`, `@AggregateEvent`, `@Projection`), event contracts (`ContinuumEvent`), identity types (`EventId`, `StreamId`), dispatch registries, `EventApplicationMode`, and core exceptions.
 
 ### continuum_generator
 
-Code generator that produces:
-- `_$<Aggregate>EventHandlers` mixin for mutation events
-- `applyEvent()` dispatcher and `replayEvents()` helper
-- `createFromEvent()` factory dispatcher
-- Aggregate factory and applier registries
+Code generator that produces event handling mixins, factory dispatchers, serialization registries, and the auto-discovered `$aggregateList`.
+
+### continuum_uow
+
+Unit of Work session engine: `Session`, `SessionBase`, `SessionStore`, `TransactionalRunner`, `CommitHandler`, `TrackedEntity`, and UoW exceptions. Shared by both event sourcing and state-based persistence.
+
+### continuum_event_sourcing
+
+Event sourcing persistence: `EventSourcingStore`, `EventStore`, `AtomicEventStore`, JSON serialization, projections (single-stream, multi-stream, inline, async), and the event-sourcing `SessionImpl`.
+
+### continuum_state
+
+State-based persistence: `StateBasedStore`, `StateBasedSession`, `AggregatePersistenceAdapter` for REST APIs, databases, and GraphQL backends. Same session contract as event sourcing.
 
 ### continuum_store_memory
 
-In-memory `EventStore` implementation suitable for testing and development.
+In-memory `EventStore` implementation for testing and development.
 
 ### continuum_store_hive
 
 Hive-backed `EventStore` implementation for local persistence.
+
+### continuum_store_sembast
+
+Sembast-backed `EventStore` implementation for cross-platform local persistence.
+
+### continuum_lints
+
+Custom lint rules for `@Aggregate` and `@Projection` classes.
 
 ## License
 

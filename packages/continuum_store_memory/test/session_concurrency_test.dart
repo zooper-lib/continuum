@@ -1,4 +1,5 @@
-import 'package:continuum/continuum.dart';
+import 'package:continuum/continuum.dart' hide EventFromJsonFactory, EventSerializerEntry, EventSerializerRegistry, EventToJsonFactory, GeneratedAggregate;
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
 import 'package:test/test.dart';
 
@@ -119,7 +120,7 @@ void main() {
         // Arrange — create a counter stream at version 0.
         final streamId = const StreamId('counter-concurrent');
         final seedSession = store.openSession();
-        seedSession.startStream<_Counter>(
+        await seedSession.applyAsync<_Counter>(
           streamId,
           _CounterCreated(initial: 0),
         );
@@ -133,9 +134,9 @@ void main() {
         final counterA = await sessionA.loadAsync<_Counter>(streamId);
         final counterB = await sessionB.loadAsync<_Counter>(streamId);
 
-        // Each session appends one event to its own in-memory copy.
-        sessionA.append(streamId, _CounterIncremented(amount: 1));
-        sessionB.append(streamId, _CounterIncremented(amount: 10));
+        // Each session applies one event to its own in-memory copy.
+        await sessionA.applyAsync<_Counter>(streamId, _CounterIncremented(amount: 1));
+        await sessionB.applyAsync<_Counter>(streamId, _CounterIncremented(amount: 10));
 
         // Sanity check — each session mutated its own copy independently.
         expect(counterA.value, equals(1));
@@ -186,7 +187,7 @@ void main() {
         // Arrange — create a counter stream at version 0.
         final streamId = const StreamId('counter-conflict');
         final seedSession = store.openSession();
-        seedSession.startStream<_Counter>(
+        await seedSession.applyAsync<_Counter>(
           streamId,
           _CounterCreated(initial: 0),
         );
@@ -199,9 +200,9 @@ void main() {
         await sessionA.loadAsync<_Counter>(streamId);
         await sessionB.loadAsync<_Counter>(streamId);
 
-        // Each session appends an event against the same stale version.
-        sessionA.append(streamId, _CounterIncremented(amount: 1));
-        sessionB.append(streamId, _CounterIncremented(amount: 10));
+        // Each session applies an event against the same stale version.
+        await sessionA.applyAsync<_Counter>(streamId, _CounterIncremented(amount: 1));
+        await sessionB.applyAsync<_Counter>(streamId, _CounterIncremented(amount: 10));
 
         // Act — session A saves first (succeeds, stream advances to v1).
         await sessionA.saveChangesAsync(maxRetries: 0);
@@ -220,7 +221,7 @@ void main() {
         // Arrange — create a counter stream at version 0.
         final streamId = const StreamId('counter-retry');
         final seedSession = store.openSession();
-        seedSession.startStream<_Counter>(
+        await seedSession.applyAsync<_Counter>(
           streamId,
           _CounterCreated(initial: 0),
         );
@@ -233,8 +234,8 @@ void main() {
         await sessionA.loadAsync<_Counter>(streamId);
         await sessionB.loadAsync<_Counter>(streamId);
 
-        sessionA.append(streamId, _CounterIncremented(amount: 1));
-        sessionB.append(streamId, _CounterIncremented(amount: 10));
+        await sessionA.applyAsync<_Counter>(streamId, _CounterIncremented(amount: 1));
+        await sessionB.applyAsync<_Counter>(streamId, _CounterIncremented(amount: 10));
 
         // Session A saves first — succeeds.
         await sessionA.saveChangesAsync(maxRetries: 0);
@@ -253,7 +254,7 @@ void main() {
         final retryCounter = await retrySession.loadAsync<_Counter>(streamId);
 
         // Re-apply the event that was lost due to the conflict.
-        retrySession.append(streamId, _CounterIncremented(amount: 10));
+        await retrySession.applyAsync<_Counter>(streamId, _CounterIncremented(amount: 10));
         await retrySession.saveChangesAsync(maxRetries: 0);
 
         // Assert — all events are now present.

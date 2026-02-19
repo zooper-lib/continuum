@@ -3,7 +3,8 @@
 This document is a *developer-facing* guide for implementing projections in Continuum.
 It focuses on the practical decisions that determine whether your projections stay correct over time:
 
-- Choosing a projection key (`extractKey`)
+- **Single-stream projections**: derive their key automatically from the stream identity — no user code needed
+- **Multi-stream projections**: require a user-defined `extractKey` to route events to the correct read model
 - Designing events so the key is derivable
 - Handling “multi-stream joins” without loading aggregates
 
@@ -18,9 +19,27 @@ Key constraints:
 - A projection should be **deterministic**: applying the same event to the same current read model must always yield the same result.
 
 In code, this is represented by `ProjectionBase<TReadModel, TKey>`.
-The critical method for correctness is:
+For multi-stream projections, the critical method for correctness is:
 
-- `TKey extractKey(StoredEvent event)`
+- `TKey extractKey(Operation operation)`
+
+For single-stream projections, the framework supplies the key (`StreamId`) automatically from the commit batch — you do not implement `extractKey`.
+
+### Projection execution model
+
+Projections are **decoupled from the session**. The session is responsible only for persisting events and returning a `CommitBatch` — a structured record of what was persisted, grouped by stream, with each operation paired with its `StreamId` and optional persistence metadata (`streamVersion`, `globalSequence`).
+
+Post-commit side effects (including projection execution) are handled by `CommitHandler` implementations registered on the `TransactionalRunner`. The framework ships two ready-made handlers:
+
+- `ProjectionCommitHandler` — for inline (strongly consistent) projections. Wraps an `InlineProjectionExecutor` and calls it with the `CommitBatch` after each successful `saveChangesAsync()`.
+- `AsyncProjectionCommitHandler` — for scheduling async (eventually consistent) projection processing from commit batches.
+
+For async projection execution, a background `PollingProjectionProcessor` reads events from the store independently.
+
+This decoupling means:
+- The session does not know about projections.
+- Different runners can have different commit handlers (e.g., test runner with no projections, production runner with full projection + analytics).
+- Projections work identically regardless of the persistence strategy (event-sourced or state-based).
 
 ## The meaning of the key
 
@@ -37,18 +56,17 @@ Think of it as the primary key of the table/record that stores your read model:
 - **Single-stream projections**: key is often the stream ID.
 - **Multi-stream projections**: key is usually a *domain identifier shared across events*, not the event stream ID.
 
-## SingleStreamProjection: typical key strategy
+## SingleStreamProjection: automatic key derivation
 
 A single-stream projection consumes events from exactly one stream per read model instance.
 
-Common choice:
+The framework handles key extraction automatically:
 
-- `extractKey(event) => event.streamId`
+- The executor derives the `StreamId` from the `CommittedEntry` in the commit batch
+- You do **not** implement `extractKey` in `SingleStreamProjection`
+- You only implement `createInitial(StreamId)` and `apply(TReadModel, Operation)`
 
-This works because:
-
-- all events for that read model instance come from the same stream
-- the stream’s identity is the read model’s identity
+This works because all events for the read model instance come from the same stream, and the commit batch preserves the stream identity.
 
 ## MultiStreamProjection: how to build the key correctly
 

@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('ProjectionCodeEmitter', () {
-    test('emits apply() using StoredEvent.domainEvent (not data map)', () async {
+    test('emits apply() using Operation directly (not StoredEvent.domainEvent)', () async {
       final inputs = <String, String>{
         'continuum_generator|lib/projection_domain.dart': r'''
 import 'package:continuum/src/annotations/projection.dart';
@@ -52,9 +52,14 @@ class UserProfileProjection extends SingleStreamProjection<int>
         readAllSourcesFromFilesystem: true,
       );
 
-      expect(output, contains('final domainEvent = event.domainEvent;'));
-      expect(output, isNot(contains('final domainEvent = event.data;')));
-      expect(output, contains('StoredEvent.domainEvent is null'));
+      // apply() must accept Operation directly — no StoredEvent unwrapping.
+      expect(output, contains('apply(int current, Operation operation)'));
+      expect(output, isNot(contains('StoredEvent')));
+      expect(output, isNot(contains('domainEvent')));
+
+      // Must use UnsupportedProjectionOperationException, not the legacy event exception.
+      expect(output, contains('UnsupportedProjectionOperationException'));
+      expect(output, isNot(contains('UnsupportedEventException')));
     });
   });
 }

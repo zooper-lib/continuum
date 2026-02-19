@@ -7,6 +7,7 @@ import '../user.dart';
 class EmailChanged implements ContinuumEvent {
   EmailChanged({
     required this.newEmail,
+    this.userId,
     EventId? eventId,
     DateTime? occurredOn,
     Map<String, Object?> metadata = const {},
@@ -14,6 +15,13 @@ class EmailChanged implements ContinuumEvent {
        occurredOn = occurredOn ?? DateTime.now(),
        metadata = Map<String, Object?>.unmodifiable(metadata);
 
+  /// The user this event belongs to.
+  ///
+  /// Optional because the aggregate context provides the stream ID
+  /// during event sourcing. Required for projection key extraction
+  /// when events are processed outside the aggregate context.
+  final UserId? userId;
+  
   final String newEmail;
 
   @override
