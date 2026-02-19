@@ -1,6 +1,6 @@
 name: continuum_event_sourcing
 description: Event sourcing persistence strategy for Continuum — event store, serialization, projections, and aggregate replay.
-version: 1.0.0
+version: 5.0.0
 repository: https://github.com/zooper/continuum
 homepage: https://zooper.dev
 

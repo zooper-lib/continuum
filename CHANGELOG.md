@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-02-19
+
 ### Breaking Changes
 
 - **BREAKING**: Extracted `continuum_uow` package — Unit of Work session engine (`Session`, `SessionBase`, `TransactionalRunner`, `CommitHandler`, `TrackedEntity`, UoW exceptions). Previously part of `continuum`.
