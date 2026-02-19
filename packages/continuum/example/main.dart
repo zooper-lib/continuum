@@ -19,6 +19,7 @@
 /// STATE-BASED PERSISTENCE (StateBasedStore + Adapter):
 ///   store_state_based.dart                - State-based backend persistence
 ///   store_state_based_transactional.dart  - State-based with TransactionalRunner
+///   store_state_based_local_db.dart       - State-based with local database
 ///
 /// PROJECTIONS (Read Models):
 ///   projection_example.dart         - Projection with code generation
@@ -54,6 +55,7 @@ void main() {
   print('STATE-BASED PERSISTENCE (StateBasedStore + Adapter):');
   print('  store_state_based.dart                - State-based backend persistence');
   print('  store_state_based_transactional.dart  - State-based with TransactionalRunner');
+  print('  store_state_based_local_db.dart       - State-based with local database');
   print('');
   print('PROJECTIONS (Read Models):');
   print('  projection_example.dart         - Projection with code generation');

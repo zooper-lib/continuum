@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New example `example/lib/store_state_based_transactional.dart` demonstrating `StateBasedStore` with `TransactionalRunner` and a REST API adapter.
+- New example `example/lib/store_state_based_local_db.dart` demonstrating `StateBasedStore` with a local key-value database adapter.
+
 ### Removed
 
 - Removed obsolete hybrid examples from the `example/` package. The
