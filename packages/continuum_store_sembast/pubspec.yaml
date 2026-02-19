@@ -1,6 +1,6 @@
 name: continuum_store_sembast
 description: Sembast-backed EventStore implementation for the continuum event sourcing library.
-version: 4.1.0
+version: 5.0.0
 repository: https://github.com/zooper/continuum
 homepage: https://zooper.dev
 
