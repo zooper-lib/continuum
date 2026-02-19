@@ -11,13 +11,13 @@ resolution: workspace
 
 dependencies:
   zooper_flutter_core: ^2.0.0
-  continuum:
-  continuum_event_sourcing:
+  continuum: ^5.0.0
+  continuum_event_sourcing: ^5.0.0
   hive: ^2.2.3
 
 dev_dependencies:
   build_runner: ^2.4.0
-  continuum_generator:
+  continuum_generator: ^5.0.0
   custom_lint: ^0.8.1
   lints: ^6.0.0
   test: ^1.25.6

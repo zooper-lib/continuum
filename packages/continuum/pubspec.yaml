@@ -18,7 +18,7 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.4.0
-  continuum_store_memory:
+  continuum_store_memory: ^5.0.0
   custom_lint: ^0.8.1
   lints: ^6.0.0
   mockito: ^5.4.0

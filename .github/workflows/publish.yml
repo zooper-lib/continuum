@@ -58,6 +58,25 @@ jobs:
 
       - name: Publish packages
         run: |
-          # Publish in workspace dependency order (dependencies first).
-          # melos publish is dry-run by default; we explicitly publish.
-          melos publish --no-private --no-dry-run --yes
+          # melos publish does not guarantee workspace dependency order.
+          # Publish deterministically so newly-added packages exist before any
+          # other package depends on them.
+          #
+          # Also skip packages whose current version is already published, so
+          # reruns of this workflow won't try to republish the same version.
+          publish_one() {
+            melos publish --no-private --no-published --scope="$1" --no-dry-run --yes
+          }
+
+          publish_one continuum
+          publish_one continuum_uow
+          publish_one continuum_event_sourcing
+
+          melos publish \
+            --no-private \
+            --no-published \
+            --ignore=continuum \
+            --ignore=continuum_uow \
+            --ignore=continuum_event_sourcing \
+            --no-dry-run \
+            --yes

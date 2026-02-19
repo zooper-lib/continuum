@@ -10,8 +10,8 @@ environment:
 resolution: workspace
 
 dependencies:
-  continuum:
-  continuum_uow:
+  continuum: ^5.0.0
+  continuum_uow: ^5.0.0
   meta: ^1.15.0
 
 dev_dependencies:
