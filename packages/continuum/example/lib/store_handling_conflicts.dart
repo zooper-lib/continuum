@@ -18,11 +18,13 @@
 library;
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_example/continuum.g.dart';
 import 'package:continuum_example/domain/events/email_changed.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
+import 'package:continuum_uow/continuum_uow.dart';
 
 void main() async {
   print('═══════════════════════════════════════════════════════════════════');
@@ -37,8 +39,8 @@ void main() async {
 
   // Setup: Create a user
   final userId = const StreamId('user-001');
-  final ContinuumSession session = store.openSession();
-  session.startStream<User>(
+  final Session session = store.openSession();
+  await session.applyAsync<User>(
     userId,
     UserRegistered(
       userId: const UserId('user-001'),
@@ -74,7 +76,7 @@ void main() async {
 
   // Both sessions prepare changes (neither has saved yet)
   print('Both sessions preparing changes...');
-  adminSession.append(
+  await adminSession.applyAsync<User>(
     userId,
     EmailChanged(
       newEmail: 'bob.admin@company.com',
@@ -82,7 +84,7 @@ void main() async {
   );
   print('  [Session 1] Staged: bob.admin@company.com');
 
-  userSession.append(
+  await userSession.applyAsync<User>(
     userId,
     EmailChanged(
       newEmail: 'bob.user@company.com',

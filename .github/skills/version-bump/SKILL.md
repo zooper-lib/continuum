@@ -1,5 +1,5 @@
 ---
-name: dart-version-bumping
+name: version-bump
 description: Bump lockstep versions for Dart and Flutter workspace packages based on the Unreleased section of the root CHANGELOG.md.
 ---
 

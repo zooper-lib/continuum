@@ -19,14 +19,14 @@ extension $AbstractUserBaseEventDispatch on AbstractUserBase {
   /// Applies a continuum event to this aggregate.
   ///
   /// Routes supported mutation events to the corresponding apply method.
-  /// Throws [UnsupportedEventException] for unknown event types.
+  /// Throws [UnsupportedOperationException] for unknown event types.
   void applyEvent(ContinuumEvent event) {
     switch (event) {
       case AbstractUserEmailChanged():
         applyAbstractUserEmailChanged(event);
       default:
-        throw UnsupportedEventException(
-          eventType: event.runtimeType,
+        throw UnsupportedOperationException(
+          operationType: event.runtimeType,
           aggregateType: AbstractUserBase,
         );
     }
@@ -74,10 +74,9 @@ final $AbstractUserBase = GeneratedAggregate(
   aggregateFactories: AggregateFactoryRegistry({}),
   eventAppliers: EventApplierRegistry({
     AbstractUserBase: {
-      AbstractUserEmailChanged: (aggregate, event) =>
-          (aggregate as AbstractUserBase).applyAbstractUserEmailChanged(
-            event as AbstractUserEmailChanged,
-          ),
+      AbstractUserEmailChanged: (aggregate, event) => (aggregate as AbstractUserBase).applyAbstractUserEmailChanged(
+        event as AbstractUserEmailChanged,
+      ),
     },
   }),
 );
@@ -95,14 +94,14 @@ extension $UserContractEventDispatch on UserContract {
   /// Applies a continuum event to this aggregate.
   ///
   /// Routes supported mutation events to the corresponding apply method.
-  /// Throws [UnsupportedEventException] for unknown event types.
+  /// Throws [UnsupportedOperationException] for unknown event types.
   void applyEvent(ContinuumEvent event) {
     switch (event) {
       case ContractUserRenamed():
         applyContractUserRenamed(event);
       default:
-        throw UnsupportedEventException(
-          eventType: event.runtimeType,
+        throw UnsupportedOperationException(
+          operationType: event.runtimeType,
           aggregateType: UserContract,
         );
     }
@@ -150,8 +149,7 @@ final $UserContract = GeneratedAggregate(
   aggregateFactories: AggregateFactoryRegistry({}),
   eventAppliers: EventApplierRegistry({
     UserContract: {
-      ContractUserRenamed: (aggregate, event) => (aggregate as UserContract)
-          .applyContractUserRenamed(event as ContractUserRenamed),
+      ContractUserRenamed: (aggregate, event) => (aggregate as UserContract).applyContractUserRenamed(event as ContractUserRenamed),
     },
   }),
 );

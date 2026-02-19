@@ -1,54 +1,32 @@
 import '../identity/stream_id.dart';
-import '../persistence/stored_event.dart';
-import 'projection.dart';
+import '../operations/operation.dart';
+import 'projection_base.dart';
 
-/// Projection that builds a read model from a single event stream.
+/// Projection that derives a read model from a single aggregate stream.
 ///
-/// Single-stream projections create one read model instance per aggregate,
-/// identified by the stream's [StreamId]. Events are processed in per-stream
-/// version order, providing deterministic ordering.
+/// Uses [StreamId] as the read model key. Subclasses implement
+/// [createInitial] and [apply] for domain-specific logic.
 ///
-/// Use cases:
-/// - Aggregate summaries
-/// - Per-entity query models
-/// - State snapshots
-///
-/// Example:
-/// ```dart
-/// class UserProfileProjection extends SingleStreamProjection<UserProfile> {
-///   @override
-///   Set<Type> get handledEventTypes => {UserRegistered, ProfileUpdated};
-///
-///   @override
-///   String get projectionName => 'user-profile';
-///
-///   @override
-///   UserProfile createInitial(StreamId streamId) =>
-///       UserProfile(id: streamId.value);
-///
-///   @override
-///   UserProfile apply(UserProfile current, StoredEvent event) {
-///     // Apply event to update the profile
-///   }
-/// }
-/// ```
+/// Key extraction is handled automatically by the framework — the
+/// executor derives the [StreamId] from the [CommittedEntry] that
+/// carries each operation, so subclasses do not implement [extractKey].
 abstract class SingleStreamProjection<TReadModel> extends ProjectionBase<TReadModel, StreamId> {
-  /// Extracts the stream ID from the event.
+  /// Key extraction is handled by the executor via [CommittedEntry.streamId].
   ///
-  /// For single-stream projections, the key is always the event's stream ID,
-  /// ensuring one read model per aggregate instance.
+  /// This override exists only to satisfy the [ProjectionBase] contract.
+  /// It must not be called directly — the inline and async executors
+  /// bypass it for single-stream projections.
   @override
-  StreamId extractKey(StoredEvent event) => event.streamId;
+  StreamId extractKey(Operation operation) {
+    throw UnsupportedError(
+      'SingleStreamProjection does not use extractKey. '
+      'The executor derives the key from CommittedEntry.streamId.',
+    );
+  }
 
-  /// Creates the initial read model state for a new stream.
-  ///
-  /// Called when processing the first event for a given stream ID.
   @override
   TReadModel createInitial(StreamId streamId);
 
-  /// Applies an event to update the read model.
-  ///
-  /// Events arrive in per-stream version order (0, 1, 2, ...).
   @override
-  TReadModel apply(TReadModel current, StoredEvent event);
+  TReadModel apply(TReadModel current, Operation operation);
 }

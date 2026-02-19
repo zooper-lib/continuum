@@ -1,3 +1,5 @@
+import '../projections/projection_lifecycle.dart';
+
 /// Marks a class as a projection that transforms events into read models.
 ///
 /// When the generator scans the library, classes annotated with `@Projection()`
@@ -7,26 +9,7 @@
 /// - `_$<Name>Handlers` mixin with abstract `apply<EventName>` methods
 /// - `$<Name>EventDispatch` extension with `applyEvent()` dispatcher
 /// - `$<Name>` bundle constant with metadata for registry
-///
-/// Example:
-/// ```dart
-/// @Projection(name: 'user-profile', events: [UserRegistered, EmailChanged])
-/// class UserProfileProjection extends SingleStreamProjection<UserProfile>
-///     with _$UserProfileProjectionHandlers {
-///
-///   @override
-///   UserProfile createInitial(StreamId streamId) =>
-///       UserProfile(id: streamId.value);
-///
-///   @override
-///   UserProfile applyUserRegistered(UserProfile current, UserRegistered event) =>
-///       current.copyWith(name: event.name, email: event.email);
-///
-///   @override
-///   UserProfile applyEmailChanged(UserProfile current, EmailChanged event) =>
-///       current.copyWith(email: event.newEmail);
-/// }
-/// ```
+/// - Registration glue in the combining builder's `registerAll` extension
 class Projection {
   /// A unique name identifying this projection.
   ///
@@ -41,6 +24,19 @@ class Projection {
   /// the user implements all handlers.
   final List<Type> events;
 
+  /// The execution lifecycle for this projection.
+  ///
+  /// Determines whether the projection runs synchronously during
+  /// [Session.saveChangesAsync] ([ProjectionLifecycle.inline]) or is
+  /// scheduled for background processing ([ProjectionLifecycle.async]).
+  ///
+  /// Defaults to [ProjectionLifecycle.inline].
+  final ProjectionLifecycle lifecycle;
+
   /// Creates a projection annotation with the required [name] and [events].
-  const Projection({required this.name, required this.events});
+  const Projection({
+    required this.name,
+    required this.events,
+    this.lifecycle = ProjectionLifecycle.inline,
+  });
 }

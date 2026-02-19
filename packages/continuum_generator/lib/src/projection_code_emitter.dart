@@ -57,24 +57,17 @@ final class ProjectionCodeEmitter {
     buffer.writeln();
 
     // Generate apply method that dispatches to typed handlers.
-    buffer.writeln('  /// Applies an event to update the read model.');
+    buffer.writeln('  /// Applies an operation to update the read model.');
     buffer.writeln('  ///');
-    buffer.writeln('  /// Routes the event to the appropriate typed handler method.');
-    buffer.writeln('  /// Throws [UnsupportedEventException] for unknown event types.');
-    buffer.writeln('  $readModelType apply($readModelType current, StoredEvent event) {');
-    buffer.writeln('    final domainEvent = event.domainEvent;');
-    buffer.writeln('    if (domainEvent == null) {');
-    buffer.writeln('      throw StateError(');
-    buffer.writeln("        'StoredEvent.domainEvent is null. '");
-    buffer.writeln("        'Projections require deserialized domain events.',");
-    buffer.writeln('      );');
-    buffer.writeln('    }');
-    buffer.writeln('    return switch (domainEvent) {');
+    buffer.writeln('  /// Routes the operation to the appropriate typed handler method.');
+    buffer.writeln('  /// Throws [UnsupportedProjectionOperationException] for unknown operation types.');
+    buffer.writeln('  $readModelType apply($readModelType current, Operation operation) {');
+    buffer.writeln('    return switch (operation) {');
     for (final eventTypeName in projection.eventTypeNames) {
-      buffer.writeln('      $eventTypeName() => apply$eventTypeName(current, domainEvent),');
+      buffer.writeln('      $eventTypeName() => apply$eventTypeName(current, operation),');
     }
-    buffer.writeln('      _ => throw UnsupportedEventException(');
-    buffer.writeln('            eventType: domainEvent.runtimeType,');
+    buffer.writeln('      _ => throw UnsupportedProjectionOperationException(');
+    buffer.writeln('            operationType: operation.runtimeType,');
     buffer.writeln('            projectionType: $className,');
     buffer.writeln('          ),');
     buffer.writeln('    };');
@@ -101,25 +94,24 @@ final class ProjectionCodeEmitter {
     final className = projection.className;
     final readModelType = projection.readModelTypeName;
 
-    buffer.writeln('/// Generated extension providing additional event dispatch for $className.');
+    buffer.writeln('/// Generated extension providing additional operation dispatch for $className.');
     buffer.writeln('extension \$${className}EventDispatch on $className {');
 
-    // Generate applyEvent dispatcher for ContinuumEvent (convenience method).
-    buffer.writeln('  /// Routes a domain event to the appropriate apply method.');
+    // Generate applyEvent dispatcher for Operation (convenience method).
+    buffer.writeln('  /// Routes an operation to the appropriate apply method.');
     buffer.writeln('  ///');
-    buffer.writeln('  /// This is a convenience method for applying events directly without');
-    buffer.writeln('  /// wrapping in [StoredEvent]. For normal projection processing, use [apply].');
+    buffer.writeln('  /// This is a convenience method for applying operations directly.');
     buffer.writeln('  ///');
-    buffer.writeln('  /// Throws [UnsupportedEventException] for unknown event types.');
-    buffer.writeln('  $readModelType applyEvent($readModelType current, ContinuumEvent event) {');
-    buffer.writeln('    return switch (event) {');
+    buffer.writeln('  /// Throws [UnsupportedProjectionOperationException] for unknown operation types.');
+    buffer.writeln('  $readModelType applyEvent($readModelType current, Operation operation) {');
+    buffer.writeln('    return switch (operation) {');
 
     for (final eventTypeName in projection.eventTypeNames) {
-      buffer.writeln('      $eventTypeName() => apply$eventTypeName(current, event),');
+      buffer.writeln('      $eventTypeName() => apply$eventTypeName(current, operation),');
     }
 
-    buffer.writeln('      _ => throw UnsupportedEventException(');
-    buffer.writeln('            eventType: event.runtimeType,');
+    buffer.writeln('      _ => throw UnsupportedProjectionOperationException(');
+    buffer.writeln('            operationType: operation.runtimeType,');
     buffer.writeln('            projectionType: $className,');
     buffer.writeln('          ),');
     buffer.writeln('    };');

@@ -1,4 +1,5 @@
 import 'package:continuum/continuum.dart';
+import 'package:continuum_store_memory/continuum_store_memory.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -14,10 +15,19 @@ void main() {
 
     test('executeAsync does nothing when no projections registered', () async {
       executor = InlineProjectionExecutor(registry: registry);
-      final event = _createEvent(streamId: 'stream-1');
+      final operation = const _TestOperation(streamId: StreamId('stream-1'));
 
-      // Should not throw
-      await executor.executeAsync([event]);
+      // Should not throw — no projections means no work.
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
       expect(store.length, equals(0));
     });
@@ -27,8 +37,17 @@ void main() {
       registry.registerInline(projection, store);
       executor = InlineProjectionExecutor(registry: registry);
 
-      final event = _createEvent(streamId: 'stream-1');
-      await executor.executeAsync([event]);
+      final operation = const _TestOperation(streamId: StreamId('stream-1'));
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
       final readModel = await store.loadAsync(const StreamId('stream-1'));
       expect(readModel, isNotNull);
@@ -40,48 +59,76 @@ void main() {
       registry.registerInline(projection, store);
       executor = InlineProjectionExecutor(registry: registry);
 
-      // Pre-populate read model
+      // Pre-populate read model.
       await store.saveAsync(
         const StreamId('stream-1'),
-        _CounterReadModel(streamId: 'stream-1', count: 5),
+        const _CounterReadModel(streamId: 'stream-1', count: 5),
       );
 
-      final event = _createEvent(streamId: 'stream-1');
-      await executor.executeAsync([event]);
+      final operation = const _TestOperation(streamId: StreamId('stream-1'));
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
       final readModel = await store.loadAsync(const StreamId('stream-1'));
       expect(readModel!.count, equals(6));
     });
 
-    test('executeAsync processes multiple events in order', () async {
+    test('executeAsync processes multiple operations in order', () async {
       final projection = _CounterProjection();
       registry.registerInline(projection, store);
       executor = InlineProjectionExecutor(registry: registry);
 
-      final events = [
-        _createEvent(streamId: 'stream-1', version: 0),
-        _createEvent(streamId: 'stream-1', version: 1),
-        _createEvent(streamId: 'stream-1', version: 2),
-      ];
-
-      await executor.executeAsync(events);
+      await executor.executeAsync(
+        const CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: StreamId('stream-1'),
+              operations: [
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+              ],
+            ),
+          ],
+        ),
+      );
 
       final readModel = await store.loadAsync(const StreamId('stream-1'));
       expect(readModel!.count, equals(3));
     });
 
-    test('executeAsync processes events for multiple streams', () async {
+    test('executeAsync processes operations for multiple streams', () async {
       final projection = _CounterProjection();
       registry.registerInline(projection, store);
       executor = InlineProjectionExecutor(registry: registry);
 
-      final events = [
-        _createEvent(streamId: 'stream-1'),
-        _createEvent(streamId: 'stream-2'),
-        _createEvent(streamId: 'stream-1'),
-      ];
-
-      await executor.executeAsync(events);
+      await executor.executeAsync(
+        const CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: StreamId('stream-1'),
+              operations: [
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-1'))),
+              ],
+            ),
+            CommittedEntry(
+              streamId: StreamId('stream-2'),
+              operations: [
+                CommittedOperation(operation: _TestOperation(streamId: StreamId('stream-2'))),
+              ],
+            ),
+          ],
+        ),
+      );
 
       final readModel1 = await store.loadAsync(const StreamId('stream-1'));
       final readModel2 = await store.loadAsync(const StreamId('stream-2'));
@@ -100,8 +147,17 @@ void main() {
       registry.registerInline(projection2, store2);
       executor = InlineProjectionExecutor(registry: registry);
 
-      final event = _createEvent(streamId: 'stream-1');
-      await executor.executeAsync([event]);
+      final operation = const _TestOperation(streamId: StreamId('stream-1'));
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
       final readModel1 = await store1.loadAsync(const StreamId('stream-1'));
       final readModel2 = await store2.loadAsync(const StreamId('stream-1'));
@@ -120,9 +176,19 @@ void main() {
       registry.registerAsync(asyncProjection, asyncStore);
       executor = InlineProjectionExecutor(registry: registry);
 
-      final event = _createEvent(streamId: 'stream-1');
-      await executor.executeAsync([event]);
+      final operation = const _TestOperation(streamId: StreamId('stream-1'));
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operation)],
+            ),
+          ],
+        ),
+      );
 
+      // Async projections must NOT be executed by the inline executor.
       expect(inlineStore.length, equals(1));
       expect(asyncStore.length, equals(0));
     });
@@ -134,32 +200,45 @@ void main() {
       registry.registerInline(failingProjection, failingStore);
       executor = InlineProjectionExecutor(registry: registry);
 
-      final event = _createEvent(streamId: 'stream-1');
+      final operation = const _TestOperation(streamId: StreamId('stream-1'));
 
+      // Inline projections must propagate errors — they run within the commit.
       await expectLater(
-        executor.executeAsync([event]),
+        executor.executeAsync(
+          CommitBatch(
+            entries: [
+              CommittedEntry(
+                streamId: const StreamId('stream-1'),
+                operations: [CommittedOperation(operation: operation)],
+              ),
+            ],
+          ),
+        ),
         throwsA(isA<StateError>()),
       );
     });
 
-    test('executeAsync routes events only to matching projections', () async {
-      // Arrange: Two projections that handle different event types.
+    test('executeAsync routes operations only to matching projections', () async {
+      // Arrange: Two projections that handle different operation types.
       final storeA = InMemoryReadModelStore<int, StreamId>();
       final storeB = InMemoryReadModelStore<int, StreamId>();
       registry.registerInline(_CounterProjectionForA(), storeA);
       registry.registerInline(_CounterProjectionForB(), storeB);
       executor = InlineProjectionExecutor(registry: registry);
 
-      final storedEventA = StoredEvent.fromContinuumEvent(
-        continuumEvent: _TestEventA(eventId: EventId.fromUlid()),
-        streamId: const StreamId('stream-1'),
-        version: 0,
-        eventType: 'test.a',
-        data: const <String, dynamic>{},
-      );
+      final operationA = const _TestOperationA(streamId: StreamId('stream-1'));
 
       // Act.
-      await executor.executeAsync([storedEventA]);
+      await executor.executeAsync(
+        CommitBatch(
+          entries: [
+            CommittedEntry(
+              streamId: const StreamId('stream-1'),
+              operations: [CommittedOperation(operation: operationA)],
+            ),
+          ],
+        ),
+      );
 
       // Assert: Only the matching projection should be updated.
       // This matters because unrelated projections must not mutate read models.
@@ -171,37 +250,43 @@ void main() {
 
 // --- Test Fixtures ---
 
-int _eventCounter = 0;
+/// Test operation with a stream ID for key extraction.
+class _TestOperation implements Operation {
+  final StreamId streamId;
 
-StoredEvent _createEvent({
-  required String streamId,
-  int version = 0,
-}) {
-  final continuumEvent = _TestEvent(eventId: EventId('evt-${_eventCounter++}'));
-
-  return StoredEvent.fromContinuumEvent(
-    continuumEvent: continuumEvent,
-    streamId: StreamId(streamId),
-    version: version,
-    eventType: 'test.counter_incremented',
-    data: const <String, dynamic>{},
-  );
+  const _TestOperation({required this.streamId});
 }
 
+/// Typed variant A for routing tests.
+class _TestOperationA implements Operation {
+  final StreamId streamId;
+
+  const _TestOperationA({required this.streamId});
+}
+
+/// Typed variant B for routing tests.
+class _TestOperationB implements Operation {
+  final StreamId streamId;
+
+  const _TestOperationB({required this.streamId});
+}
+
+/// Simple read model for testing.
 class _CounterReadModel {
   final String streamId;
   final int count;
 
-  _CounterReadModel({required this.streamId, required this.count});
+  const _CounterReadModel({required this.streamId, required this.count});
 }
 
+/// Counter projection that increments on every operation.
 class _CounterProjection extends SingleStreamProjection<_CounterReadModel> {
   final String _name;
 
   _CounterProjection([this._name = 'counter']);
 
   @override
-  Set<Type> get handledEventTypes => {_TestEvent};
+  Set<Type> get handledEventTypes => {_TestOperation};
 
   @override
   String get projectionName => _name;
@@ -212,7 +297,7 @@ class _CounterProjection extends SingleStreamProjection<_CounterReadModel> {
   }
 
   @override
-  _CounterReadModel apply(_CounterReadModel current, StoredEvent event) {
+  _CounterReadModel apply(_CounterReadModel current, Operation operation) {
     return _CounterReadModel(
       streamId: current.streamId,
       count: current.count + 1,
@@ -220,82 +305,10 @@ class _CounterProjection extends SingleStreamProjection<_CounterReadModel> {
   }
 }
 
-final class _TestEvent implements ContinuumEvent {
-  _TestEvent({
-    required EventId eventId,
-    DateTime? occurredOn,
-    Map<String, Object?> metadata = const <String, Object?>{},
-  }) : id = eventId,
-       occurredOn = occurredOn ?? DateTime.now(),
-       metadata = Map<String, Object?>.unmodifiable(metadata);
-
-  @override
-  final EventId id;
-
-  @override
-  final DateTime occurredOn;
-
-  @override
-  final Map<String, Object?> metadata;
-}
-
-final class _TestEventA implements ContinuumEvent {
-  _TestEventA({required EventId eventId}) : id = eventId;
-
-  @override
-  final EventId id;
-
-  @override
-  DateTime get occurredOn => DateTime.now();
-
-  @override
-  Map<String, Object?> get metadata => const <String, Object?>{};
-}
-
-final class _TestEventB implements ContinuumEvent {
-  _TestEventB({required EventId eventId}) : id = eventId;
-
-  @override
-  final EventId id;
-
-  @override
-  DateTime get occurredOn => DateTime.now();
-
-  @override
-  Map<String, Object?> get metadata => const <String, Object?>{};
-}
-
-final class _CounterProjectionForA extends SingleStreamProjection<int> {
-  @override
-  Set<Type> get handledEventTypes => const {_TestEventA};
-
-  @override
-  String get projectionName => 'counter-a';
-
-  @override
-  int createInitial(StreamId streamId) => 0;
-
-  @override
-  int apply(int current, StoredEvent event) => current + 1;
-}
-
-final class _CounterProjectionForB extends SingleStreamProjection<int> {
-  @override
-  Set<Type> get handledEventTypes => const {_TestEventB};
-
-  @override
-  String get projectionName => 'counter-b';
-
-  @override
-  int createInitial(StreamId streamId) => 0;
-
-  @override
-  int apply(int current, StoredEvent event) => current + 1;
-}
-
+/// Projection that always fails — verifies error propagation.
 class _FailingProjection extends SingleStreamProjection<int> {
   @override
-  Set<Type> get handledEventTypes => {_TestEvent};
+  Set<Type> get handledEventTypes => {_TestOperation};
 
   @override
   String get projectionName => 'failing';
@@ -304,7 +317,37 @@ class _FailingProjection extends SingleStreamProjection<int> {
   int createInitial(StreamId streamId) => 0;
 
   @override
-  int apply(int current, StoredEvent event) {
+  int apply(int current, Operation operation) {
     throw StateError('Intentional failure for testing');
   }
+}
+
+/// Projection that only handles _TestOperationA.
+final class _CounterProjectionForA extends SingleStreamProjection<int> {
+  @override
+  Set<Type> get handledEventTypes => const {_TestOperationA};
+
+  @override
+  String get projectionName => 'counter-a';
+
+  @override
+  int createInitial(StreamId streamId) => 0;
+
+  @override
+  int apply(int current, Operation operation) => current + 1;
+}
+
+/// Projection that only handles _TestOperationB.
+final class _CounterProjectionForB extends SingleStreamProjection<int> {
+  @override
+  Set<Type> get handledEventTypes => const {_TestOperationB};
+
+  @override
+  String get projectionName => 'counter-b';
+
+  @override
+  int createInitial(StreamId streamId) => 0;
+
+  @override
+  int apply(int current, Operation operation) => current + 1;
 }

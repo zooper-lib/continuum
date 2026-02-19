@@ -1,4 +1,4 @@
-import 'package:continuum/src/projections/read_model_store.dart';
+import 'package:continuum_store_memory/continuum_store_memory.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -48,7 +48,7 @@ void main() {
     });
 
     test('deleteAsync is no-op for missing key', () async {
-      // Should not throw
+      // Should not throw.
       await store.deleteAsync('non-existent');
 
       expect(store.length, equals(0));

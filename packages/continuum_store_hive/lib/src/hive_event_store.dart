@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:continuum/continuum.dart';
+import 'package:continuum/continuum.dart' hide EventFromJsonFactory, EventSerializerEntry, EventSerializerRegistry, EventToJsonFactory, GeneratedAggregate;
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:hive/hive.dart';
 
 /// Hive-backed implementation of [EventStore].
@@ -27,6 +28,12 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
   /// to provide all-or-nothing multi-stream appends across restarts.
   final Box<String> _transactionsBox;
 
+  /// The Hive box for storing per-stream aggregate type metadata.
+  ///
+  /// Maps stream ID values to the Dart `Type.toString()` of the aggregate,
+  /// enabling [getStreamIdsByAggregateTypeAsync] queries.
+  final Box<String> _aggregateTypesBox;
+
   /// Global sequence counter for ordered projections.
   int _globalSequence;
 
@@ -38,10 +45,12 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
     required Box<String> eventsBox,
     required Box<int> streamsBox,
     required Box<String> transactionsBox,
+    required Box<String> aggregateTypesBox,
     required int globalSequence,
   }) : _eventsBox = eventsBox,
        _streamsBox = streamsBox,
        _transactionsBox = transactionsBox,
+       _aggregateTypesBox = aggregateTypesBox,
        _globalSequence = globalSequence,
        _exclusiveOperation = Future<void>.value();
 
@@ -53,6 +62,7 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
     final eventsBox = await Hive.openBox<String>('${boxName}_events');
     final streamsBox = await Hive.openBox<int>('${boxName}_streams');
     final transactionsBox = await Hive.openBox<String>('$boxName$_transactionsBoxSuffix');
+    final aggregateTypesBox = await Hive.openBox<String>('${boxName}_aggregate_types');
 
     await _recoverIncompleteTransactionsAsync(
       eventsBox: eventsBox,
@@ -67,6 +77,7 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
       eventsBox: eventsBox,
       streamsBox: streamsBox,
       transactionsBox: transactionsBox,
+      aggregateTypesBox: aggregateTypesBox,
       globalSequence: globalSequence,
     );
   }
@@ -150,10 +161,19 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
   }
 
   @override
-  Future<void> appendEventsAsync(StreamId streamId, ExpectedVersion expectedVersion, List<StoredEvent> events) async {
+  Future<void> appendEventsAsync(
+    StreamId streamId,
+    ExpectedVersion expectedVersion,
+    List<StoredEvent> events, {
+    required String aggregateType,
+  }) async {
     await appendEventsToStreamsAsync(
       <StreamId, StreamAppendBatch>{
-        streamId: StreamAppendBatch(expectedVersion: expectedVersion, events: events),
+        streamId: StreamAppendBatch(
+          expectedVersion: expectedVersion,
+          events: events,
+          aggregateType: aggregateType,
+        ),
       },
     );
   }
@@ -244,6 +264,14 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
 
         await _eventsBox.putAll(eventWrites);
         await _streamsBox.putAll(streamVersionWrites);
+
+        // Persist aggregate type metadata for type-based lookups.
+        final Map<String, String> aggregateTypeWrites = <String, String>{};
+        for (final MapEntry<StreamId, StreamAppendBatch> entry in entries) {
+          aggregateTypeWrites[entry.key.value] = entry.value.aggregateType;
+        }
+        await _aggregateTypesBox.putAll(aggregateTypeWrites);
+
         await _transactionsBox.delete(transactionKey);
       } catch (error, stackTrace) {
         // Mark the record as aborting so recovery will always roll back.
@@ -270,6 +298,23 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
       await _eventsBox.close();
       await _streamsBox.close();
       await _transactionsBox.close();
+      await _aggregateTypesBox.close();
+    });
+  }
+
+  @override
+  Future<List<StreamId>> getStreamIdsByAggregateTypeAsync(
+    String aggregateType,
+  ) async {
+    return _runExclusiveAsync<List<StreamId>>(() async {
+      final List<StreamId> result = <StreamId>[];
+      for (final dynamic key in _aggregateTypesBox.keys) {
+        final String? storedType = _aggregateTypesBox.get(key);
+        if (storedType == aggregateType) {
+          result.add(StreamId(key as String));
+        }
+      }
+      return result;
     });
   }
 

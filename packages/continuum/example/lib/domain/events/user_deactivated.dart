@@ -7,6 +7,7 @@ import '../user.dart';
 class UserDeactivated implements ContinuumEvent {
   UserDeactivated({
     required this.deactivatedAt,
+    this.userId,
     this.reason,
     EventId? eventId,
     DateTime? occurredOn,
@@ -15,6 +16,12 @@ class UserDeactivated implements ContinuumEvent {
        occurredOn = occurredOn ?? DateTime.now(),
        metadata = Map<String, Object?>.unmodifiable(metadata);
 
+  /// The user this event belongs to.
+  ///
+  /// Optional because the aggregate context provides the stream ID
+  /// during event sourcing. Required for projection key extraction
+  /// when events are processed outside the aggregate context.
+  final UserId? userId;
   final DateTime deactivatedAt;
   final String? reason;
 

@@ -22,7 +22,7 @@ extension $UserEventDispatch on User {
   /// Applies a continuum event to this aggregate.
   ///
   /// Routes supported mutation events to the corresponding apply method.
-  /// Throws [UnsupportedEventException] for unknown event types.
+  /// Throws [UnsupportedOperationException] for unknown event types.
   void applyEvent(ContinuumEvent event) {
     switch (event) {
       case EmailChanged():
@@ -30,8 +30,8 @@ extension $UserEventDispatch on User {
       case UserDeactivated():
         applyUserDeactivated(event);
       default:
-        throw UnsupportedEventException(
-          eventType: event.runtimeType,
+        throw UnsupportedOperationException(
+          operationType: event.runtimeType,
           aggregateType: User,
         );
     }
@@ -90,16 +90,13 @@ final $User = GeneratedAggregate(
   }),
   aggregateFactories: AggregateFactoryRegistry({
     User: {
-      UserRegistered: (event) =>
-          User.createFromUserRegistered(event as UserRegistered),
+      UserRegistered: (event) => User.createFromUserRegistered(event as UserRegistered),
     },
   }),
   eventAppliers: EventApplierRegistry({
     User: {
-      EmailChanged: (aggregate, event) =>
-          (aggregate as User).applyEmailChanged(event as EmailChanged),
-      UserDeactivated: (aggregate, event) =>
-          (aggregate as User).applyUserDeactivated(event as UserDeactivated),
+      EmailChanged: (aggregate, event) => (aggregate as User).applyEmailChanged(event as EmailChanged),
+      UserDeactivated: (aggregate, event) => (aggregate as User).applyUserDeactivated(event as UserDeactivated),
     },
   }),
 );

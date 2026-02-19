@@ -1,88 +1,75 @@
-import '../persistence/stored_event.dart';
+import '../identity/stream_id.dart';
+import '../operations/operation.dart';
+import 'commit_batch.dart';
+import 'committed_entry.dart';
 import 'projection_registration.dart';
 import 'projection_registry.dart';
+import 'single_stream_projection.dart';
 
-/// Executes inline projections synchronously during event persistence.
+/// Executes inline projections synchronously after commit.
 ///
-/// The executor is invoked by the session after events are persisted.
-/// It applies each event to all matching inline projections, updating
-/// read models immediately.
-///
-/// If any projection fails, the executor throws an exception, which
-/// should cause the caller to abort the transaction.
+/// Processes all committed operations through matching inline projections,
+/// updating read models before the commit cycle completes. Typically
+/// consumed as a [CommitHandler] delegate on the [TransactionalRunner].
 final class InlineProjectionExecutor {
-  /// The registry containing projection registrations.
+  /// The registry of projections to check for matches.
   final ProjectionRegistry _registry;
 
-  /// Creates an inline projection executor.
-  ///
-  /// The [registry] must contain all projections that should be
-  /// executed inline.
+  /// Creates an inline projection executor with the given registry.
   InlineProjectionExecutor({required ProjectionRegistry registry}) : _registry = registry;
 
-  /// Executes inline projections for the given events.
+  /// Processes all operations in the [batch] through matching inline
+  /// projections.
   ///
-  /// For each event, finds all matching inline projections and applies
-  /// the event to update their read models.
-  ///
-  /// Events are processed in order. For each event:
-  /// 1. Find all inline projections that handle the event's type
-  /// 2. For each projection:
-  ///    a. Load the current read model (or create initial if missing)
-  ///    b. Apply the event to produce updated read model
-  ///    c. Save the updated read model
-  ///
-  /// Throws if any projection fails. The caller is responsible for
-  /// handling the failure (e.g., rolling back the event persistence).
-  Future<void> executeAsync(List<StoredEvent> events) async {
+  /// Iterates by [CommittedEntry] so that single-stream projections
+  /// receive the [StreamId] directly from the entry, eliminating the
+  /// need for user-provided key extraction.
+  Future<void> executeAsync(CommitBatch batch) async {
     if (!_registry.hasInlineProjections) {
-      // Fast path: no inline projections registered.
       return;
     }
 
-    for (final event in events) {
-      await _processEventAsync(event);
+    for (final entry in batch.entries) {
+      for (final committedOp in entry.operations) {
+        await _processOperationAsync(entry, committedOp.operation);
+      }
     }
   }
 
-  /// Processes a single event through all matching inline projections.
-  Future<void> _processEventAsync(StoredEvent event) async {
-    final domainEvent = event.domainEvent;
-    if (domainEvent == null) {
-      throw StateError(
-        'StoredEvent.domainEvent is null. '
-        'Projections require deserialized domain events.',
-      );
-    }
-
+  /// Processes a single operation through all matching inline projections.
+  Future<void> _processOperationAsync(
+    CommittedEntry entry,
+    Operation operation,
+  ) async {
     final projections = _registry.getInlineProjectionsForEventType(
-      domainEvent.runtimeType,
+      operation.runtimeType,
     );
 
     for (final registration in projections) {
-      await _applyEventToProjectionAsync(registration, event);
+      await _applyOperationToProjectionAsync(registration, entry.streamId, operation);
     }
   }
 
-  /// Applies an event to a projection, updating its read model.
-  Future<void> _applyEventToProjectionAsync(
+  /// Applies a single operation to a single projection's read model.
+  ///
+  /// For [SingleStreamProjection], uses the [streamId] from the
+  /// [CommittedEntry] directly. For multi-stream projections, delegates
+  /// to [ProjectionBase.extractKey].
+  Future<void> _applyOperationToProjectionAsync(
     ProjectionRegistration<Object, Object> registration,
-    StoredEvent event,
+    StreamId streamId,
+    Operation operation,
   ) async {
     final projection = registration.projection;
     final store = registration.readModelStore;
 
-    // Extract the key for this event.
-    final key = projection.extractKey(event);
+    final key = projection is SingleStreamProjection ? streamId : projection.extractKey(operation);
 
-    // Load existing read model or create initial.
     var readModel = await store.loadAsync(key);
     readModel ??= projection.createInitial(key);
 
-    // Apply the event to produce updated read model.
-    final updatedReadModel = projection.apply(readModel, event);
+    final updatedReadModel = projection.apply(readModel, operation);
 
-    // Persist the updated read model.
     await store.saveAsync(key, updatedReadModel);
   }
 }

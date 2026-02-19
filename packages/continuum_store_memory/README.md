@@ -1,19 +1,20 @@
 # Continuum Store Memory
 
-In-memory `EventStore` implementation for [continuum](../continuum). Events are stored in memory and lost when the application exits.
+In-memory `EventStore` implementation for [Continuum](https://github.com/zooper-lib/continuum). Events are stored in memory and lost when the application exits.
 
 ## Installation
 
 ```yaml
 dependencies:
   continuum: latest
+  continuum_event_sourcing: latest
   continuum_store_memory: latest
 ```
 
 ## Usage
 
 ```dart
-import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_store_memory/continuum_store_memory.dart';
 import 'continuum.g.dart'; // Generated
 
@@ -26,7 +27,7 @@ void main() async {
   // Use your aggregates
   final userId = StreamId('user-1');
   final session = store.openSession();
-  session.startStream<User>(
+  await session.applyAsync<User>(
     userId,
     UserRegistered(userId: userId.value, name: 'Alice', email: 'alice@example.com'),
   );

@@ -1,6 +1,8 @@
 import 'package:bounded/bounded.dart';
 import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 
+import '../operations/operation.dart';
+
 /// Base contract for all continuum events in an event-sourced system.
 ///
 /// Continuum events represent facts that have happened in the domain.
@@ -12,4 +14,7 @@ import 'package:zooper_flutter_core/zooper_flutter_core.dart';
 ///
 /// Implementations should ensure [id], [occurredOn], and [metadata] are
 /// immutable.
-abstract interface class ContinuumEvent implements BoundedDomainEvent<EventId> {}
+///
+/// Implements [Operation] so that the Unit of Work session engine can
+/// process events alongside other operation types.
+abstract interface class ContinuumEvent implements BoundedDomainEvent<EventId>, Operation {}

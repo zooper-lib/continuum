@@ -5,13 +5,14 @@
 ///
 /// What you'll learn:
 /// - How to open a Session (unit-of-work for persistence)
-/// - How to start a new stream with startStream() using a creation event
+/// - How to start a new stream with applyAsync() using a creation event
 /// - How to save changes to persist events
 ///
 /// Real-world use case: User registration, creating orders, opening accounts
 library;
 
 import 'package:continuum/continuum.dart';
+import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_example/continuum.g.dart';
 import 'package:continuum_example/domain/events/user_registered.dart';
 import 'package:continuum_example/domain/user.dart';
@@ -38,11 +39,11 @@ void main() async {
   // A Session is your unit-of-work - it tracks changes and persists them atomically
   final session = store.openSession();
 
-  // Step 2: Start a new stream with a creation event
-  // startStream() creates the aggregate by applying the creation event
+  // Step 2: Apply a creation event to start a new stream
+  // applyAsync() detects this is a creation event and creates the aggregate
   // The aggregate is now in memory and tracked by the session
   print('  [Session] Starting new stream...');
-  final user = session.startStream<User>(
+  final user = await session.applyAsync<User>(
     userId,
     UserRegistered(
       userId: const UserId('user-001'),
