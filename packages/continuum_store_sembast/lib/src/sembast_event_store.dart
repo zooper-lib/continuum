@@ -35,12 +35,6 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
   /// The Sembast store for per-stream version metadata, keyed by stream ID.
   final StoreRef<String, int> _streamsStore;
 
-  /// The Sembast store for atomic multi-stream transaction records.
-  ///
-  /// Sembast supports native transactions, but we persist a write-ahead log
-  /// to mirror the same crash-recovery pattern used by HiveEventStore.
-  final StoreRef<String, String> _transactionsStore;
-
   /// The Sembast store for per-stream aggregate type tags, keyed by stream ID.
   ///
   /// Stores the Dart `Type.toString()` value of the aggregate that owns
@@ -51,15 +45,12 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
   int _globalSequence;
 
   /// Private constructor - use [openAsync] factory.
-  SembastEventStore._({
-    required Database database,
-    required int globalSequence,
-  }) : _database = database,
-       _eventsStore = StoreRef<String, String>(_eventsStoreName),
-       _streamsStore = StoreRef<String, int>(_streamsStoreName),
-       _transactionsStore = StoreRef<String, String>(_transactionsStoreName),
-       _aggregateTypesStore = StoreRef<String, String>(_aggregateTypesStoreName),
-       _globalSequence = globalSequence;
+  SembastEventStore._({required Database database, required int globalSequence})
+    : _database = database,
+      _eventsStore = StoreRef<String, String>(_eventsStoreName),
+      _streamsStore = StoreRef<String, int>(_streamsStoreName),
+      _aggregateTypesStore = StoreRef<String, String>(_aggregateTypesStoreName),
+      _globalSequence = globalSequence;
 
   /// Opens a Sembast event store using the provided [databaseFactory] and [dbPath].
   ///
@@ -74,9 +65,15 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
   }) async {
     final Database database = await databaseFactory.openDatabase(dbPath);
 
-    final StoreRef<String, String> eventsStore = StoreRef<String, String>(_eventsStoreName);
-    final StoreRef<String, int> streamsStore = StoreRef<String, int>(_streamsStoreName);
-    final StoreRef<String, String> transactionsStore = StoreRef<String, String>(_transactionsStoreName);
+    final StoreRef<String, String> eventsStore = StoreRef<String, String>(
+      _eventsStoreName,
+    );
+    final StoreRef<String, int> streamsStore = StoreRef<String, int>(
+      _streamsStoreName,
+    );
+    final StoreRef<String, String> transactionsStore = StoreRef<String, String>(
+      _transactionsStoreName,
+    );
 
     // Recover any incomplete transactions from a prior crash.
     await _recoverIncompleteTransactionsAsync(
@@ -87,7 +84,10 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
     );
 
     // Determine the current global sequence by scanning all events.
-    final int globalSequence = await _findMaxGlobalSequenceAsync(database, eventsStore);
+    final int globalSequence = await _findMaxGlobalSequenceAsync(
+      database,
+      eventsStore,
+    );
 
     return SembastEventStore._(
       database: database,
@@ -131,15 +131,13 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
     required String aggregateType,
   }) async {
     // Delegate to the multi-stream path for consistency.
-    await appendEventsToStreamsAsync(
-      <StreamId, StreamAppendBatch>{
-        streamId: StreamAppendBatch(
-          expectedVersion: expectedVersion,
-          events: events,
-          aggregateType: aggregateType,
-        ),
-      },
-    );
+    await appendEventsToStreamsAsync(<StreamId, StreamAppendBatch>{
+      streamId: StreamAppendBatch(
+        expectedVersion: expectedVersion,
+        events: events,
+        aggregateType: aggregateType,
+      ),
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -156,86 +154,77 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
 
     // Sort entries for deterministic global sequence assignment.
     final List<MapEntry<StreamId, StreamAppendBatch>> entries = batches.entries.toList()
-      ..sort((MapEntry<StreamId, StreamAppendBatch> a, MapEntry<StreamId, StreamAppendBatch> b) {
+      ..sort((
+        MapEntry<StreamId, StreamAppendBatch> a,
+        MapEntry<StreamId, StreamAppendBatch> b,
+      ) {
         return a.key.value.compareTo(b.key.value);
       });
 
-    // Build operations list (validate version expectations and assign sequences).
-    final List<Map<String, Object?>> operations = <Map<String, Object?>>[];
-
-    // Read current versions for all streams inside a read transaction to get a
-    // consistent snapshot, then validate outside of it.
-    final Map<String, int> currentVersions = <String, int>{};
-    await _database.transaction((Transaction txn) async {
-      for (final MapEntry<StreamId, StreamAppendBatch> entry in entries) {
-        final int? storedVersion = await _streamsStore.record(entry.key.value).get(txn);
-        currentVersions[entry.key.value] = storedVersion ?? -1;
-      }
-    });
-
-    for (final MapEntry<StreamId, StreamAppendBatch> entry in entries) {
-      final StreamId streamId = entry.key;
-      final StreamAppendBatch batch = entry.value;
-
-      final int currentVersion = currentVersions[streamId.value]!;
-      _throwIfExpectedVersionDoesNotMatch(
-        streamId: streamId,
-        expectedVersion: batch.expectedVersion,
-        currentVersion: currentVersion,
-      );
-
-      final List<String> eventKeys = <String>[];
-      final List<String> eventJsonValues = <String>[];
-
-      int nextVersion = currentVersion + 1;
-      for (final StoredEvent event in batch.events) {
-        final StoredEvent storedEvent = StoredEvent(
-          eventId: event.eventId,
-          streamId: streamId,
-          version: nextVersion,
-          eventType: event.eventType,
-          data: event.data,
-          occurredOn: event.occurredOn,
-          metadata: event.metadata,
-          globalSequence: _globalSequence++,
-          domainEvent: event.domainEvent,
-        );
-
-        eventKeys.add(_eventKey(streamId, nextVersion));
-        eventJsonValues.add(_serializeEvent(storedEvent));
-        nextVersion++;
-      }
-
-      operations.add(<String, Object?>{
-        'streamId': streamId.value,
-        'oldVersion': currentVersion,
-        'newVersion': nextVersion - 1,
-        'eventKeys': eventKeys,
-        'eventJson': eventJsonValues,
-      });
-    }
-
-    // Persist a write-ahead log record, then apply all writes atomically.
-    final String transactionKey = DateTime.now().microsecondsSinceEpoch.toString();
-
-    await _transactionsStore
-        .record(transactionKey)
-        .put(
-          _database,
-          jsonEncode(<String, Object?>{
-            'state': 'committing',
-            'operations': operations,
-          }),
-        );
-
+    // Read, validate, and write inside a single Sembast transaction so that
+    // the version check and the event writes are atomic.  This prevents a
+    // TOCTOU race where two concurrent sessions both read the same version,
+    // both pass validation, and the second silently overwrites the first.
     try {
-      // Apply all event and stream-version writes in a single Sembast transaction.
       await _database.transaction((Transaction txn) async {
+        final List<Map<String, Object?>> operations = <Map<String, Object?>>[];
+
+        // 1) Read current versions and validate inside the transaction.
+        for (final MapEntry<StreamId, StreamAppendBatch> entry in entries) {
+          final StreamId streamId = entry.key;
+          final StreamAppendBatch batch = entry.value;
+
+          final int? storedVersion = await _streamsStore.record(streamId.value).get(txn);
+          final int currentVersion = storedVersion ?? -1;
+
+          _throwIfExpectedVersionDoesNotMatch(
+            streamId: streamId,
+            expectedVersion: batch.expectedVersion,
+            currentVersion: currentVersion,
+          );
+
+          // 2) Assign global sequences and build serialized events.
+          final List<String> eventKeys = <String>[];
+          final List<String> eventJsonValues = <String>[];
+
+          int nextVersion = currentVersion + 1;
+          for (final StoredEvent event in batch.events) {
+            final StoredEvent storedEvent = StoredEvent(
+              eventId: event.eventId,
+              streamId: streamId,
+              version: nextVersion,
+              eventType: event.eventType,
+              data: event.data,
+              occurredOn: event.occurredOn,
+              metadata: event.metadata,
+              globalSequence: _globalSequence++,
+              domainEvent: event.domainEvent,
+            );
+
+            eventKeys.add(_eventKey(streamId, nextVersion));
+            eventJsonValues.add(_serializeEvent(storedEvent));
+            nextVersion++;
+          }
+
+          operations.add(<String, Object?>{
+            'streamId': streamId.value,
+            'oldVersion': currentVersion,
+            'newVersion': nextVersion - 1,
+            'eventKeys': eventKeys,
+            'eventJson': eventJsonValues,
+          });
+        }
+
+        // 3) Write all events and bump stream versions.
         for (final Map<String, Object?> operation in operations) {
           final String streamIdValue = operation['streamId'] as String;
           final int newVersion = operation['newVersion'] as int;
-          final List<String> eventKeys = _decodeStringList(operation['eventKeys']);
-          final List<String> eventJsonValues = _decodeStringList(operation['eventJson']);
+          final List<String> eventKeys = _decodeStringList(
+            operation['eventKeys'],
+          );
+          final List<String> eventJsonValues = _decodeStringList(
+            operation['eventJson'],
+          );
 
           for (int index = 0; index < eventKeys.length; index++) {
             await _eventsStore.record(eventKeys[index]).put(txn, eventJsonValues[index]);
@@ -244,29 +233,15 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
           await _streamsStore.record(streamIdValue).put(txn, newVersion);
         }
 
-        // Persist aggregate type tags for all streams.
+        // 4) Persist aggregate type tags.
         for (final MapEntry<StreamId, StreamAppendBatch> entry in entries) {
           await _aggregateTypesStore.record(entry.key.value).put(txn, entry.value.aggregateType);
         }
       });
-
-      // Commit succeeded — remove the write-ahead record.
-      await _transactionsStore.record(transactionKey).delete(_database);
-    } catch (error, stackTrace) {
-      // Mark as aborting so recovery always rolls back.
-      await _transactionsStore
-          .record(transactionKey)
-          .put(
-            _database,
-            jsonEncode(<String, Object?>{
-              'state': 'aborting',
-              'operations': operations,
-            }),
-          );
-
-      await _rollbackTransactionAsync(operations);
-      await _transactionsStore.record(transactionKey).delete(_database);
-      Error.throwWithStackTrace(error, stackTrace);
+    } on ConcurrencyException {
+      // Let ConcurrencyException propagate so the caller (SessionImpl) can
+      // reload-and-rebase via its retry loop.
+      rethrow;
     }
   }
 
@@ -431,8 +406,12 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
         final Map<String, Object?> operation = (operationObject as Map).cast<String, Object?>();
         final String streamIdValue = operation['streamId'] as String;
         final int newVersion = operation['newVersion'] as int;
-        final List<String> eventKeys = _decodeStringList(operation['eventKeys']);
-        final List<String> eventJsonValues = _decodeStringList(operation['eventJson']);
+        final List<String> eventKeys = _decodeStringList(
+          operation['eventKeys'],
+        );
+        final List<String> eventJsonValues = _decodeStringList(
+          operation['eventJson'],
+        );
 
         for (int index = 0; index < eventKeys.length; index++) {
           final String key = eventKeys[index];
@@ -448,16 +427,6 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
     });
   }
 
-  /// Rolls back an aborted transaction (instance method variant).
-  Future<void> _rollbackTransactionAsync(List<Map<String, Object?>> operations) async {
-    await _rollbackTransactionStaticAsync(
-      database: _database,
-      eventsStore: _eventsStore,
-      streamsStore: _streamsStore,
-      operations: operations.cast<Object?>(),
-    );
-  }
-
   /// Rolls back an aborted transaction (static variant for recovery).
   static Future<void> _rollbackTransactionStaticAsync({
     required Database database,
@@ -470,7 +439,9 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
         final Map<String, Object?> operation = (operationObject as Map).cast<String, Object?>();
         final String streamIdValue = operation['streamId'] as String;
         final int oldVersion = operation['oldVersion'] as int;
-        final List<String> eventKeys = _decodeStringList(operation['eventKeys']);
+        final List<String> eventKeys = _decodeStringList(
+          operation['eventKeys'],
+        );
 
         for (final String key in eventKeys) {
           await eventsStore.record(key).delete(txn);
@@ -496,7 +467,9 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
     Database database,
     StoreRef<String, String> eventsStore,
   ) async {
-    final List<RecordSnapshot<String, String>> records = await eventsStore.find(database);
+    final List<RecordSnapshot<String, String>> records = await eventsStore.find(
+      database,
+    );
 
     if (records.isEmpty) {
       return 0;
@@ -530,13 +503,21 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
   }) {
     if (expectedVersion.isNoStream) {
       if (currentVersion != -1) {
-        throw ConcurrencyException(streamId: streamId, expectedVersion: -1, actualVersion: currentVersion);
+        throw ConcurrencyException(
+          streamId: streamId,
+          expectedVersion: -1,
+          actualVersion: currentVersion,
+        );
       }
       return;
     }
 
     if (currentVersion != expectedVersion.value) {
-      throw ConcurrencyException(streamId: streamId, expectedVersion: expectedVersion.value, actualVersion: currentVersion);
+      throw ConcurrencyException(
+        streamId: streamId,
+        expectedVersion: expectedVersion.value,
+        actualVersion: currentVersion,
+      );
     }
   }
 

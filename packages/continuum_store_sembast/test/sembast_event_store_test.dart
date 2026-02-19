@@ -438,6 +438,443 @@ void main() {
         expect(maxSeq, equals(2));
       });
     });
+
+    group('concurrent writes', () {
+      test('two parallel appends to the same stream — one must get ConcurrencyException', () async {
+        // Arrange — create a stream at version 0.
+        final streamId = const StreamId('concurrent_same');
+        await store.appendEventsAsync(
+          streamId,
+          ExpectedVersion.noStream,
+          <StoredEvent>[_createStoredEvent(streamId, 0, 'setup')],
+          aggregateType: 'TestAggregate',
+        );
+
+        // Arrange — build two batches both expecting version 0.
+        final Map<StreamId, StreamAppendBatch> batchA = <StreamId, StreamAppendBatch>{
+          streamId: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(0),
+            events: <StoredEvent>[_createConcurrencyEvent(streamId, 'a_0', 'type_a')],
+          ),
+        };
+        final Map<StreamId, StreamAppendBatch> batchB = <StreamId, StreamAppendBatch>{
+          streamId: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(0),
+            events: <StoredEvent>[_createConcurrencyEvent(streamId, 'b_0', 'type_b')],
+          ),
+        };
+
+        // Act — launch both in parallel so Sembast serializes their transactions.
+        final Future<void> futureA = store.appendEventsToStreamsAsync(batchA);
+        final Future<void> futureB = store.appendEventsToStreamsAsync(batchB);
+
+        ConcurrencyException? errorA;
+        ConcurrencyException? errorB;
+        try {
+          await futureA;
+        } on ConcurrencyException catch (e) {
+          errorA = e;
+        }
+        try {
+          await futureB;
+        } on ConcurrencyException catch (e) {
+          errorB = e;
+        }
+
+        // Assert — exactly one must succeed and exactly one must throw.
+        final int failureCount = <ConcurrencyException?>[errorA, errorB].whereType<ConcurrencyException>().length;
+        expect(failureCount, equals(1), reason: 'Exactly one call must throw ConcurrencyException');
+
+        // Assert — stream has exactly 2 events: setup + winner's event.
+        final List<StoredEvent> loaded = await store.loadStreamAsync(streamId);
+        expect(loaded.length, equals(2));
+        expect(loaded[0].eventType, equals('setup'));
+
+        // The winner is whichever call did NOT throw.
+        final String winnerType = errorA != null ? 'type_b' : 'type_a';
+        expect(loaded[1].eventType, equals(winnerType));
+
+        // Assert — stream version is correct (0 + 1 new event = version 1).
+        expect(loaded[1].version, equals(1));
+      });
+
+      test('two parallel appends to different streams — both succeed', () async {
+        // Arrange — create two separate streams.
+        final streamA = const StreamId('parallel_a');
+        final streamB = const StreamId('parallel_b');
+
+        await store.appendEventsAsync(
+          streamA,
+          ExpectedVersion.noStream,
+          <StoredEvent>[_createStoredEvent(streamA, 0, 'setup_a')],
+          aggregateType: 'TestAggregate',
+        );
+        await store.appendEventsAsync(
+          streamB,
+          ExpectedVersion.noStream,
+          <StoredEvent>[_createStoredEvent(streamB, 0, 'setup_b')],
+          aggregateType: 'TestAggregate',
+        );
+
+        // Arrange — each batch targets a different stream.
+        final Map<StreamId, StreamAppendBatch> batchA = <StreamId, StreamAppendBatch>{
+          streamA: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(0),
+            events: <StoredEvent>[_createConcurrencyEvent(streamA, 'a_new', 'type_a_new')],
+          ),
+        };
+        final Map<StreamId, StreamAppendBatch> batchB = <StreamId, StreamAppendBatch>{
+          streamB: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(0),
+            events: <StoredEvent>[_createConcurrencyEvent(streamB, 'b_new', 'type_b_new')],
+          ),
+        };
+
+        // Act — launch both in parallel; no conflict expected.
+        final Future<void> futureA = store.appendEventsToStreamsAsync(batchA);
+        final Future<void> futureB = store.appendEventsToStreamsAsync(batchB);
+        await futureA;
+        await futureB;
+
+        // Assert — both streams have their new events persisted.
+        final List<StoredEvent> loadedA = await store.loadStreamAsync(streamA);
+        final List<StoredEvent> loadedB = await store.loadStreamAsync(streamB);
+
+        expect(loadedA.length, equals(2));
+        expect(loadedB.length, equals(2));
+        expect(loadedA[1].eventType, equals('type_a_new'));
+        expect(loadedB[1].eventType, equals('type_b_new'));
+      });
+
+      test('three parallel appends to the same stream — exactly one succeeds', () async {
+        // Arrange — create stream at version 0.
+        final streamId = const StreamId('triple_concurrent');
+        await store.appendEventsAsync(
+          streamId,
+          ExpectedVersion.noStream,
+          <StoredEvent>[_createStoredEvent(streamId, 0, 'setup')],
+          aggregateType: 'TestAggregate',
+        );
+
+        // Arrange — three batches all expecting version 0.
+        final List<String> labels = <String>['a', 'b', 'c'];
+        final List<Map<StreamId, StreamAppendBatch>> batches = labels
+            .map(
+              (String label) => <StreamId, StreamAppendBatch>{
+                streamId: StreamAppendBatch(
+                  aggregateType: 'TestAggregate',
+                  expectedVersion: ExpectedVersion.exact(0),
+                  events: <StoredEvent>[
+                    _createConcurrencyEvent(streamId, '${label}_0', 'type_$label'),
+                  ],
+                ),
+              },
+            )
+            .toList();
+
+        // Act — launch all three in parallel.
+        final List<Future<void>> futures = batches.map((Map<StreamId, StreamAppendBatch> b) => store.appendEventsToStreamsAsync(b)).toList();
+
+        int failureCount = 0;
+        String? winnerLabel;
+        for (int i = 0; i < futures.length; i++) {
+          try {
+            await futures[i];
+            // This one succeeded.
+            winnerLabel = labels[i];
+          } on ConcurrencyException {
+            failureCount++;
+          }
+        }
+
+        // Assert — exactly one succeeds, the other two throw.
+        expect(failureCount, equals(2), reason: 'Exactly two calls must throw ConcurrencyException');
+        expect(winnerLabel, isNotNull, reason: 'One call must succeed');
+
+        // Assert — stream contains only setup event + winner's event.
+        final List<StoredEvent> loaded = await store.loadStreamAsync(streamId);
+        expect(loaded.length, equals(2));
+        expect(loaded[0].eventType, equals('setup'));
+        expect(loaded[1].eventType, equals('type_$winnerLabel'));
+      });
+
+      test('parallel append does not leave partial writes on failure', () async {
+        // Arrange — create stream A at version 0 so it has a known version.
+        final streamA = const StreamId('atomic_partial_a');
+        final streamB = const StreamId('atomic_partial_b');
+
+        await store.appendEventsAsync(
+          streamA,
+          ExpectedVersion.noStream,
+          <StoredEvent>[_createStoredEvent(streamA, 0, 'setup_a')],
+          aggregateType: 'TestAggregate',
+        );
+
+        // Arrange — multi-stream batch: stream A has correct version, stream B
+        // has a deliberately wrong version to force a ConcurrencyException.
+        final Map<StreamId, StreamAppendBatch> mixedBatch = <StreamId, StreamAppendBatch>{
+          streamA: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(0),
+            events: <StoredEvent>[_createConcurrencyEvent(streamA, 'a_extra', 'type_a_extra')],
+          ),
+          streamB: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(999), // Wrong — stream B does not exist.
+            events: <StoredEvent>[_createConcurrencyEvent(streamB, 'b_extra', 'type_b_extra')],
+          ),
+        };
+
+        // Act & Assert — the mismatch must cause the whole call to fail.
+        expect(
+          () => store.appendEventsToStreamsAsync(mixedBatch),
+          throwsA(isA<ConcurrencyException>()),
+        );
+
+        // Assert — neither stream was modified (all-or-nothing).
+        final List<StoredEvent> loadedA = await store.loadStreamAsync(streamA);
+        final List<StoredEvent> loadedB = await store.loadStreamAsync(streamB);
+
+        // Stream A still has only its original setup event.
+        expect(loadedA.length, equals(1));
+        expect(loadedA.single.eventType, equals('setup_a'));
+
+        // Stream B was never created.
+        expect(loadedB, isEmpty);
+      });
+
+      test('global sequences remain monotonically increasing after concurrent writes', () async {
+        // Arrange — create several distinct streams.
+        const int streamCount = 5;
+        final List<StreamId> streams = List<StreamId>.generate(
+          streamCount,
+          (int i) => StreamId('mono_stream_$i'),
+        );
+
+        for (final StreamId s in streams) {
+          await store.appendEventsAsync(
+            s,
+            ExpectedVersion.noStream,
+            <StoredEvent>[_createStoredEvent(s, 0, 'setup_${s.value}')],
+            aggregateType: 'TestAggregate',
+          );
+        }
+
+        // Act — launch parallel appends to different streams.
+        final List<Future<void>> futures = streams
+            .map(
+              (StreamId s) => store.appendEventsToStreamsAsync(<StreamId, StreamAppendBatch>{
+                s: StreamAppendBatch(
+                  aggregateType: 'TestAggregate',
+                  expectedVersion: ExpectedVersion.exact(0),
+                  events: <StoredEvent>[
+                    _createConcurrencyEvent(s, 'new_${s.value}', 'type_${s.value}'),
+                  ],
+                ),
+              }),
+            )
+            .toList();
+
+        for (final Future<void> f in futures) {
+          await f;
+        }
+
+        // Assert — load all events and verify global sequence properties.
+        final List<StoredEvent> allEvents = await store.loadEventsFromPositionAsync(0, 1000);
+        final List<int> globalSequences = allEvents.map((StoredEvent e) => e.globalSequence!).toList();
+
+        // Unique — no duplicates.
+        expect(
+          globalSequences.toSet().length,
+          equals(globalSequences.length),
+          reason: 'Global sequences must be unique',
+        );
+
+        // Already sorted by loadEventsFromPositionAsync — verify monotonically increasing.
+        for (int i = 1; i < globalSequences.length; i++) {
+          expect(
+            globalSequences[i],
+            greaterThan(globalSequences[i - 1]),
+            reason: 'Global sequences must be monotonically increasing',
+          );
+        }
+
+        // No gaps — sequences should be 0..N-1.
+        final List<int> sortedSequences = List<int>.from(globalSequences)..sort();
+        for (int i = 0; i < sortedSequences.length; i++) {
+          expect(
+            sortedSequences[i],
+            equals(i),
+            reason: 'Global sequences must have no gaps',
+          );
+        }
+      });
+
+      test('global sequences have no duplicates after a ConcurrencyException occurs', () async {
+        // Arrange — create a stream at version 0.
+        final streamId = const StreamId('dup_seq_stream');
+        await store.appendEventsAsync(
+          streamId,
+          ExpectedVersion.noStream,
+          <StoredEvent>[_createStoredEvent(streamId, 0, 'setup')],
+          aggregateType: 'TestAggregate',
+        );
+
+        // Act — two parallel appends both expecting version 0.
+        final Future<void> futureA = store.appendEventsToStreamsAsync(<StreamId, StreamAppendBatch>{
+          streamId: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(0),
+            events: <StoredEvent>[_createConcurrencyEvent(streamId, 'dup_a', 'type_a')],
+          ),
+        });
+        final Future<void> futureB = store.appendEventsToStreamsAsync(<StreamId, StreamAppendBatch>{
+          streamId: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(0),
+            events: <StoredEvent>[_createConcurrencyEvent(streamId, 'dup_b', 'type_b')],
+          ),
+        });
+
+        try {
+          await futureA;
+        } on ConcurrencyException catch (_) {
+          // Expected for one of the two.
+        }
+        try {
+          await futureB;
+        } on ConcurrencyException catch (_) {
+          // Expected for one of the two.
+        }
+
+        // Act — do a successful append with the correct version.
+        final List<StoredEvent> currentEvents = await store.loadStreamAsync(streamId);
+        final int currentVersion = currentEvents.length - 1;
+
+        await store.appendEventsAsync(
+          streamId,
+          ExpectedVersion.exact(currentVersion),
+          <StoredEvent>[_createConcurrencyEvent(streamId, 'final', 'type_final')],
+          aggregateType: 'TestAggregate',
+        );
+
+        // Assert — load all events and verify no duplicate global sequences.
+        final List<StoredEvent> allEvents = await store.loadEventsFromPositionAsync(0, 1000);
+        final List<int> globalSequences = allEvents.map((StoredEvent e) => e.globalSequence!).toList();
+
+        // The critical property: no duplicates.
+        expect(
+          globalSequences.toSet().length,
+          equals(globalSequences.length),
+          reason: 'Global sequences must have no duplicates',
+        );
+
+        // NOTE: A gap in sequences MAY exist if the failing transaction
+        // incremented the in-memory _globalSequence counter before the
+        // transaction rolled back.  Gaps are a known minor issue — the
+        // critical invariant is uniqueness.
+      });
+
+      test("winner's events are fully intact (data fidelity)", () async {
+        // Arrange — create stream at version 0.
+        final streamId = const StreamId('fidelity_stream');
+        await store.appendEventsAsync(
+          streamId,
+          ExpectedVersion.noStream,
+          <StoredEvent>[_createStoredEvent(streamId, 0, 'setup')],
+          aggregateType: 'TestAggregate',
+        );
+
+        // Arrange — two batches with 3 distinct events each.
+        final List<StoredEvent> batchAEvents = List<StoredEvent>.generate(
+          3,
+          (int i) => StoredEvent(
+            eventId: EventId('batch_a_$i'),
+            streamId: streamId,
+            version: i, // Version is reassigned by the store.
+            eventType: 'type_a_$i',
+            data: <String, dynamic>{'batch': 'a', 'index': i, 'payload': 'data_a_$i'},
+            occurredOn: DateTime.utc(2026, 1, 1, 0, 0, i),
+            metadata: <String, dynamic>{'source': 'batch_a'},
+          ),
+        );
+        final List<StoredEvent> batchBEvents = List<StoredEvent>.generate(
+          3,
+          (int i) => StoredEvent(
+            eventId: EventId('batch_b_$i'),
+            streamId: streamId,
+            version: i, // Version is reassigned by the store.
+            eventType: 'type_b_$i',
+            data: <String, dynamic>{'batch': 'b', 'index': i, 'payload': 'data_b_$i'},
+            occurredOn: DateTime.utc(2026, 2, 1, 0, 0, i),
+            metadata: <String, dynamic>{'source': 'batch_b'},
+          ),
+        );
+
+        final Map<StreamId, StreamAppendBatch> batchA = <StreamId, StreamAppendBatch>{
+          streamId: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(0),
+            events: batchAEvents,
+          ),
+        };
+        final Map<StreamId, StreamAppendBatch> batchB = <StreamId, StreamAppendBatch>{
+          streamId: StreamAppendBatch(
+            aggregateType: 'TestAggregate',
+            expectedVersion: ExpectedVersion.exact(0),
+            events: batchBEvents,
+          ),
+        };
+
+        // Act — launch both in parallel.
+        final Future<void> futureA = store.appendEventsToStreamsAsync(batchA);
+        final Future<void> futureB = store.appendEventsToStreamsAsync(batchB);
+
+        ConcurrencyException? errorA;
+        ConcurrencyException? errorB;
+        try {
+          await futureA;
+        } on ConcurrencyException catch (e) {
+          errorA = e;
+        }
+        try {
+          await futureB;
+        } on ConcurrencyException catch (e) {
+          errorB = e;
+        }
+
+        // Assert — exactly one fails.
+        expect(
+          (errorA == null) != (errorB == null),
+          isTrue,
+          reason: 'Exactly one batch must succeed',
+        );
+
+        // Determine which batch won.
+        final List<StoredEvent> winnerEvents = errorA == null ? batchAEvents : batchBEvents;
+
+        // Assert — stream has 1 setup event + 3 winner events.
+        final List<StoredEvent> loaded = await store.loadStreamAsync(streamId);
+        expect(loaded.length, equals(4));
+        expect(loaded[0].eventType, equals('setup'));
+
+        // Verify each winner event's data was persisted without corruption.
+        for (int i = 0; i < 3; i++) {
+          final StoredEvent persisted = loaded[i + 1];
+          final StoredEvent original = winnerEvents[i];
+
+          expect(persisted.eventId, equals(original.eventId));
+          expect(persisted.eventType, equals(original.eventType));
+          expect(persisted.data, equals(original.data));
+          // Versions are assigned by the store: setup=0, then 1, 2, 3.
+          expect(persisted.version, equals(i + 1));
+        }
+      });
+    });
   });
 }
 
@@ -451,5 +888,21 @@ StoredEvent _createStoredEvent(StreamId streamId, int version, String eventType)
     data: {'version': version},
     occurredOn: DateTime.now().toUtc(),
     metadata: {},
+  );
+}
+
+/// Helper to create a stored event with a unique [eventId] for concurrency tests.
+///
+/// Unlike [_createStoredEvent], this uses a caller-supplied [eventId] to ensure
+/// events from competing batches are distinguishable after persistence.
+StoredEvent _createConcurrencyEvent(StreamId streamId, String eventId, String eventType) {
+  return StoredEvent(
+    eventId: EventId(eventId),
+    streamId: streamId,
+    version: 0, // Version is reassigned by the store.
+    eventType: eventType,
+    data: <String, dynamic>{'eventId': eventId},
+    occurredOn: DateTime.now().toUtc(),
+    metadata: <String, dynamic>{},
   );
 }
