@@ -1,18 +1,19 @@
-/// Marks a class as a domain event belonging to a specific aggregate.
+/// Legacy annotation associating a [ContinuumEvent] with a target type.
 ///
-/// The generator uses this annotation to discover events and associate them
-/// with their parent aggregate for code generation.
+/// The generator still supports this annotation for backwards compatibility,
+/// but new code should use [OperationFor].
 ///
 /// The [type] parameter is optional when using the core layer without
 /// persistence. When persistence is needed, [type] provides a stable string
 /// discriminator for serialization.
 ///
 /// ```dart
-/// @AggregateEvent(of: ShoppingCart)
+/// @OperationFor(type: ShoppingCart, key: 'cart.item_added')
 /// class ItemAdded implements ContinuumEvent {
 ///   // event implementation
 /// }
 /// ```
+@Deprecated('Use OperationFor(...) for operation-driven mutation instead. AggregateEvent will be removed in a future major release.')
 class AggregateEvent {
   /// The aggregate type this event belongs to.
   ///

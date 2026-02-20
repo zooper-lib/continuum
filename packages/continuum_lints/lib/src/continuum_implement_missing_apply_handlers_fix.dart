@@ -7,7 +7,7 @@ import 'package:custom_lint_builder/custom_lint_builder.dart';
 import 'continuum_required_apply_handlers.dart';
 
 /// Quick-fix that inserts stub implementations for missing `apply<Event>(...)`
-/// handlers required by the generated `_$<Aggregate>EventHandlers` mixin.
+/// handlers required by the generated `_$<Target>EventHandlers` mixin.
 final class ContinuumImplementMissingApplyHandlersFix extends DartFix {
   static final Object _resolvedUnitKey = Object();
 

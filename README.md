@@ -9,10 +9,10 @@ Continuum provides a comprehensive event sourcing framework for Dart application
 | Layer | Package | Purpose |
 |-------|---------|---------|
 | 0 | **`continuum`** | Core types: annotations, events, identity, dispatch registries |
-| 0 | **`continuum_generator`** | Code generator for aggregate and event boilerplate |
+| 0 | **`continuum_generator`** | Code generator for operation and event boilerplate |
 | 1 | **`continuum_uow`** | Unit of Work session engine: sessions, transactional runner, commit handler |
 | 2 | **`continuum_event_sourcing`** | Event sourcing persistence: event stores, serialization, projections |
-| 2 | **`continuum_state`** | State-based persistence: REST/DB adapter-driven aggregate persistence |
+| 2 | **`continuum_state`** | State-based persistence: REST/DB adapter-driven target persistence |
 | 3 | **`continuum_store_memory`** | In-memory EventStore for testing |
 | 3 | **`continuum_store_hive`** | Hive-backed EventStore for local persistence |
 | 3 | **`continuum_store_sembast`** | Sembast-backed EventStore for cross-platform persistence |
@@ -70,10 +70,12 @@ import 'package:continuum/continuum.dart';
 
 part 'shopping_cart.g.dart';
 
-class ShoppingCart extends AggregateRoot<String> with _$ShoppingCartEventHandlers {
+@OperationTarget()
+class ShoppingCart with _$ShoppingCartEventHandlers {
+  String id;
   List<String> items;
 
-  ShoppingCart._({required super.id, required this.items});
+  ShoppingCart._({required this.id, required this.items});
   static ShoppingCart createFromCartCreated(CartCreated event) {
     return ShoppingCart._(id: event.cartId, items: []);
   }
@@ -84,7 +86,7 @@ class ShoppingCart extends AggregateRoot<String> with _$ShoppingCartEventHandler
   }
 }
 
-@AggregateEvent(of: ShoppingCart, type: 'cart.created', creation: true)
+@OperationFor(type: ShoppingCart, key: 'cart.created', creation: true)
 class CartCreated implements ContinuumEvent {
   final String cartId;
 
@@ -121,7 +123,7 @@ import 'continuum.g.dart';
 
 final store = EventSourcingStore(
   eventStore: InMemoryEventStore(),
-  aggregates: $aggregateList,
+  targets: $aggregateList,
 );
 
 final session = store.openSession();
@@ -144,7 +146,7 @@ import 'continuum.g.dart';
 
 final store = StateBasedStore(
   adapters: {ShoppingCart: CartApiAdapter(httpClient)},
-  aggregates: $aggregateList,
+  targets: $aggregateList,
 );
 
 final session = store.openSession();
@@ -159,7 +161,7 @@ await session.saveChangesAsync(); // Adapter persists to backend
 
 ### continuum
 
-Core library providing annotations (`@Aggregate`, `@AggregateEvent`, `@Projection`), event contracts (`ContinuumEvent`), identity types (`EventId`, `StreamId`), dispatch registries, `EventApplicationMode`, and core exceptions.
+Core library providing annotations (`@OperationTarget`, `@OperationFor`, `@Projection`), event contracts (`ContinuumEvent`), identity types (`EventId`, `StreamId`), dispatch registries, `EventApplicationMode`, and core exceptions.
 
 ### continuum_generator
 
@@ -191,7 +193,7 @@ Sembast-backed `EventStore` implementation for cross-platform local persistence.
 
 ### continuum_lints
 
-Custom lint rules for `@Aggregate` and `@Projection` classes.
+Custom lint rules for operation targets and projections.
 
 ## License
 

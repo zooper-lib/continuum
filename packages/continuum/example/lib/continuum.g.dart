@@ -3,10 +3,9 @@
 // ignore_for_file: type=lint
 
 import 'package:continuum/continuum.dart';
-import 'package:continuum_event_sourcing/continuum_event_sourcing.dart';
 import 'package:continuum_uow/continuum_uow.dart';
 
-import 'abstract_interface_aggregates.dart';
+import 'abstract_interface_targets.dart';
 import 'domain/projections/user_profile_projection.dart';
 import 'domain/user.dart';
 
@@ -23,7 +22,7 @@ final List<GeneratedAggregate> $aggregateList = [
 /// All discovered projections in this package.
 ///
 /// Use this list to register all projections with the registry,
-/// or use the generated [$ProjectionRegistryExtensions.registerAll] method.
+/// or use the generated [ProjectionRegistryExtensions.registerAll] method.
 final List<GeneratedProjection> $projectionList = [
   $UserProfileProjection,
 ];

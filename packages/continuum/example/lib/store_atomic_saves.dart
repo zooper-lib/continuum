@@ -1,11 +1,11 @@
 /// Store Example: Atomic Multi-Stream Saves
 ///
-/// Demonstrates that a single session can modify multiple aggregates and persist
+/// Demonstrates that a single session can modify multiple targets and persist
 /// all changes atomically - either all succeed or all fail together.
 ///
 /// What you'll learn:
 /// - How one saveChangesAsync() can persist multiple streams
-/// - Why this matters for maintaining consistency across related aggregates
+/// - Why this matters for maintaining consistency across related targets
 /// - That stores implementing AtomicEventStore support this
 ///
 /// Real-world use cases:
@@ -35,7 +35,7 @@ void main() async {
 
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   // Setup: Create two users
@@ -67,7 +67,7 @@ void main() async {
   print('Updating both users in one transaction...');
   print('');
 
-  // Open one session for both aggregates
+  // Open one session for both targets
   session = store.openSession();
 
   // Load both users

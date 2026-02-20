@@ -11,10 +11,11 @@ final class UserId extends TypedIdentity<String> {
   const UserId(super.value);
 }
 
-/// A User aggregate demonstrating event sourcing.
+/// A User operation target demonstrating event sourcing.
 ///
 /// Users are created via registration, can update their email,
 /// and can be deactivated. Each state change is an event.
+@OperationTarget()
 class User extends AggregateRoot<UserId> with _$UserEventHandlers {
   String email;
   String name;

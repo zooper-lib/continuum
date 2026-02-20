@@ -2,20 +2,24 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 
-/// Computes which creation factory methods an aggregate root is missing.
+/// Computes which creation factory methods an operation target is missing.
 ///
-/// A creation event `E` for aggregate `A` requires a matching static factory:
-/// `static A createFromE(E event)`.
+/// A creation operation `O` for target `T` requires a matching static factory:
+/// `static T createFromO(O operation)`.
 final class ContinuumRequiredCreationFactories {
   static final TypeChecker _aggregateEventChecker = const TypeChecker.fromUrl(
     'package:continuum/src/annotations/aggregate_event.dart#AggregateEvent',
+  );
+
+  static final TypeChecker _operationForChecker = const TypeChecker.fromUrl(
+    'package:continuum/src/annotations/operation_for.dart#OperationFor',
   );
 
   static final TypeChecker _continuumEventChecker = const TypeChecker.fromUrl(
     'package:continuum/src/events/continuum_event.dart#ContinuumEvent',
   );
 
-  /// Creates a requirement checker for aggregate creation factories.
+  /// Creates a requirement checker for operation target creation factories.
   const ContinuumRequiredCreationFactories();
 
   /// Returns the list of missing factory method names.
@@ -95,14 +99,17 @@ final class ContinuumRequiredCreationFactories {
 
     for (final LibraryElement library in librariesToScan) {
       for (final ClassElement candidate in library.classes) {
-        if (!_aggregateEventChecker.hasAnnotationOf(candidate)) continue;
+        final bool isAggregateEvent = _aggregateEventChecker.hasAnnotationOf(candidate);
+        final bool isOperationFor = _operationForChecker.hasAnnotationOf(candidate);
+        if (!isAggregateEvent && !isOperationFor) continue;
         if (!_continuumEventChecker.isAssignableFrom(candidate)) continue;
 
-        final annotation = _aggregateEventChecker.firstAnnotationOf(candidate);
+        final annotation = _operationForChecker.firstAnnotationOf(candidate) ?? _aggregateEventChecker.firstAnnotationOf(candidate);
         if (annotation == null) continue;
 
-        final ofValue = annotation.getField('of');
-        final DartType? aggregateType = ofValue?.toTypeValue();
+        final targetFieldName = isOperationFor ? 'type' : 'of';
+        final targetValue = annotation.getField(targetFieldName);
+        final DartType? aggregateType = targetValue?.toTypeValue();
 
         if (aggregateType?.element != aggregateClassElement) continue;
 

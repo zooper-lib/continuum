@@ -2,15 +2,15 @@
 ///
 /// Demonstrates how to use `StateBasedStore` with `TransactionalRunner` for
 /// apps backed by a traditional REST API. The backend is the source of truth —
-/// it returns aggregates directly, and accepts commands like "update email"
+/// it returns targets directly, and accepts commands like "update email"
 /// or "deactivate account". There is no event store; events exist only in
 /// memory as domain-level state mutations.
 ///
 /// What you'll learn:
-/// - How to implement `AggregatePersistenceAdapter` backed by a REST API
+/// - How to implement `TargetPersistenceAdapter` backed by a REST API
 /// - How `TransactionalRunner` manages session lifecycle (auto-commit)
 /// - How to run multiple mutations in a single transaction
-/// - How the adapter receives the post-mutation aggregate and pending
+/// - How the adapter receives the post-mutation target and pending
 ///   operations, letting it choose how to translate them into API calls
 ///
 /// Real-world use case: A mobile or web app where the backend owns
@@ -114,7 +114,7 @@ final class UserRecord {
 
 // ── Adapter ─────────────────────────────────────────────────────────────────
 
-/// Bridges the `User` aggregate to the fake REST API.
+/// Bridges the `User` target to the fake REST API.
 ///
 /// `fetchAsync` maps `GET /users/:id` → `User` domain object.
 /// `persistAsync` inspects pending operations and translates them
@@ -122,7 +122,7 @@ final class UserRecord {
 /// mutations).
 ///
 /// In production, replace `FakeBackendApi` with a real HTTP client.
-final class UserApiAdapter implements AggregatePersistenceAdapter<User> {
+final class UserApiAdapter implements TargetPersistenceAdapter<User> {
   /// The backend API client injected at construction time.
   final FakeBackendApi _api;
 
@@ -131,11 +131,11 @@ final class UserApiAdapter implements AggregatePersistenceAdapter<User> {
 
   @override
   Future<User> fetchAsync(StreamId streamId) async {
-    // Load user state from the backend and reconstruct the aggregate.
+    // Load user state from the backend and reconstruct the target.
     final record = await _api.getUserAsync(streamId.value);
 
     // The backend returns all fields — we reconstruct the domain
-    // aggregate using its creation factory. This is the only place
+    // target using its creation factory. This is the only place
     // where backend ↔ domain mapping happens.
     return User.createFromUserRegistered(
       UserRegistered(
@@ -149,12 +149,12 @@ final class UserApiAdapter implements AggregatePersistenceAdapter<User> {
   @override
   Future<void> persistAsync(
     StreamId streamId,
-    User aggregate,
+    User target,
     List<Operation> pendingOperations,
   ) async {
     // Inspect the pending operations to decide which backend calls
     // to make. The adapter has full flexibility here — it can send
-    // the final aggregate state, translate each operation into a
+    // the final target state, translate each operation into a
     // separate API call, or batch them.
     for (final operation in pendingOperations) {
       switch (operation) {
@@ -162,15 +162,15 @@ final class UserApiAdapter implements AggregatePersistenceAdapter<User> {
           // Creation event → POST new user to the backend.
           await _api.createUserAsync(
             streamId.value,
-            aggregate.name,
-            aggregate.email,
+            target.name,
+            target.email,
           );
 
         case EmailChanged():
           // Email mutation → PATCH with the new email.
           await _api.updateUserAsync(
             streamId.value,
-            email: aggregate.email,
+            email: target.email,
           );
 
         case UserDeactivated():
@@ -178,7 +178,7 @@ final class UserApiAdapter implements AggregatePersistenceAdapter<User> {
           await _api.updateUserAsync(
             streamId.value,
             isActive: false,
-            deactivatedAt: aggregate.deactivatedAt,
+            deactivatedAt: target.deactivatedAt,
           );
       }
     }
@@ -196,15 +196,15 @@ void main() async {
   // The backend API client — in production, inject your HTTP client here.
   final backendApi = FakeBackendApi();
 
-  // The adapter bridges the User aggregate to the backend.
+  // The adapter bridges the User target to the backend.
   final userAdapter = UserApiAdapter(api: backendApi);
 
-  // Construct a StateBasedStore with one adapter per aggregate type.
+  // Construct a StateBasedStore with one adapter per target type.
   // $aggregateList provides the generated event-application registries
-  // so the session knows how to apply events to aggregates.
+  // so the session knows how to apply events to targets.
   final store = StateBasedStore(
     adapters: {User: userAdapter},
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   // TransactionalRunner manages session lifecycle automatically:
@@ -224,7 +224,7 @@ void main() async {
     // Access the ambient session provided by the runner.
     final session = TransactionalRunner.currentSession;
 
-    // Apply the creation event — the session tracks the new aggregate
+    // Apply the creation event — the session tracks the new target
     // and the adapter will receive a UserRegistered operation on commit.
     final user = await session.applyAsync<User>(
       userId,

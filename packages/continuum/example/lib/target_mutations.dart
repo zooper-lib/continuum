@@ -1,6 +1,6 @@
 /// Example 2: Applying Events to Change State
 ///
-/// This example shows how to mutate aggregate state by applying events.
+/// This example shows how to mutate target state by applying events.
 /// Each event represents a state transition with business meaning.
 library;
 

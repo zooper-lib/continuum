@@ -7,6 +7,98 @@ import 'package:test/test.dart';
 
 void main() {
   group('AggregateDiscovery', () {
+    test('discovers @OperationTarget types without AggregateRoot', () async {
+      // Arrange
+      final inputs = <String, String>{
+        'continuum_generator|lib/domain.dart': r"""
+import 'package:continuum/continuum.dart';
+
+@OperationTarget()
+class UserProfile {
+  UserProfile();
+}
+""",
+      };
+
+      // Act
+      final aggregates = await resolveSources(
+        inputs,
+        (resolver) async {
+          final library = await _libraryFor(resolver, 'continuum_generator|lib/domain.dart');
+          return AggregateDiscovery().discoverAggregates(
+            library,
+            candidateEventLibraries: <LibraryElement>[library],
+          );
+        },
+        rootPackage: 'continuum_generator',
+        readAllSourcesFromFilesystem: true,
+      );
+
+      // Assert
+      expect(aggregates, hasLength(1));
+      expect(aggregates.single.name, 'UserProfile');
+    });
+
+    test('associates @OperationFor operations to @OperationTarget types', () async {
+      // Arrange
+      final inputs = <String, String>{
+        'continuum_generator|lib/domain.dart': r"""
+import 'package:continuum/continuum.dart';
+
+@OperationTarget()
+class UserProfile {
+  UserProfile();
+}
+
+@OperationFor(type: UserProfile, key: 'user_profile.renamed')
+class UserProfileRenamed implements ContinuumEvent {
+  UserProfileRenamed({
+    EventId? eventId,
+    DateTime? occurredOn,
+    Map<String, Object?> metadata = const {},
+  }) : id = eventId ?? EventId.fromUlid(),
+       occurredOn = occurredOn ?? DateTime(2020, 1, 1),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  @override
+  final EventId id;
+
+  @override
+  final DateTime occurredOn;
+
+  @override
+  final Map<String, Object?> metadata;
+}
+""",
+      };
+
+      // Act
+      final aggregates = await resolveSources(
+        inputs,
+        (resolver) async {
+          final library = await _libraryFor(resolver, 'continuum_generator|lib/domain.dart');
+          return AggregateDiscovery().discoverAggregates(
+            library,
+            candidateEventLibraries: <LibraryElement>[library],
+          );
+        },
+        rootPackage: 'continuum_generator',
+        readAllSourcesFromFilesystem: true,
+      );
+
+      // Assert
+      expect(aggregates, hasLength(1));
+      expect(aggregates.single.name, 'UserProfile');
+      expect(
+        aggregates.single.mutationEvents.map((e) => e.name),
+        contains('UserProfileRenamed'),
+      );
+      expect(
+        aggregates.single.mutationEvents.single.type,
+        equals('user_profile.renamed'),
+      );
+    });
+
     test('discovers abstract aggregate roots', () async {
       // Arrange
       final inputs = <String, String>{

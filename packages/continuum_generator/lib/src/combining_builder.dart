@@ -16,12 +16,15 @@ const List<String> _generatedDartFileSuffixesToIgnore = <String>[
 /// A builder that combines all discovered aggregates and projections into a single file.
 ///
 /// This builder runs after all per-aggregate and per-projection generators have completed.
-/// It scans the entire package for bounded `AggregateRoot` types and `@Projection()` annotations and generates
-/// a single `lib/continuum.g.dart` file containing `$aggregateList`, `$projectionList`,
+/// It scans the entire package for discoverable operation targets and `@Projection()` annotations and generates
+/// a single `lib/continuum.g.dart` file containing `$targetList` (and the deprecated `$aggregateList` alias), `$projectionList`,
 /// and a `registerAll` extension method on [ProjectionRegistry].
 class CombiningBuilder implements Builder {
   /// Type checker for bounded's AggregateRoot base class.
   static const _aggregateRootChecker = TypeChecker.fromUrl('package:bounded/src/aggregate_root.dart#AggregateRoot');
+
+  /// Type checker for the @OperationTarget annotation.
+  static const _operationTargetChecker = TypeChecker.fromUrl('package:continuum/src/annotations/operation_target.dart#OperationTarget');
 
   /// Discovery for extracting full projection metadata.
   final _projectionDiscovery = ProjectionDiscovery();
@@ -54,7 +57,7 @@ class CombiningBuilder implements Builder {
 
       // Find all classes assignable to AggregateRoot.
       for (final element in library.classes) {
-        if (_aggregateRootChecker.isAssignableFrom(element)) {
+        if (_aggregateRootChecker.isAssignableFrom(element) || _operationTargetChecker.hasAnnotationOf(element)) {
           aggregateInfos.add(
             _DiscoveredInfo(
               className: element.displayName,
@@ -133,19 +136,26 @@ class CombiningBuilder implements Builder {
 
     buffer.writeln();
 
-    // Generate $aggregateList if any aggregates found.
+    // Generate $targetList if any targets found.
     if (aggregateInfos.isNotEmpty) {
-      buffer.writeln('/// All discovered aggregates in this package.');
+      buffer.writeln('/// All discovered operation targets in this package.');
       buffer.writeln('///');
       buffer.writeln('/// Pass this list to [EventSourcingStore] for automatic');
       buffer.writeln('/// registration of all serializers, factories, and appliers.');
-      buffer.writeln('final List<GeneratedAggregate> \$aggregateList = [');
+      buffer.writeln('final List<GeneratedAggregate> \$targetList = [');
 
       for (final info in aggregateInfos) {
         buffer.writeln('  \$${info.className},');
       }
 
       buffer.writeln('];');
+      buffer.writeln();
+
+      buffer.writeln('/// Backward-compatible alias for [\$targetList].');
+      buffer.writeln('///');
+      buffer.writeln('/// This package historically exposed discovered targets as `\$aggregateList`.');
+      buffer.writeln("@Deprecated('Use \$targetList instead.')");
+      buffer.writeln('final List<GeneratedAggregate> \$aggregateList = \$targetList;');
       buffer.writeln();
     }
 

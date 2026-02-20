@@ -3,7 +3,7 @@ import 'package:continuum/continuum.dart';
 import '../user.dart';
 
 /// Event fired when a new user registers.
-@AggregateEvent(of: User, type: 'user.registered', creation: true)
+@OperationFor(type: User, key: 'user.registered', creation: true)
 class UserRegistered implements ContinuumEvent {
   UserRegistered({
     required this.userId,

@@ -29,7 +29,7 @@ void main() async {
   
   final store = EventSourcingStore(
     eventStore: eventStore,
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   // Use your aggregates

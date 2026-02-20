@@ -9,7 +9,7 @@ part 'user_profile_projection.g.dart';
 /// Read model for a user's profile information.
 ///
 /// This is a denormalized view optimized for querying user profile data
-/// without reconstructing the full aggregate.
+/// without reconstructing the full target.
 class UserProfile {
   final String name;
   final String email;

@@ -2,15 +2,15 @@
 ///
 /// Demonstrates `StateBasedStore` — the persistence mode for apps backed
 /// by a traditional backend (REST API, GraphQL, database). Instead of
-/// persisting events, each aggregate is loaded and saved through an
-/// `AggregatePersistenceAdapter` that talks to the backend.
+/// persisting events, each target is loaded and saved through an
+/// [TargetPersistenceAdapter] that talks to the backend.
 ///
 /// What you'll learn:
-/// - How to implement `AggregatePersistenceAdapter` for your aggregate
-/// - How to construct a `StateBasedStore` from adapters and aggregate metadata
+/// - How to implement [TargetPersistenceAdapter] for your target
+/// - How to construct a `StateBasedStore` from adapters and target metadata
 /// - How sessions work identically to `EventSourcingStore` (same `applyAsync` /
 ///   `saveChangesAsync` contract)
-/// - How the adapter receives the post-event aggregate state on save
+/// - How the adapter receives the post-event target state on save
 ///
 /// Real-world use case: Backend-authoritative apps where the frontend uses
 /// domain events for local state management, then syncs to a REST API.
@@ -27,9 +27,9 @@ import 'package:continuum_uow/continuum_uow.dart';
 /// A fake backend adapter that stores user state in memory.
 ///
 /// In a real app this would make HTTP requests to your backend API.
-/// The adapter translates between the domain aggregate and the backend's
+/// The adapter translates between the domain target and the backend's
 /// representation (DTOs, JSON, etc.).
-class FakeUserApiAdapter implements AggregatePersistenceAdapter<User> {
+class FakeUserApiAdapter implements TargetPersistenceAdapter<User> {
   /// Simulates a backend database keyed by stream ID.
   final Map<String, _UserRecord> _backendDb = {};
 
@@ -45,7 +45,7 @@ class FakeUserApiAdapter implements AggregatePersistenceAdapter<User> {
 
     print('    [Backend] GET /users/${streamId.value} → 200 OK');
 
-    // Reconstruct the domain aggregate from the stored record.
+    // Reconstruct the domain target from the stored record.
     return User.createFromUserRegistered(
       UserRegistered(
         userId: UserId(record.id),
@@ -58,18 +58,18 @@ class FakeUserApiAdapter implements AggregatePersistenceAdapter<User> {
   @override
   Future<void> persistAsync(
     StreamId streamId,
-    User aggregate,
+    User target,
     List<Operation> pendingOperations,
   ) async {
     // Simulate network latency.
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
-    // The adapter decides how to translate the aggregate + events into
+    // The adapter decides how to translate the target + events into
     // backend calls. Here we simply store the final state.
     _backendDb[streamId.value] = _UserRecord(
       id: streamId.value,
-      email: aggregate.email,
-      name: aggregate.name,
+      email: target.email,
+      name: target.name,
     );
 
     print(
@@ -98,15 +98,15 @@ void main() async {
   print('═══════════════════════════════════════════════════════════════════');
   print('');
 
-  // The adapter bridges your aggregate to the backend.
+  // The adapter bridges your target to the backend.
   // In production you'd inject an HTTP client here.
   final userAdapter = FakeUserApiAdapter();
 
-  // Construct the store with one adapter per aggregate type.
+  // Construct the store with one adapter per target type.
   // $aggregateList provides the generated event-application registries.
   final store = StateBasedStore(
     adapters: {User: userAdapter},
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   final userId = const StreamId('user-001');
@@ -140,7 +140,7 @@ void main() async {
   print('  [Memory]  Updated: ${user.name} <${user.email}>');
   print('');
 
-  // Save — the adapter receives the post-event aggregate + pending events
+  // Save — the adapter receives the post-event target + pending events
   print('  [Persisting] Saving via adapter...');
   await session.saveChangesAsync();
   print('  Done.');

@@ -1,7 +1,7 @@
-/// Example 1: Creating Aggregates
+/// Example 1: Creating Targets
 ///
-/// This example shows how to create an aggregate from a creation event.
-/// Every aggregate starts with a creation event that captures its initial state.
+/// This example shows how to create a target from a creation event.
+/// Every target starts with a creation event that captures its initial state.
 library;
 
 import 'package:continuum_example/domain/events/user_registered.dart';
@@ -9,12 +9,12 @@ import 'package:continuum_example/domain/user.dart';
 
 void main() {
   print('═══════════════════════════════════════════════════════════════════');
-  print('Example 1: Creating Aggregates from Events');
+  print('Example 1: Creating Targets from Events');
   print('═══════════════════════════════════════════════════════════════════');
   print('');
 
-  // Every aggregate begins its life with a creation event.
-  // The creation event captures all the data needed to initialize the aggregate.
+  // Every target begins its life with a creation event.
+  // The creation event captures all the data needed to initialize the target.
   final user = User.createFromUserRegistered(
     UserRegistered(
       userId: const UserId('user-123'),
@@ -27,5 +27,5 @@ void main() {
   print('  $user');
   print('');
 
-  print('✓ The aggregate is now in memory and ready for mutations.');
+  print('✓ The target is now in memory and ready for mutations.');
 }

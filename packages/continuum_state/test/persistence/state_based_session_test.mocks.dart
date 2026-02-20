@@ -6,8 +6,7 @@
 import 'dart:async' as _i4;
 
 import 'package:continuum/continuum.dart' as _i5;
-import 'package:continuum_state/src/persistence/aggregate_persistence_adapter.dart'
-    as _i2;
+import 'package:continuum_state/src/persistence/target_persistence_adapter.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i6;
 
@@ -28,11 +27,10 @@ import '../_fixtures/counter_fixtures.dart' as _i3;
 // ignore_for_file: subtype_of_sealed_class
 // ignore_for_file: invalid_use_of_internal_member
 
-/// A class which mocks [AggregatePersistenceAdapter].
+/// A class which mocks [TargetPersistenceAdapter].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAggregatePersistenceAdapter extends _i1.Mock
-    implements _i2.AggregatePersistenceAdapter<_i3.Counter> {
+class MockTargetPersistenceAdapter extends _i1.Mock implements _i2.TargetPersistenceAdapter<_i3.Counter> {
   @override
   _i4.Future<_i3.Counter> fetchAsync(_i5.StreamId? streamId) =>
       (super.noSuchMethod(

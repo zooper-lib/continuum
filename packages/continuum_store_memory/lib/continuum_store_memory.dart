@@ -1,7 +1,7 @@
 /// In-memory store implementations for the continuum library.
 ///
 /// Provides simple in-memory [EventStore], [ReadModelStore], and
-/// [AggregatePersistenceAdapter] implementations suitable for
+/// [TargetPersistenceAdapter] implementations suitable for
 /// testing and development.
 library;
 

@@ -47,7 +47,7 @@ mixin _$UserProfileProjectionHandlers {
   UserProfile applyUserDeactivated(UserProfile current, UserDeactivated event);
 }
 
-/// Generated extension providing additional event dispatch for UserProfileProjection.
+/// Generated extension providing additional operation dispatch for UserProfileProjection.
 extension $UserProfileProjectionEventDispatch on UserProfileProjection {
   /// Routes an operation to the appropriate apply method.
   ///

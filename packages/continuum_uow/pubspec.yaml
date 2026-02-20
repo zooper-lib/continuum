@@ -1,6 +1,6 @@
 name: continuum_uow
 description: Unit of Work session engine for Continuum — identity map, operation recording, atomic commit, and transactional runner.
-version: 5.1.0
+version: 5.2.0
 repository: https://github.com/zooper/continuum
 homepage: https://zooper.dev
 
