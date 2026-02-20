@@ -18,6 +18,7 @@ final class AccountId extends TypedIdentity<String> {
 }
 
 /// A bank Account aggregate demonstrating multiple aggregates in one project.
+@OperationTarget()
 class Account extends AggregateRoot<AccountId> with _$AccountEventHandlers {
   final String ownerId;
   int balance;

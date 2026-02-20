@@ -19,7 +19,7 @@ void main() {
     eventStore = MockEventStore();
     store = EventSourcingStore(
       eventStore: eventStore,
-      aggregates: [buildGeneratedCounterAggregate()],
+      targets: [buildGeneratedCounterAggregate()],
     );
     serializer = JsonEventSerializer(
       registry: buildCounterSerializerRegistry(),

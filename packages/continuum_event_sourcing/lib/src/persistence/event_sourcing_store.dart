@@ -30,32 +30,45 @@ final class EventSourcingStore implements SessionStore {
   /// Controls when events mutate the in-memory aggregate.
   final EventApplicationMode _applicationMode;
 
-  /// Creates an event sourcing store from generated aggregate bundles.
+  /// Creates an event sourcing store from generated target bundles.
   ///
   /// This is the recommended constructor. Pass all your generated
-  /// aggregate bundles (e.g., `$User`, `$Account`) and the store
+  /// target bundles (e.g., `$User`, `$Account`) and the store
   /// will automatically merge their registries.
   ///
   /// Optionally provide an [applicationMode] to control when events
   /// mutate the in-memory aggregate. Defaults to [EventApplicationMode.eager].
   factory EventSourcingStore({
     required EventStore eventStore,
-    required List<GeneratedAggregate> aggregates,
+    List<GeneratedAggregate>? targets,
+    @Deprecated('Use targets instead. This alias will be removed in a future major release.') List<GeneratedAggregate>? aggregates,
     EventApplicationMode applicationMode = EventApplicationMode.eager,
   }) {
-    // Merge all registries from the provided aggregates
+    final List<GeneratedAggregate>? resolvedTargets = targets ?? aggregates;
+    if (resolvedTargets == null) {
+      throw ArgumentError(
+        'EventSourcingStore requires either `targets` or `aggregates`.',
+      );
+    }
+    if (targets != null && aggregates != null) {
+      throw ArgumentError(
+        'Provide only one of `targets` or `aggregates`.',
+      );
+    }
+
+    // Merge all registries from the provided targets.
     var serializerRegistry = const EventSerializerRegistry.empty();
     var aggregateFactories = const AggregateFactoryRegistry.empty();
     var eventAppliers = const EventApplierRegistry.empty();
 
-    for (final aggregate in aggregates) {
+    for (final target in resolvedTargets) {
       serializerRegistry = serializerRegistry.merge(
-        aggregate.serializerRegistry,
+        target.serializerRegistry,
       );
       aggregateFactories = aggregateFactories.merge(
-        aggregate.aggregateFactories,
+        target.aggregateFactories,
       );
-      eventAppliers = eventAppliers.merge(aggregate.eventAppliers);
+      eventAppliers = eventAppliers.merge(target.eventAppliers);
     }
 
     return EventSourcingStore._(

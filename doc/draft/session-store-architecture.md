@@ -224,14 +224,14 @@ This is a **store-level or session-level configuration**, not a per-event decisi
 // Eager (default) — events mutate the aggregate immediately
 final store = EventSourcingStore(
   eventStore: SembastEventStore(database),
-  aggregates: [$User, $Playlist],
+  targets: [$User, $Playlist],
   applicationMode: EventApplicationMode.eager,
 );
 
 // Deferred — events are recorded but applied only on successful save
 final store = EventSourcingStore(
   eventStore: SembastEventStore(database),
-  aggregates: [$User, $Playlist],
+  targets: [$User, $Playlist],
   applicationMode: EventApplicationMode.deferred,
 );
 ```
@@ -1064,7 +1064,7 @@ State-Based:    applyAsync → save to Backend        → commitHandler → proj
 // main.dart
 final store = EventSourcingStore(
   eventStore: SembastEventStore(database),
-  aggregates: [$AudioFile, $Playlist],
+  targets: [$AudioFile, $Playlist],
 );
 
 final runner = TransactionalRunner(

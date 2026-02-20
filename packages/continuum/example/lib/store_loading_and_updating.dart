@@ -1,11 +1,11 @@
 /// Store Example: Loading and Updating
 ///
-/// Demonstrates the typical workflow: load an existing aggregate from the store,
+/// Demonstrates the typical workflow: load an existing target from the store,
 /// apply changes via events, and persist those changes.
 ///
 /// What you'll learn:
-/// - How loadAsync() rebuilds aggregates by replaying their event history
-/// - How to apply mutation events to an aggregate with applyAsync()
+/// - How loadAsync() rebuilds targets by replaying their event history
+/// - How to apply mutation events to a target with applyAsync()
 /// - Why each session is independent (fresh load every time)
 ///
 /// Real-world use case: Editing profiles, updating orders, processing transactions
@@ -28,7 +28,7 @@ void main() async {
 
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   // Setup: Create a user first
@@ -54,17 +54,17 @@ void main() async {
   // Sessions are short-lived - open one per logical operation
   session = store.openSession();
 
-  // Step 2: Load the aggregate from the stream
+  // Step 2: Load the target from the stream
   // loadAsync() fetches ALL events for this stream and replays them
-  // to rebuild the current aggregate state
+  // to rebuild the current target state
   print('  [Store] Loading events from stream ${userId.value}...');
   print('  [Memory] Replaying events to rebuild state...');
   final user = await session.loadAsync<User>(userId);
-  print('  [Memory] Aggregate loaded: $user');
+  print('  [Memory] Target loaded: $user');
   print('');
 
   // Step 3: Apply events to mutate state
-  // applyAsync() applies the event to the in-memory aggregate
+  // applyAsync() applies the event to the in-memory target
   // and tracks it for persistence
   print('  [Session] Applying EmailChanged event...');
   await session.applyAsync<User>(

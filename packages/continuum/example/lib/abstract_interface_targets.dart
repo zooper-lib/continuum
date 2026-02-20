@@ -1,28 +1,28 @@
-/// Example: Abstract and Interface Aggregates
+/// Example: Abstract and Interface Targets
 ///
 /// This example demonstrates that Continuum can generate event handlers and
-/// dispatch logic for aggregates declared as an `abstract class` or an
+/// dispatch logic for targets declared as an `abstract class` or an
 /// `interface class`.
 library;
 
 import 'package:bounded/bounded.dart';
 import 'package:continuum/continuum.dart';
 
-part 'abstract_interface_aggregates.g.dart';
+part 'abstract_interface_targets.g.dart';
 
 void main() {
   print('═══════════════════════════════════════════════════════════════════');
-  print('Example: Abstract and Interface Aggregates');
+  print('Example: Abstract and Interface Targets');
   print('═══════════════════════════════════════════════════════════════════');
   print('');
 
-  _runAbstractAggregateExample();
+  _runAbstractTargetExample();
   print('');
-  _runInterfaceAggregateExample();
+  _runInterfaceTargetExample();
 }
 
-void _runAbstractAggregateExample() {
-  print('ABSTRACT AGGREGATE');
+void _runAbstractTargetExample() {
+  print('ABSTRACT TARGET');
 
   final user = AbstractUser(
     id: const AbstractUserId('abstract-user-1'),
@@ -42,8 +42,8 @@ void _runAbstractAggregateExample() {
   print('  ✓ Event dispatch works via AbstractUserBase');
 }
 
-void _runInterfaceAggregateExample() {
-  print('CONCRETE AGGREGATE');
+void _runInterfaceTargetExample() {
+  print('CONCRETE TARGET');
 
   final user = UserContract(
     id: const UserContractId('contract-user-1'),
@@ -66,23 +66,25 @@ final class AbstractUserId extends TypedIdentity<String> {
   const AbstractUserId(super.value);
 }
 
-/// An abstract aggregate base type.
+/// An abstract target base type.
 ///
 /// The generator produces:
 /// - `mixin _$AbstractUserBaseEventHandlers`
 /// - `extension $AbstractUserBaseEventDispatch on AbstractUserBase`
-abstract class AbstractUserBase extends AggregateRoot<AbstractUserId> with _$AbstractUserBaseEventHandlers {
+@OperationTarget()
+abstract class AbstractUserBase with _$AbstractUserBaseEventHandlers {
   AbstractUserBase({
-    required AbstractUserId id,
+    required this.id,
     required this.email,
     required this.name,
-  }) : super(id);
+  });
 
+  final AbstractUserId id;
   String email;
   final String name;
 }
 
-/// A concrete implementation of the abstract aggregate.
+/// A concrete implementation of the abstract target.
 class AbstractUser extends AbstractUserBase {
   AbstractUser({
     required super.id,
@@ -100,12 +102,15 @@ final class UserContractId extends TypedIdentity<String> {
   const UserContractId(super.value);
 }
 
-/// A concrete implementation of the interface aggregate.
-class UserContract extends AggregateRoot<UserContractId> with _$UserContractEventHandlers {
+/// A concrete implementation of the interface target.
+@OperationTarget()
+class UserContract with _$UserContractEventHandlers {
   UserContract({
-    required UserContractId id,
+    required this.id,
     required this.displayName,
-  }) : super(id);
+  });
+
+  final UserContractId id;
 
   String displayName;
 
@@ -116,7 +121,7 @@ class UserContract extends AggregateRoot<UserContractId> with _$UserContractEven
 }
 
 /// Event that changes an abstract user's email.
-@AggregateEvent(of: AbstractUserBase, type: 'example.abstract_user.email_changed')
+@OperationFor(type: AbstractUserBase, key: 'example.abstract_user.email_changed')
 class AbstractUserEmailChanged implements ContinuumEvent {
   AbstractUserEmailChanged({
     required this.newEmail,
@@ -155,8 +160,8 @@ class AbstractUserEmailChanged implements ContinuumEvent {
   };
 }
 
-/// Event that renames a user implementing an interface aggregate.
-@AggregateEvent(of: UserContract, type: 'example.contract_user.renamed')
+/// Event that renames a user implementing an interface target.
+@OperationFor(type: UserContract, key: 'example.contract_user.renamed')
 class ContractUserRenamed implements ContinuumEvent {
   ContractUserRenamed({
     required this.newDisplayName,

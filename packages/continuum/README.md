@@ -19,7 +19,7 @@ dev_dependencies:
 
 ## What This Package Provides
 
-- **Annotations**: `@AggregateEvent()`, `@Projection()`
+- **Annotations**: `@OperationTarget()`, `@OperationFor(...)`, `@Projection()`
 - **Event contract**: `ContinuumEvent` interface
 - **Identity types**: `EventId`, `StreamId`
 - **Operation enum**: `Operation.create`, `Operation.mutate`
@@ -48,18 +48,20 @@ Continuum is organized into four layers:
 
 ## Quick Start
 
-### Define Your Aggregate
+### Define Your Target
 
 ```dart
 import 'package:continuum/continuum.dart';
 
 part 'user.g.dart';
 
-class User extends AggregateRoot<String> with _$UserEventHandlers {
+@OperationTarget()
+class User with _$UserEventHandlers {
+  String id;
   String name;
   String email;
 
-  User._({required super.id, required this.name, required this.email});
+  User._({required this.id, required this.name, required this.email});
 
   static User createFromUserRegistered(UserRegistered event) {
     return User._(id: event.userId, name: event.name, email: event.email);
@@ -77,7 +79,7 @@ class User extends AggregateRoot<String> with _$UserEventHandlers {
 ```dart
 import 'package:continuum/continuum.dart';
 
-@AggregateEvent(of: User, type: 'user.registered', creation: true)
+@OperationFor(type: User, key: 'user.registered', creation: true)
 class UserRegistered implements ContinuumEvent {
   UserRegistered({
     required this.userId,
@@ -111,7 +113,7 @@ dart run build_runner build
 
 This creates:
 - `user.g.dart` with `_$UserEventHandlers` mixin
-- `lib/continuum.g.dart` with `$aggregateList`
+- `lib/continuum.g.dart` with `$aggregateList` (auto-discovered operation targets)
 
 ## Custom Lints (Recommended)
 

@@ -3,8 +3,8 @@
 /// Example 3: Rebuilding State by Replaying Events
 ///
 /// This example demonstrates event sourcing's core principle: rebuilding
-/// aggregate state by replaying its event history. This is how event stores
-/// load aggregates from persistence.
+/// target state by replaying its event history. This is how event stores
+/// load targets from persistence.
 library;
 
 import 'package:continuum/continuum.dart';
@@ -44,7 +44,7 @@ void main() {
   }
   print('');
 
-  // Rebuild the aggregate by replaying events
+  // Rebuild the target by replaying events
   print('Replaying events to rebuild state...');
   final creationEvent = events.first as UserRegistered;
   final user = User.createFromUserRegistered(creationEvent);
@@ -53,7 +53,7 @@ void main() {
   user.replayEvents(events.skip(1));
 
   print('');
-  print('Rebuilt aggregate state:');
+  print('Rebuilt target state:');
   print('  $user');
   print('');
 

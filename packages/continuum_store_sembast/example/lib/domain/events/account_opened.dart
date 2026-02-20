@@ -3,7 +3,7 @@ import 'package:continuum/continuum.dart';
 import '../account.dart';
 
 /// Event fired when a new account is opened.
-@AggregateEvent(of: Account, type: 'account.opened', creation: true)
+@OperationFor(type: Account, key: 'account.opened', creation: true)
 class AccountOpened implements ContinuumEvent {
   AccountOpened({
     required this.accountId,

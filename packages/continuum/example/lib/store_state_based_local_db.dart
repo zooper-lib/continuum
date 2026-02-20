@@ -1,19 +1,19 @@
 /// State-Based Persistence with Local Database
 ///
 /// Demonstrates how to use `StateBasedStore` with a local database.
-/// The adapter stores and loads aggregates as whole entities — no event
+/// The adapter stores and loads targets as whole entities — no event
 /// sourcing, no remote backend. This is the simplest persistence model:
 /// load the full object, mutate it with domain events, and write it back.
 ///
 /// What you'll learn:
-/// - How to implement `AggregatePersistenceAdapter` for a local database
-/// - How the adapter serializes/deserializes whole aggregates (JSON maps)
+/// - How to implement `TargetPersistenceAdapter` for a local database
+/// - How the adapter serializes/deserializes whole targets (JSON maps)
 /// - How `TransactionalRunner` auto-commits changes to the local DB
 /// - How create vs. update is handled inside `persistAsync`
 ///
 /// Real-world use case: A mobile app that stores user profiles in a local
 /// database (Hive, Sembast, Isar, SQLite, etc.) with no backend involved.
-/// The database holds the full current state of each aggregate.
+/// The database holds the full current state of each target.
 library;
 
 import 'dart:convert';
@@ -75,17 +75,17 @@ final class FakeLocalDatabase {
 
 // ── Adapter ─────────────────────────────────────────────────────────────────
 
-/// Bridges the `User` aggregate to a local key-value database.
+/// Bridges the `User` target to a local key-value database.
 ///
 /// `fetchAsync` reads a JSON map from the database and reconstructs the
-/// aggregate. `persistAsync` serializes the aggregate's current state
+/// target. `persistAsync` serializes the target's current state
 /// and writes it back. The pending operations list is ignored here — we
 /// simply store the whole entity every time.
 ///
 /// This is the simplest adapter strategy: full-entity read/write. More
 /// sophisticated adapters could diff fields, use SQL UPDATE for changed
 /// columns only, etc.
-final class UserLocalDbAdapter implements AggregatePersistenceAdapter<User> {
+final class UserLocalDbAdapter implements TargetPersistenceAdapter<User> {
   /// The local database instance.
   final FakeLocalDatabase _db;
 
@@ -99,7 +99,7 @@ final class UserLocalDbAdapter implements AggregatePersistenceAdapter<User> {
       throw StateError('User not found in local DB: ${streamId.value}');
     }
 
-    // Deserialize from JSON map → domain aggregate.
+    // Deserialize from JSON map → domain target.
     // First create via the creation factory, then restore mutable fields
     // that may have changed since creation.
     final user = User.createFromUserRegistered(
@@ -122,17 +122,17 @@ final class UserLocalDbAdapter implements AggregatePersistenceAdapter<User> {
   @override
   Future<void> persistAsync(
     StreamId streamId,
-    User aggregate,
+    User target,
     List<Operation> pendingOperations,
   ) async {
-    // Serialize the full aggregate state to a JSON map and write it.
+    // Serialize the full target state to a JSON map and write it.
     // We ignore pendingOperations entirely — just store the whole entity.
     await _db.put(streamId.value, {
-      'id': aggregate.id.value,
-      'name': aggregate.name,
-      'email': aggregate.email,
-      'isActive': aggregate.isActive,
-      'deactivatedAt': aggregate.deactivatedAt?.toIso8601String(),
+      'id': target.id.value,
+      'name': target.name,
+      'email': target.email,
+      'isActive': target.isActive,
+      'deactivatedAt': target.deactivatedAt?.toIso8601String(),
     });
   }
 }
@@ -149,14 +149,14 @@ void main() async {
   // Isar, SharedPreferences, SQLite, etc.
   final db = FakeLocalDatabase();
 
-  // The adapter bridges the User aggregate to the local database.
+  // The adapter bridges the User target to the local database.
   final userAdapter = UserLocalDbAdapter(db: db);
 
   // Construct a StateBasedStore — identical setup as the backend
   // example, just with a different adapter implementation.
   final store = StateBasedStore(
     adapters: {User: userAdapter},
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   // TransactionalRunner manages session lifecycle.

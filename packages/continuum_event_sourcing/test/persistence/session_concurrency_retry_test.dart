@@ -22,7 +22,7 @@ void main() {
     eventStore = MockEventStore();
     store = EventSourcingStore(
       eventStore: eventStore,
-      aggregates: [buildGeneratedCounterAggregate()],
+      targets: [buildGeneratedCounterAggregate()],
     );
     serializer = JsonEventSerializer(
       registry: buildCounterSerializerRegistry(),
@@ -537,7 +537,7 @@ void main() {
       final atomicStore = MockAtomicEventStore();
       final store = EventSourcingStore(
         eventStore: atomicStore,
-        aggregates: [buildGeneratedCounterAggregate()],
+        targets: [buildGeneratedCounterAggregate()],
       );
 
       final streamA = const StreamId('counter-a');

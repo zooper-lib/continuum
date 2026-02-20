@@ -21,7 +21,7 @@ void main() {
     eventStore = MockEventStore();
     store = EventSourcingStore(
       eventStore: eventStore,
-      aggregates: [buildGeneratedCounterAggregate()],
+      targets: [buildGeneratedCounterAggregate()],
     );
     serializer = JsonEventSerializer(
       registry: buildCounterSerializerRegistry(),
@@ -286,7 +286,7 @@ void main() {
       final atomicStore = MockAtomicEventStore();
       final eventSourcingStore = EventSourcingStore(
         eventStore: atomicStore,
-        aggregates: [buildGeneratedCounterAggregate()],
+        targets: [buildGeneratedCounterAggregate()],
       );
 
       when(atomicStore.appendEventsToStreamsAsync(any)).thenAnswer((_) async {});

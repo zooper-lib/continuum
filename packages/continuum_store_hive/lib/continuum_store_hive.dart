@@ -1,7 +1,7 @@
 /// Hive-backed store implementations for the continuum library.
 ///
 /// Provides persistent local [EventStore], [ReadModelStore], and
-/// [AggregatePersistenceAdapter] implementations using Hive.
+/// [TargetPersistenceAdapter] implementations using Hive.
 library;
 
 export 'src/hive_event_store.dart';

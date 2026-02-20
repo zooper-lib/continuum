@@ -21,7 +21,7 @@ import 'continuum.g.dart'; // Generated
 void main() async {
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   // Use your aggregates

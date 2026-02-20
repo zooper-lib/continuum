@@ -1,14 +1,14 @@
 # Continuum Generator
 
-Code generator for the [continuum](../continuum) event sourcing library. Automatically generates event handling code and discovers all aggregates in your project.
+Code generator for the [continuum](../continuum) event sourcing library. Automatically generates event handling code and discovers all operation targets in your project.
 
 ## What It Generates
 
-### Per-Aggregate Files (`*.g.dart`)
+### Per-Target Files (`*.g.dart`)
 
-For each `AggregateRoot()` class, generates:
+For each operation target (a class annotated with `@OperationTarget()`, or a legacy `AggregateRoot` class), generates:
 
-1. **Event handler mixin** (`_$YourAggregateEventHandlers`)
+1. **Event handler mixin** (`_$YourTypeEventHandlers`)
    - Connects your `applyEventName()` methods to events
    - Type-safe event dispatching
 
@@ -24,7 +24,7 @@ For each `AggregateRoot()` class, generates:
 
 ### Global Discovery (`lib/continuum.g.dart`)
 
-Automatically discovers all `AggregateRoot()` classes and generates:
+Automatically discovers all operation targets and generates:
 
 ```dart
 final List<GeneratedAggregate> $aggregateList = [
@@ -39,7 +39,7 @@ This enables zero-configuration setup:
 ```dart
 final store = EventSourcingStore(
   eventStore: myStore,
-  aggregates: $aggregateList, // Just works!
+  targets: $aggregateList, // Just works!
 );
 ```
 
@@ -65,10 +65,13 @@ import 'package:continuum/continuum.dart';
 
 part 'user.g.dart';
 
-class User extends AggregateRoot<String> with _$UserEventHandlers {
+@OperationTarget()
+class User with _$UserEventHandlers {
+  User._({required this.id, required this.email});
+
+  final String id;
   String email;
 
-  User._({required super.id, required this.email});
   static User createFromUserCreated(UserCreated event) {
     return User._(id: event.userId, email: event.email);
   }
@@ -79,7 +82,7 @@ class User extends AggregateRoot<String> with _$UserEventHandlers {
   }
 }
 
-@AggregateEvent(of: User, type: 'user.created')
+@OperationFor(type: User, key: 'user.created', creation: true)
 class UserCreated implements ContinuumEvent {
   UserCreated({
     required this.userId,
@@ -122,7 +125,7 @@ class UserCreated implements ContinuumEvent {
   }
 }
 
-@AggregateEvent(of: User, type: 'user.email_changed')
+@OperationFor(type: User, key: 'user.email_changed')
 class EmailChanged implements ContinuumEvent {
   EmailChanged({
     required this.userId,
@@ -192,7 +195,7 @@ void main() {
   // Zero-configuration setup!
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   final userId = StreamId('123');
@@ -280,7 +283,7 @@ Each package gets its own `continuum.g.dart` with its aggregates.
 
 ## How Auto-Discovery Works
 
-The generator scans all `.dart` files in your `lib/` directory for `AggregateRoot` classes and collects them into `$aggregateList`. This happens in a separate build phase after all per-aggregate generators complete.
+The generator scans all `.dart` files in your `lib/` directory for operation targets and collects them into `$aggregateList`. This happens in a separate build phase after all per-target generators complete.
 
 **You don't need to:**
 - Manually import aggregate files
@@ -288,7 +291,7 @@ The generator scans all `.dart` files in your `lib/` directory for `AggregateRoo
 - Merge multiple registries
 
 **Just:**
-1. Extend `AggregateRoot` in your aggregate class
+1. Annotate your target class with `@OperationTarget()` (or extend `AggregateRoot` as a legacy marker)
 2. Run `build_runner`
 3. Use `$aggregateList`
 
@@ -305,7 +308,7 @@ dart run build_runner build
 
 Make sure:
 1. You have `part 'my_aggregate.g.dart';` directive
-2. Your class extends `AggregateRoot` and mixes in `_$MyAggregateEventHandlers`:
+2. Your class is an operation target and mixes in `_$MyAggregateEventHandlers`:
 3. You've run `build_runner`
 
 ### "No apply method found for event"

@@ -17,7 +17,7 @@ void main() {
     test('loadAsync caches within a session (one store load)', () async {
       final eventStore = MockEventStore();
       final aggregate = buildGeneratedCounterAggregate();
-      final store = EventSourcingStore(eventStore: eventStore, aggregates: [aggregate]);
+      final store = EventSourcingStore(eventStore: eventStore, targets: [aggregate]);
 
       final serializer = JsonEventSerializer(registry: buildCounterSerializerRegistry());
       final streamId = const StreamId('counter-1');
@@ -64,7 +64,7 @@ void main() {
     test('discardStream removes pending events but keeps mutated state', () async {
       final eventStore = MockEventStore();
       final aggregate = buildGeneratedCounterAggregate();
-      final store = EventSourcingStore(eventStore: eventStore, aggregates: [aggregate]);
+      final store = EventSourcingStore(eventStore: eventStore, targets: [aggregate]);
       final session = store.openSession();
 
       final streamId = const StreamId('counter-2');
@@ -94,7 +94,7 @@ void main() {
       () async {
         final eventStore = MockEventStore();
         final aggregate = buildGeneratedCounterAggregate();
-        final store = EventSourcingStore(eventStore: eventStore, aggregates: [aggregate]);
+        final store = EventSourcingStore(eventStore: eventStore, targets: [aggregate]);
         final session = store.openSession();
 
         when(eventStore.appendEventsAsync(any, any, any, aggregateType: anyNamed('aggregateType'))).thenAnswer((_) async {});
@@ -131,7 +131,7 @@ void main() {
     test('saveChangesAsync uses ExpectedVersion.exact for loaded streams', () async {
       final eventStore = MockEventStore();
       final aggregate = buildGeneratedCounterAggregate();
-      final store = EventSourcingStore(eventStore: eventStore, aggregates: [aggregate]);
+      final store = EventSourcingStore(eventStore: eventStore, targets: [aggregate]);
 
       final serializer = JsonEventSerializer(registry: buildCounterSerializerRegistry());
       final streamId = const StreamId('counter-existing');
@@ -186,7 +186,7 @@ void main() {
         });
 
         final aggregate = buildGeneratedCounterAggregate();
-        final store = EventSourcingStore(eventStore: eventStore, aggregates: [aggregate]);
+        final store = EventSourcingStore(eventStore: eventStore, targets: [aggregate]);
         final session = store.openSession();
 
         final s1 = const StreamId('counter-a');

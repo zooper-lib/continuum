@@ -46,7 +46,7 @@ void main() async {
   );
   final store = EventSourcingStore(
     eventStore: sembastStore,
-    aggregates: $aggregateList, // Auto-generated from AggregateRoot classes
+    targets: $aggregateList, // Auto-generated from @OperationTarget / legacy AggregateRoot targets
   );
 
   print('Creating a user...');

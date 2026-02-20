@@ -42,7 +42,7 @@ void main() async {
   final hiveStore = await HiveEventStore.openAsync(boxName: 'events');
   final store = EventSourcingStore(
     eventStore: hiveStore,
-    aggregates: $aggregateList, // Auto-generated from AggregateRoot classes
+    targets: $aggregateList, // Auto-generated from @OperationTarget / legacy AggregateRoot targets
   );
 
   print('Creating a user...');

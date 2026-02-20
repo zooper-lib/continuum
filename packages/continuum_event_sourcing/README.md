@@ -28,7 +28,7 @@ import 'continuum.g.dart';
 
 final store = EventSourcingStore(
   eventStore: InMemoryEventStore(),
-  aggregates: $aggregateList,
+  targets: $aggregateList,
 );
 
 final session = store.openSession();
@@ -42,7 +42,7 @@ await session.saveChangesAsync();
 
 ### Serialization
 
-Events are serialized to JSON via `JsonEventSerializer`. Implement `toJson()` / `fromJson()` on your events and register them through `@AggregateEvent(type: '...')`.
+Events are serialized to JSON via `JsonEventSerializer`. Implement `toJson()` / `fromJson()` on your events and register them through `@OperationFor(type: YourTarget, key: '...')`.
 
 ### Projections
 

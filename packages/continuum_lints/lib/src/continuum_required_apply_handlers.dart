@@ -2,13 +2,17 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 
-/// Computes which `apply...` handlers a concrete aggregate is still missing.
+/// Computes which `apply...` handlers a concrete operation target is missing.
 ///
 /// The handler requirements are derived from the generated
-/// `_$<Aggregate>EventHandlers` mixin.
+/// `_$<Target>EventHandlers` mixin.
 final class ContinuumRequiredApplyHandlers {
   static final TypeChecker _aggregateEventChecker = const TypeChecker.fromUrl(
     'package:continuum/src/annotations/aggregate_event.dart#AggregateEvent',
+  );
+
+  static final TypeChecker _operationForChecker = const TypeChecker.fromUrl(
+    'package:continuum/src/annotations/operation_for.dart#OperationFor',
   );
 
   /// Creates a requirement checker for generated continuum apply handlers.
@@ -16,7 +20,7 @@ final class ContinuumRequiredApplyHandlers {
 
   /// Returns the list of missing apply handler method names.
   ///
-  /// If the class does not mix in `_$<Aggregate>EventHandlers`, this returns an
+  /// If the class does not mix in `_$<Target>EventHandlers`, this returns an
   /// empty list.
   List<String> findMissingApplyHandlers(ClassElement classElement) {
     final List<MethodElement> missingMethods = findMissingApplyHandlerMethods(classElement);
@@ -28,7 +32,7 @@ final class ContinuumRequiredApplyHandlers {
   ///
   /// This is useful for generating method stubs in quick-fixes.
   ///
-  /// If the class does not mix in `_$<Aggregate>EventHandlers`, this returns an
+  /// If the class does not mix in `_$<Target>EventHandlers`, this returns an
   /// empty list.
   List<MethodElement> findMissingApplyHandlerMethods(ClassElement classElement) {
     final InterfaceType? eventHandlersMixinType = _findEventHandlersMixinType(classElement);
@@ -68,12 +72,15 @@ final class ContinuumRequiredApplyHandlers {
     final Element? eventElement = parameter.type.element;
     if (eventElement is! ClassElement) return false;
 
-    if (!_aggregateEventChecker.hasAnnotationOf(eventElement)) return false;
+    final bool isAggregateEvent = _aggregateEventChecker.hasAnnotationOf(eventElement);
+    final bool isOperationFor = _operationForChecker.hasAnnotationOf(eventElement);
+    if (!isAggregateEvent && !isOperationFor) return false;
 
-    final annotation = _aggregateEventChecker.firstAnnotationOf(eventElement);
+    final annotation = _operationForChecker.firstAnnotationOf(eventElement) ?? _aggregateEventChecker.firstAnnotationOf(eventElement);
     if (annotation == null) return false;
 
-    final DartType? annotatedAggregateType = annotation.getField('of')?.toTypeValue();
+    final String targetFieldName = isOperationFor ? 'type' : 'of';
+    final DartType? annotatedAggregateType = annotation.getField(targetFieldName)?.toTypeValue();
     if (annotatedAggregateType?.element != aggregateClassElement) return false;
 
     return annotation.getField('creation')?.toBoolValue() ?? false;

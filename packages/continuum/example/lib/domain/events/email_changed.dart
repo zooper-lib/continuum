@@ -3,7 +3,7 @@ import 'package:continuum/continuum.dart';
 import '../user.dart';
 
 /// Event fired when a user changes their email address.
-@AggregateEvent(of: User, type: 'user.email_changed')
+@OperationFor(type: User, key: 'user.email_changed')
 class EmailChanged implements ContinuumEvent {
   EmailChanged({
     required this.newEmail,
@@ -17,11 +17,11 @@ class EmailChanged implements ContinuumEvent {
 
   /// The user this event belongs to.
   ///
-  /// Optional because the aggregate context provides the stream ID
+  /// Optional because the target context provides the stream ID
   /// during event sourcing. Required for projection key extraction
-  /// when events are processed outside the aggregate context.
+  /// when events are processed outside the target context.
   final UserId? userId;
-  
+
   final String newEmail;
 
   @override

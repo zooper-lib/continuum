@@ -18,6 +18,7 @@ final class UserId extends TypedIdentity<String> {
 }
 
 /// A User aggregate demonstrating event sourcing with Hive persistence.
+@OperationTarget()
 class User extends AggregateRoot<UserId> with _$UserEventHandlers {
   String email;
   String name;

@@ -7,9 +7,9 @@ import 'package:custom_lint_builder/custom_lint_builder.dart';
 import 'continuum_implement_missing_apply_handlers_fix.dart';
 import 'continuum_required_apply_handlers.dart';
 
-/// Reports when a non-abstract aggregate root is missing required
+/// Reports when a non-abstract operation target is missing required
 /// `apply<Event>(...)` handlers declared by the generated
-/// `_$<Aggregate>EventHandlers` mixin.
+/// `_$<Target>EventHandlers` mixin.
 ///
 /// Why this exists:
 /// - Dart allows classes to become *implicitly abstract* when they do not
@@ -20,12 +20,15 @@ import 'continuum_required_apply_handlers.dart';
 final class ContinuumMissingApplyHandlersRule extends DartLintRule {
   static const LintCode _lintCode = LintCode(
     name: 'continuum_missing_apply_handlers',
-    problemMessage: 'This aggregate root mixes in generated event handlers but is missing apply methods: {0}.',
+    problemMessage: 'This operation target mixes in generated event handlers but is missing apply methods: {0}.',
     correctionMessage: 'Implement the missing apply<Event>(...) methods.',
     errorSeverity: DiagnosticSeverity.WARNING,
   );
 
   static final TypeChecker _aggregateRootChecker = const TypeChecker.fromUrl('package:bounded/src/aggregate_root.dart#AggregateRoot');
+  static final TypeChecker _operationTargetChecker = const TypeChecker.fromUrl(
+    'package:continuum/src/annotations/operation_target.dart#OperationTarget',
+  );
 
   const ContinuumMissingApplyHandlersRule() : super(code: _lintCode);
 
@@ -44,7 +47,8 @@ final class ContinuumMissingApplyHandlersRule extends DartLintRule {
       final ClassElement? classElement = node.declaredFragment?.element;
       if (classElement == null) return;
 
-      if (!_aggregateRootChecker.isAssignableFrom(classElement)) return;
+      final bool isTarget = _aggregateRootChecker.isAssignableFrom(classElement) || _operationTargetChecker.hasAnnotationOf(classElement);
+      if (!isTarget) return;
 
       // If the user explicitly made the class abstract, they can defer handler
       // implementations to concrete subtypes.

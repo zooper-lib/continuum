@@ -33,7 +33,7 @@ void main() async {
   // Events are stored in memory only - lost when the process exits
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList, // Auto-generated from AggregateRoot classes
+    targets: $aggregateList, // Auto-generated from @OperationTarget / legacy AggregateRoot targets
   );
 
   print('Creating a user...');

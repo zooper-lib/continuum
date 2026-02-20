@@ -1,4 +1,4 @@
-/// Continuum - Core types and annotations for event-sourced aggregates.
+/// Continuum - Core types and annotations for operation-driven mutation.
 ///
 /// Provides annotations, event contracts, identity types, and dispatch
 /// registries used by generated code. Persistence and session types
@@ -11,6 +11,8 @@ export 'package:zooper_flutter_core/zooper_flutter_core.dart' show EventId;
 
 // Annotations for code generation discovery
 export 'src/annotations/aggregate_event.dart';
+export 'src/annotations/operation_for.dart';
+export 'src/annotations/operation_target.dart';
 export 'src/annotations/projection.dart';
 
 // Continuum event base contract

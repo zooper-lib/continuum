@@ -8,17 +8,17 @@ import 'package:test/test.dart';
 import '../_fixtures/counter_fixtures.dart';
 
 @GenerateNiceMocks([
-  MockSpec<AggregatePersistenceAdapter<Counter>>(),
+  MockSpec<TargetPersistenceAdapter<Counter>>(),
 ])
 import 'state_based_store_test.mocks.dart';
 
 void main() {
-  late MockAggregatePersistenceAdapter mockAdapter;
+  late MockTargetPersistenceAdapter mockAdapter;
   late GeneratedAggregate generatedAggregate;
 
   setUp(() {
     provideDummy<Counter>(Counter(0));
-    mockAdapter = MockAggregatePersistenceAdapter();
+    mockAdapter = MockTargetPersistenceAdapter();
     generatedAggregate = buildGeneratedCounterAggregate();
   });
 
@@ -26,7 +26,7 @@ void main() {
     // Arrange & Act
     final store = StateBasedStore(
       adapters: {Counter: mockAdapter},
-      aggregates: [generatedAggregate],
+      targets: [generatedAggregate],
     );
 
     // Assert — type assignability check.
@@ -37,7 +37,7 @@ void main() {
     // Arrange
     final store = StateBasedStore(
       adapters: {Counter: mockAdapter},
-      aggregates: [generatedAggregate],
+      targets: [generatedAggregate],
     );
 
     // Act
@@ -52,7 +52,7 @@ void main() {
     // Arrange — create store without explicit mode.
     final store = StateBasedStore(
       adapters: {Counter: mockAdapter},
-      aggregates: [generatedAggregate],
+      targets: [generatedAggregate],
     );
     final session = store.openSession();
     const streamId = StreamId('counter-1');
@@ -75,7 +75,7 @@ void main() {
     // Arrange — create store with deferred mode.
     final store = StateBasedStore(
       adapters: {Counter: mockAdapter},
-      aggregates: [generatedAggregate],
+      targets: [generatedAggregate],
       applicationMode: EventApplicationMode.deferred,
     );
     final session = store.openSession();
@@ -99,7 +99,7 @@ void main() {
     // Arrange
     final store = StateBasedStore(
       adapters: {Counter: mockAdapter},
-      aggregates: [generatedAggregate],
+      targets: [generatedAggregate],
     );
     final runner = TransactionalRunner(store: store);
 
@@ -127,7 +127,7 @@ void main() {
       // Arrange
       final store = StateBasedStore(
         adapters: {Counter: mockAdapter},
-        aggregates: [generatedAggregate],
+        targets: [generatedAggregate],
       );
       final session = store.openSession();
       const streamId = StreamId('counter-1');

@@ -1,6 +1,6 @@
 # Continuum State
 
-State-based persistence strategy for [Continuum](https://github.com/zooper-lib/continuum). Provides adapter-driven aggregate persistence for backends that store full aggregate state (REST APIs, databases, GraphQL) rather than event streams.
+State-based persistence strategy for [Continuum](https://github.com/zooper-lib/continuum). Provides adapter-driven target persistence for backends that store full entity state (REST APIs, databases, GraphQL) rather than event streams.
 
 ## Installation
 
@@ -18,7 +18,7 @@ dev_dependencies:
 
 ### StateBasedStore
 
-The configuration root for state-based persistence. Instead of persisting events, each aggregate is loaded and saved through an `AggregatePersistenceAdapter`.
+The configuration root for state-based persistence. Instead of persisting events, each target is loaded and saved through a `TargetPersistenceAdapter`.
 
 ```dart
 import 'package:continuum_state/continuum_state.dart';
@@ -26,7 +26,7 @@ import 'continuum.g.dart';
 
 final store = StateBasedStore(
   adapters: {User: UserApiAdapter(httpClient)},
-  aggregates: $aggregateList,
+  targets: $aggregateList,
 );
 
 final session = store.openSession();
@@ -34,12 +34,12 @@ await session.applyAsync<User>(userId, UserRegistered(...));
 await session.saveChangesAsync(); // Adapter persists to backend
 ```
 
-### AggregatePersistenceAdapter
+### TargetPersistenceAdapter
 
-Each adapter implements two methods — `fetchAsync` to load an aggregate and `persistAsync` to save it:
+Each adapter implements two methods — `fetchAsync` to load a target and `persistAsync` to save it:
 
 ```dart
-class UserApiAdapter implements AggregatePersistenceAdapter<User> {
+class UserApiAdapter implements TargetPersistenceAdapter<User> {
   final HttpClient _client;
 
   UserApiAdapter(this._client);
@@ -53,12 +53,15 @@ class UserApiAdapter implements AggregatePersistenceAdapter<User> {
   @override
   Future<void> persistAsync(
     StreamId streamId,
-    User aggregate,
-    List<ContinuumEvent> pendingEvents,
+    User target,
+    List<Operation> pendingOperations,
   ) async {
-    await _client.put('/users/${streamId.value}', body: aggregate.toJson());
+    await _client.put('/users/${streamId.value}', body: target.toJson());
   }
 }
+
+> Note: `AggregatePersistenceAdapter` is kept as a deprecated alias for backward
+> compatibility.
 ```
 
 ### Exceptions

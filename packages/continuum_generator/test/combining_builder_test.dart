@@ -65,8 +65,10 @@ class User extends AggregateRoot<UserId> {
             allOf(
               contains("import 'package:continuum/continuum.dart';"),
               contains("import 'user.dart';"),
-              contains(r'final List<GeneratedAggregate> $aggregateList = ['),
+              contains(r'final List<GeneratedAggregate> $targetList = ['),
               contains(r'  $User,'),
+              contains(r"@Deprecated('Use $targetList instead.')"),
+              contains(r'final List<GeneratedAggregate> $aggregateList = $targetList;'),
             ),
           ),
         },

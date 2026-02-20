@@ -1,7 +1,7 @@
 /// Continuum State — State-based persistence strategy.
 ///
-/// Provides adapter-driven aggregate persistence for backends that
-/// store full aggregate state (REST APIs, databases, GraphQL) rather
+/// Provides adapter-driven target persistence for backends that
+/// store full entity state (REST APIs, databases, GraphQL) rather
 /// than event streams. Reuses the shared session lifecycle from
 /// `continuum_uow`.
 library;
@@ -9,5 +9,6 @@ library;
 export 'src/exceptions/permanent_adapter_exception.dart';
 export 'src/exceptions/transient_adapter_exception.dart';
 export 'src/persistence/aggregate_persistence_adapter.dart';
+export 'src/persistence/target_persistence_adapter.dart';
 export 'src/persistence/state_based_session.dart';
 export 'src/persistence/state_based_store.dart';
