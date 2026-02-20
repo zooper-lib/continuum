@@ -1,6 +1,6 @@
 name: continuum_store_sembast
 description: Sembast-backed EventStore implementation for the continuum event sourcing library.
-version: 5.0.0
+version: 5.1.0
 repository: https://github.com/zooper/continuum
 homepage: https://zooper.dev
 
@@ -13,6 +13,7 @@ dependencies:
   zooper_flutter_core: ^2.0.0
   continuum: ^5.0.0
   continuum_event_sourcing: ^5.0.0
+  continuum_state: ^5.0.0
   sembast: ^3.8.6
 
 dev_dependencies:
