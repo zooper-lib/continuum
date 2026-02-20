@@ -8,8 +8,14 @@ import 'models/event_info.dart';
 /// Type checker for bounded's AggregateRoot base class.
 const _aggregateRootChecker = TypeChecker.fromUrl('package:bounded/src/aggregate_root.dart#AggregateRoot');
 
-/// Type checker for the @AggregateEvent annotation.
-const _eventChecker = TypeChecker.fromUrl('package:continuum/src/annotations/aggregate_event.dart#AggregateEvent');
+/// Type checker for the @OperationTarget annotation.
+const _operationTargetChecker = TypeChecker.fromUrl('package:continuum/src/annotations/operation_target.dart#OperationTarget');
+
+/// Type checker for the legacy @AggregateEvent annotation.
+const _aggregateEventChecker = TypeChecker.fromUrl('package:continuum/src/annotations/aggregate_event.dart#AggregateEvent');
+
+/// Type checker for the @OperationFor annotation.
+const _operationForChecker = TypeChecker.fromUrl('package:continuum/src/annotations/operation_for.dart#OperationFor');
 
 /// Type checker for the ContinuumEvent base class.
 const _continuumEventChecker = TypeChecker.fromUrl('package:continuum/src/events/continuum_event.dart#ContinuumEvent');
@@ -48,9 +54,11 @@ final class AggregateDiscovery {
 
     // First pass: discover all aggregates in THIS library.
     //
-    // Aggregates are discovered by being assignable to bounded's AggregateRoot.
+    // Targets are discovered by either:
+    // - being annotated with [@OperationTarget] (preferred)
+    // - being assignable to bounded's [AggregateRoot] (legacy; deprecated marker)
     for (final element in library.classes) {
-      if (_aggregateRootChecker.isAssignableFrom(element)) {
+      if (_isOperationTarget(element)) {
         final aggregateName = element.name ?? element.displayName;
         if (aggregateName.isEmpty) continue;
         aggregates[aggregateName] = AggregateInfo(element: element);
@@ -81,7 +89,7 @@ final class AggregateDiscovery {
 
     for (final candidateLibrary in librariesToScan) {
       for (final element in candidateLibrary.classes) {
-        if (!_eventChecker.hasAnnotationOf(element)) continue;
+        if (!_hasOperationAnnotation(element)) continue;
 
         final eventInfo = _extractEventInfo(element);
         if (eventInfo == null) continue;
@@ -121,24 +129,30 @@ final class AggregateDiscovery {
       return null;
     }
 
-    final annotation = _eventChecker.firstAnnotationOf(element);
+    final annotation = _operationForChecker.firstAnnotationOf(element) ?? _aggregateEventChecker.firstAnnotationOf(element);
     if (annotation == null) return null;
 
-    // Extract the of type
-    final ofAggregateValue = annotation.getField('of');
-    if (ofAggregateValue == null || ofAggregateValue.isNull) return null;
+    final bool isOperationFor = _operationForChecker.hasAnnotationOf(element);
 
-    final aggregateType = ofAggregateValue.toTypeValue();
+    // Extract the associated target type.
+    // - OperationFor: `type`
+    // - AggregateEvent: `of`
+    final targetTypeValue = isOperationFor ? annotation.getField('type') : annotation.getField('of');
+    if (targetTypeValue == null || targetTypeValue.isNull) return null;
+
+    final aggregateType = targetTypeValue.toTypeValue();
     if (aggregateType == null) return null;
 
     final aggregateTypeName = _getTypeName(aggregateType);
     if (aggregateTypeName == null) return null;
 
-    // Extract the optional type discriminator
-    final typeValue = annotation.getField('type');
-    final type = typeValue?.toStringValue();
+    // Extract the optional stable discriminator.
+    // - OperationFor: `key`
+    // - AggregateEvent: `type`
+    final discriminatorValue = isOperationFor ? annotation.getField('key') : annotation.getField('type');
+    final type = discriminatorValue?.toStringValue();
 
-    // Determine if this is a creation event via explicit annotation flag.
+    // Determine if this is a creation operation/event via explicit annotation flag.
     final creationValue = annotation.getField('creation');
     final bool isCreationEvent = creationValue?.toBoolValue() ?? false;
 
@@ -150,6 +164,19 @@ final class AggregateDiscovery {
     }
 
     return EventInfo(element: element, aggregateTypeName: aggregateTypeName, type: type, isCreationEvent: isCreationEvent);
+  }
+
+  bool _isOperationTarget(ClassElement classElement) {
+    if (_operationTargetChecker.hasAnnotationOf(classElement)) {
+      return true;
+    }
+
+    // Legacy marker for discovery.
+    return _aggregateRootChecker.isAssignableFrom(classElement);
+  }
+
+  bool _hasOperationAnnotation(ClassElement classElement) {
+    return _operationForChecker.hasAnnotationOf(classElement) || _aggregateEventChecker.hasAnnotationOf(classElement);
   }
 
   /// Gets the type name from a DartType.

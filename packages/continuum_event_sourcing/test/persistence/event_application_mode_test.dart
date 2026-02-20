@@ -46,7 +46,7 @@ void main() {
     setUp(() {
       store = EventSourcingStore(
         eventStore: eventStore,
-        aggregates: [buildGeneratedCounterAggregate()],
+        targets: [buildGeneratedCounterAggregate()],
         applicationMode: EventApplicationMode.eager,
       );
     });
@@ -130,7 +130,7 @@ void main() {
     setUp(() {
       store = EventSourcingStore(
         eventStore: eventStore,
-        aggregates: [buildGeneratedCounterAggregate()],
+        targets: [buildGeneratedCounterAggregate()],
         applicationMode: EventApplicationMode.deferred,
       );
     });

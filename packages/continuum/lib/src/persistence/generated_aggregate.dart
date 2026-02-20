@@ -18,7 +18,7 @@ import 'event_serializer_registry.dart';
 /// // Usage:
 /// final store = EventSourcingStore(
 ///   eventStore: InMemoryEventStore(),
-///   aggregates: [$User, $Account],
+///   targets: [$User, $Account],
 /// );
 /// ```
 final class GeneratedAggregate {

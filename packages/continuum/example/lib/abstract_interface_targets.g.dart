@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'abstract_interface_aggregates.dart';
+part of 'abstract_interface_targets.dart';
 
 // **************************************************************************
 // ContinuumGenerator
@@ -64,21 +64,36 @@ extension $AbstractUserBaseCreation on Never {
 /// Contains all serializers, factories, and appliers for this aggregate.
 /// Add to the `aggregates` list when creating an [EventSourcingStore].
 final $AbstractUserBase = GeneratedAggregate(
-  serializerRegistry: EventSerializerRegistry({
-    AbstractUserEmailChanged: EventSerializerEntry(
-      eventType: 'example.abstract_user.email_changed',
-      toJson: (event) => (event as AbstractUserEmailChanged).toJson(),
-      fromJson: AbstractUserEmailChanged.fromJson,
-    ),
-  }),
-  aggregateFactories: AggregateFactoryRegistry({}),
-  eventAppliers: EventApplierRegistry({
-    AbstractUserBase: {
-      AbstractUserEmailChanged: (aggregate, event) => (aggregate as AbstractUserBase).applyAbstractUserEmailChanged(
-        event as AbstractUserEmailChanged,
+  serializerRegistry: EventSerializerRegistry(
+    {
+      AbstractUserEmailChanged: EventSerializerEntry(
+        eventType: 'example.abstract_user.email_changed',
+        toJson: (event) => (event as AbstractUserEmailChanged).toJson(),
+        fromJson: AbstractUserEmailChanged.fromJson,
       ),
     },
-  }),
+    matchers: {
+      AbstractUserEmailChanged: (Object event) =>
+          event is AbstractUserEmailChanged,
+    },
+  ),
+  aggregateFactories: AggregateFactoryRegistry({}, matchers: {}),
+  eventAppliers: EventApplierRegistry(
+    {
+      AbstractUserBase: {
+        AbstractUserEmailChanged: (aggregate, event) =>
+            (aggregate as AbstractUserBase).applyAbstractUserEmailChanged(
+              event as AbstractUserEmailChanged,
+            ),
+      },
+    },
+    matchers: {
+      AbstractUserBase: {
+        AbstractUserEmailChanged: (Object event) =>
+            event is AbstractUserEmailChanged,
+      },
+    },
+  ),
 );
 
 /// Generated mixin requiring apply methods for UserContract mutation events.
@@ -139,17 +154,30 @@ extension $UserContractCreation on Never {
 /// Contains all serializers, factories, and appliers for this aggregate.
 /// Add to the `aggregates` list when creating an [EventSourcingStore].
 final $UserContract = GeneratedAggregate(
-  serializerRegistry: EventSerializerRegistry({
-    ContractUserRenamed: EventSerializerEntry(
-      eventType: 'example.contract_user.renamed',
-      toJson: (event) => (event as ContractUserRenamed).toJson(),
-      fromJson: ContractUserRenamed.fromJson,
-    ),
-  }),
-  aggregateFactories: AggregateFactoryRegistry({}),
-  eventAppliers: EventApplierRegistry({
-    UserContract: {
-      ContractUserRenamed: (aggregate, event) => (aggregate as UserContract).applyContractUserRenamed(event as ContractUserRenamed),
+  serializerRegistry: EventSerializerRegistry(
+    {
+      ContractUserRenamed: EventSerializerEntry(
+        eventType: 'example.contract_user.renamed',
+        toJson: (event) => (event as ContractUserRenamed).toJson(),
+        fromJson: ContractUserRenamed.fromJson,
+      ),
     },
-  }),
+    matchers: {
+      ContractUserRenamed: (Object event) => event is ContractUserRenamed,
+    },
+  ),
+  aggregateFactories: AggregateFactoryRegistry({}, matchers: {}),
+  eventAppliers: EventApplierRegistry(
+    {
+      UserContract: {
+        ContractUserRenamed: (aggregate, event) => (aggregate as UserContract)
+            .applyContractUserRenamed(event as ContractUserRenamed),
+      },
+    },
+    matchers: {
+      UserContract: {
+        ContractUserRenamed: (Object event) => event is ContractUserRenamed,
+      },
+    },
+  ),
 );

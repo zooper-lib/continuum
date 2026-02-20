@@ -41,7 +41,7 @@ Layer 3 ─ Store implementations
 
 | Layer | Package | Contains |
 |---|---|---|
-| 0 | `continuum` | `Operation`, `ContinuumEvent`, `@AggregateEvent`, `@Projection`, `AggregateFactoryRegistry`, `EventApplierRegistry`, `EventApplicationMode`, `StreamId`, `GeneratedAggregate`, codegen annotations, all operation/event base contracts |
+| 0 | `continuum` | `Operation`, `ContinuumEvent`, `@OperationTarget`, `@OperationFor`, `@Projection`, `AggregateFactoryRegistry`, `EventApplierRegistry`, `EventApplicationMode`, `StreamId`, `GeneratedAggregate`, codegen annotations, all operation/event base contracts |
 | 1 | `continuum_uow` | `Session`, `SessionBase`, `TrackedEntity`, `SessionStore`, `TransactionalRunner`, `CommitHandler`, `ConcurrencyException`, `InvalidOperationException`, `UnsupportedOperationException`, `PartialSaveException` |
 | 2a | `continuum_es` | `EventSourcingStore`, `SessionImpl`, `EventStore`, `AtomicEventStore`, `EventSerializer`, `EventSerializerRegistry`, `JsonEventSerializer`, `StoredEvent`, `ExpectedVersion`, `StreamAppendBatch`, `ProjectionEventStore`, all projection types |
 | 2b | `continuum_state` | `StateBasedStore`, `StateBasedSession`, `AggregatePersistenceAdapter`, `PermanentAdapterException`, `TransientAdapterException` |
@@ -454,7 +454,7 @@ These are Continuum core — the mutation framework primitives:
 
 - `Operation` marker interface
 - `ContinuumEvent` (`implements Operation` + `BoundedDomainEvent` integration)
-- `@AggregateEvent`, `@Projection` annotations
+- `@OperationTarget`, `@OperationFor`, `@Projection` annotations
 - `AggregateFactoryRegistry`, `EventApplierRegistry`
 - `EventApplicationMode`
 - `StreamId`

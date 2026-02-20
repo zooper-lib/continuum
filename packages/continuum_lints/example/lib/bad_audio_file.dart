@@ -1,3 +1,5 @@
+// ignore_for_file: continuum_missing_apply_handlers, continuum_missing_creation_factories
+
 import 'package:bounded/bounded.dart';
 import 'package:continuum/continuum.dart';
 
@@ -11,7 +13,7 @@ final class AudioFileId extends TypedIdentity<String> {
 ///
 /// This event is explicitly marked as a creation event, which means the
 /// aggregate must define a matching `createFromAudioFileCreated(...)` factory.
-@AggregateEvent(of: AudioFile, creation: true)
+@OperationFor(type: AudioFile, creation: true)
 abstract class AudioFileCreated implements ContinuumEvent {
   /// Creates a test event instance.
   const AudioFileCreated();
@@ -44,10 +46,12 @@ mixin _$AudioFileEventHandlers {
 /// - `continuum_missing_creation_factories`: the [AudioFileCreated] event is
 ///   marked as a creation event but the aggregate does not define
 ///   `createFromAudioFileCreated(...)`.
-// ignore: continuum_missing_apply_handlers, continuum_missing_creation_factories
-class AudioFile extends AggregateRoot<AudioFileId> with _$AudioFileEventHandlers {
+@OperationTarget()
+class AudioFile with _$AudioFileEventHandlers {
   /// Creates an [AudioFile].
-  AudioFile(super.id);
+  AudioFile(this.id);
+
+  final String id;
 
   /// Implements `noSuchMethod` so the class can remain concrete even though it
   /// does not implement all interface members.

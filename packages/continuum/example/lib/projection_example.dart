@@ -34,7 +34,7 @@ void main() async {
   // Create event sourcing store.
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   // Wire everything together with TransactionalRunner.

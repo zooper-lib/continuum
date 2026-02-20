@@ -1,7 +1,7 @@
 /// Sembast-backed store implementations for the continuum library.
 ///
 /// Provides persistent local [EventStore], [ReadModelStore], and
-/// [AggregatePersistenceAdapter] implementations using Sembast.
+/// [TargetPersistenceAdapter] implementations using Sembast.
 library;
 
 export 'src/sembast_event_store.dart';

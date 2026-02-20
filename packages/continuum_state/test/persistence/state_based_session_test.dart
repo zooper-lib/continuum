@@ -8,25 +8,25 @@ import 'package:test/test.dart';
 import '../_fixtures/counter_fixtures.dart';
 
 @GenerateNiceMocks([
-  MockSpec<AggregatePersistenceAdapter<Counter>>(),
+  MockSpec<TargetPersistenceAdapter<Counter>>(),
 ])
 import 'state_based_session_test.mocks.dart';
 
 void main() {
-  late MockAggregatePersistenceAdapter mockAdapter;
+  late MockTargetPersistenceAdapter mockAdapter;
   late AggregateFactoryRegistry factoryRegistry;
   late EventApplierRegistry applierRegistry;
 
   setUp(() {
     provideDummy<Counter>(Counter(0));
-    mockAdapter = MockAggregatePersistenceAdapter();
+    mockAdapter = MockTargetPersistenceAdapter();
     factoryRegistry = buildCounterFactoryRegistry();
     applierRegistry = buildCounterApplierRegistry();
   });
 
   /// Creates a [StateBasedSession] with the given adapter map and mode.
   StateBasedSession createSession({
-    Map<Type, AggregatePersistenceAdapter<Object>>? adapters,
+    Map<Type, TargetPersistenceAdapter<Object>>? adapters,
     EventApplicationMode applicationMode = EventApplicationMode.eager,
   }) {
     return StateBasedSession(

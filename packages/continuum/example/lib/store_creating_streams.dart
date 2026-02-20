@@ -1,6 +1,6 @@
 /// Store Example: Creating Streams
 ///
-/// Demonstrates the fundamental operation: creating a new aggregate and persisting
+/// Demonstrates the fundamental operation: creating a new target and persisting
 /// its creation event to the event store.
 ///
 /// What you'll learn:
@@ -26,13 +26,13 @@ void main() async {
 
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   print('Creating a new user stream...');
   print('');
 
-  // Every aggregate lives in its own stream, identified by a StreamId
+  // Every target lives in its own stream, identified by a StreamId
   final userId = const StreamId('user-001');
 
   // Step 1: Open a session
@@ -40,8 +40,8 @@ void main() async {
   final session = store.openSession();
 
   // Step 2: Apply a creation event to start a new stream
-  // applyAsync() detects this is a creation event and creates the aggregate
-  // The aggregate is now in memory and tracked by the session
+  // applyAsync() detects this is a creation event and creates the target
+  // The target is now in memory and tracked by the session
   print('  [Session] Starting new stream...');
   final user = await session.applyAsync<User>(
     userId,
@@ -51,7 +51,7 @@ void main() async {
       name: 'Alice Smith',
     ),
   );
-  print('  [Memory] Aggregate created: $user');
+  print('  [Memory] Target created: $user');
   print('');
 
   // Step 3: Save changes
@@ -64,5 +64,5 @@ void main() async {
 
   print('✓ The UserRegistered event is now in the event store.');
   print('  Stream ID: ${userId.value}');
-  print('  You can now reload this aggregate in a future session.');
+  print('  You can now reload this target in a future session.');
 }

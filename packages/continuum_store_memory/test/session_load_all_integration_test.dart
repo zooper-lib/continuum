@@ -164,7 +164,7 @@ void main() {
     eventStore = InMemoryEventStore();
     store = EventSourcingStore(
       eventStore: eventStore,
-      aggregates: [_buildCounterAggregate(), _buildWalletAggregate()],
+      targets: [_buildCounterAggregate(), _buildWalletAggregate()],
     );
   });
 

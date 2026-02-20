@@ -4,22 +4,22 @@ import 'package:continuum/continuum.dart';
 import 'package:continuum_state/continuum_state.dart';
 import 'package:hive/hive.dart';
 
-/// Hive-backed implementation of [AggregatePersistenceAdapter].
+/// Hive-backed implementation of [TargetPersistenceAdapter].
 ///
-/// Stores aggregates as JSON strings in a Hive [Box].
-/// Aggregates survive app restarts and device reboots.
+/// Stores targets as JSON strings in a Hive [Box].
+/// Targets survive app restarts and device reboots.
 ///
 /// The caller provides [toJson] and [fromJson] callbacks for
-/// aggregate serialization. The adapter stores the full entity
+/// target serialization. The adapter stores the full entity
 /// state on every persist — pending operations are ignored.
-final class HivePersistenceAdapter<TAggregate> implements AggregatePersistenceAdapter<TAggregate> {
-  /// The Hive box storing JSON-encoded aggregates.
+final class HivePersistenceAdapter<TAggregate> implements TargetPersistenceAdapter<TAggregate> {
+  /// The Hive box storing JSON-encoded targets.
   final Box<String> _box;
 
-  /// Serializes an aggregate to a JSON-compatible map.
-  final Map<String, Object?> Function(TAggregate aggregate) _toJson;
+  /// Serializes a target to a JSON-compatible map.
+  final Map<String, Object?> Function(TAggregate target) _toJson;
 
-  /// Deserializes an aggregate from a JSON-compatible map.
+  /// Deserializes a target from a JSON-compatible map.
   final TAggregate Function(Map<String, Object?> json) _fromJson;
 
   /// Private constructor — use [openAsync] factory.
@@ -35,9 +35,9 @@ final class HivePersistenceAdapter<TAggregate> implements AggregatePersistenceAd
   ///
   /// If the box already exists, it is reopened with existing data.
   ///
-  /// The [toJson] and [fromJson] callbacks handle aggregate
+  /// The [toJson] and [fromJson] callbacks handle target
   /// serialization. Both callbacks are responsible for mapping all
-  /// mutable aggregate state — not just the creation fields.
+  /// mutable state — not just the creation fields.
   static Future<HivePersistenceAdapter<TAggregate>> openAsync<TAggregate>({
     required String boxName,
     required Map<String, Object?> Function(TAggregate aggregate) toJson,
@@ -56,11 +56,11 @@ final class HivePersistenceAdapter<TAggregate> implements AggregatePersistenceAd
     final json = _box.get(streamId.value);
     if (json == null) {
       throw StateError(
-        'Aggregate not found in Hive store: ${streamId.value}',
+        'Target not found in Hive store: ${streamId.value}',
       );
     }
 
-    // Decode the stored JSON string back into an aggregate.
+    // Decode the stored JSON string back into a target.
     final decoded = jsonDecode(json) as Map<String, Object?>;
     return _fromJson(decoded);
   }
@@ -68,13 +68,13 @@ final class HivePersistenceAdapter<TAggregate> implements AggregatePersistenceAd
   @override
   Future<void> persistAsync(
     StreamId streamId,
-    TAggregate aggregate,
+    TAggregate target,
     List<Operation> pendingOperations,
   ) async {
-    // Encode the full aggregate state to a JSON string and store it.
+    // Encode the full target state to a JSON string and store it.
     // Pending operations are ignored — we always write the complete
     // entity.
-    final json = jsonEncode(_toJson(aggregate));
+    final json = jsonEncode(_toJson(target));
     await _box.put(streamId.value, json);
   }
 
@@ -85,6 +85,6 @@ final class HivePersistenceAdapter<TAggregate> implements AggregatePersistenceAd
     await _box.close();
   }
 
-  /// The number of stored aggregates.
+  /// The number of stored targets.
   int get length => _box.length;
 }

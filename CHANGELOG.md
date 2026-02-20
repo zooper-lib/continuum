@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `@OperationTarget()` and `@OperationFor(...)` annotations in `continuum` to support operation-driven mutation without requiring `AggregateRoot`.
+
+### Changed
+
+- `continuum_generator` now discovers operation targets via `@OperationTarget()` (and still supports `AggregateRoot` as a legacy marker).
+- `continuum_lints` now applies missing-handler and missing-creation-factory checks to `@OperationTarget()` classes.
+- `EventSourcingStore` and `StateBasedStore` now accept `targets:` instead of `aggregates:` (with `aggregates:` kept as a deprecated alias).
+- State-based persistence now prefers `TargetPersistenceAdapter<T>`; `AggregatePersistenceAdapter<T>` remains as a deprecated alias for backward compatibility.
+
+### Fixed
+
+- Example `abstract_interface_targets.dart` is now discoverable by codegen by marking its target types with `@OperationTarget()`.
+
+### Deprecated
+
+- Deprecated `@AggregateEvent(...)` in favor of operation-oriented annotations.
+
 ## [5.1.0] - 2026-02-20
 
 ### Added

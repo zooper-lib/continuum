@@ -1,22 +1,21 @@
 import 'package:continuum/continuum.dart';
+import 'package:continuum_state/src/persistence/target_persistence_adapter.dart';
 import 'package:continuum_uow/continuum_uow.dart';
 
-import 'aggregate_persistence_adapter.dart';
-
-/// Session implementation backed by [AggregatePersistenceAdapter] instances.
+/// Session implementation backed by [TargetPersistenceAdapter] instances.
 ///
 /// Delegates load to `adapter.fetchAsync` and save to `adapter.persistAsync`,
 /// reusing the shared operation-application logic from [SessionBase]. Supports
 /// concurrency retry when adapters throw [ConcurrencyException] and reports
 /// partial multi-stream save failures via [PartialSaveException].
 final class StateBasedSession extends SessionBase {
-  /// Adapter map keyed by aggregate type.
-  final Map<Type, AggregatePersistenceAdapter<Object>> _adapters;
+  /// Adapter map keyed by target type.
+  final Map<Type, TargetPersistenceAdapter<Object>> _adapters;
 
   /// Creates a state-based session with the given adapter map and
   /// shared registries.
   StateBasedSession({
-    required Map<Type, AggregatePersistenceAdapter<Object>> adapters,
+    required Map<Type, TargetPersistenceAdapter<Object>> adapters,
     required super.aggregateFactories,
     required super.eventAppliers,
     super.applicationMode = EventApplicationMode.eager,
@@ -51,7 +50,7 @@ final class StateBasedSession extends SessionBase {
   @override
   Future<List<TAggregate>> loadAllAsync<TAggregate>() async {
     // State-based sessions do not support bulk loading — there is no
-    // event store to query for stream IDs by aggregate type.
+    // event store to query for stream IDs by target type.
     throw const InvalidOperationException(
       message:
           'loadAllAsync is not supported by StateBasedSession. '
@@ -226,16 +225,16 @@ final class StateBasedSession extends SessionBase {
     );
   }
 
-  /// Resolves the adapter for the given aggregate type.
+  /// Resolves the adapter for the given target type.
   ///
   /// Throws [InvalidOperationException] if no adapter is registered
   /// for [TAggregate].
-  AggregatePersistenceAdapter<Object> _resolveAdapter<TAggregate>() {
+  TargetPersistenceAdapter<Object> _resolveAdapter<TAggregate>() {
     final adapter = _adapters[TAggregate];
     if (adapter == null) {
       throw InvalidOperationException(
         message:
-            'No AggregatePersistenceAdapter registered for $TAggregate. '
+            'No TargetPersistenceAdapter registered for $TAggregate. '
             'Ensure an adapter is provided in the StateBasedStore constructor.',
       );
     }

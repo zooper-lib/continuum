@@ -1,7 +1,7 @@
 /// Store Example: Handling Concurrency Conflicts
 ///
 /// Demonstrates optimistic concurrency control: when two sessions try to save
-/// changes to the same aggregate, the second one detects that the aggregate
+/// changes to the same target, the second one detects that the target
 /// has changed and throws ConcurrencyException.
 ///
 /// What you'll learn:
@@ -34,7 +34,7 @@ void main() async {
 
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   // Setup: Create a user
@@ -53,7 +53,7 @@ void main() async {
   print('');
 
   // Simulate two concurrent operations
-  print('Simulating two users editing the same aggregate simultaneously...');
+  print('Simulating two users editing the same target simultaneously...');
   print('');
 
   // Session 1: Admin loads the user

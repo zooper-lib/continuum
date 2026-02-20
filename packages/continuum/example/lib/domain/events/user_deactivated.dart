@@ -3,7 +3,7 @@ import 'package:continuum/continuum.dart';
 import '../user.dart';
 
 /// Event fired when a user account is deactivated.
-@AggregateEvent(of: User, type: 'user.deactivated')
+@OperationFor(type: User, key: 'user.deactivated')
 class UserDeactivated implements ContinuumEvent {
   UserDeactivated({
     required this.deactivatedAt,
@@ -18,9 +18,9 @@ class UserDeactivated implements ContinuumEvent {
 
   /// The user this event belongs to.
   ///
-  /// Optional because the aggregate context provides the stream ID
+  /// Optional because the target context provides the stream ID
   /// during event sourcing. Required for projection key extraction
-  /// when events are processed outside the aggregate context.
+  /// when events are processed outside the target context.
   final UserId? userId;
   final DateTime deactivatedAt;
   final String? reason;

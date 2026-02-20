@@ -35,7 +35,7 @@ void main() async {
 
   final store = EventSourcingStore(
     eventStore: InMemoryEventStore(),
-    aggregates: $aggregateList,
+    targets: $aggregateList,
   );
 
   // Setup: Create two users
@@ -127,5 +127,5 @@ void main() async {
   print('');
   print('✓ Atomic rollback prevented partial write!');
   print('  Even though Bob had no conflict, it was not persisted.');
-  print('  This preserves cross-aggregate consistency.');
+  print('  This preserves cross-target consistency.');
 }
