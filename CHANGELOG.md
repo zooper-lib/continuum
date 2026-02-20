@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New example `example/lib/store_state_based_transactional.dart` demonstrating `StateBasedStore` with `TransactionalRunner` and a REST API adapter.
 - New example `example/lib/store_state_based_local_db.dart` demonstrating `StateBasedStore` with a local key-value database adapter.
+- `InMemoryPersistenceAdapter` in `continuum_store_memory` — a ready-made `AggregatePersistenceAdapter` backed by a plain `Map`, suitable for testing and development.
+- `HivePersistenceAdapter` in `continuum_store_hive` — a ready-made `AggregatePersistenceAdapter` backed by a Hive `Box<String>`, for local persistence.
+- `SembastPersistenceAdapter` in `continuum_store_sembast` — a ready-made `AggregatePersistenceAdapter` backed by a Sembast store, for local persistence.
 
 ### Removed
 
