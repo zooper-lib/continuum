@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0] - 2026-02-21
+
 ### Added
 
 - Added `deleteAsync(StreamId)` to `Session` for marking aggregates for deletion within a unit of work. No prior load is required — the stream ID alone is sufficient.
