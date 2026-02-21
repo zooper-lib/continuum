@@ -154,7 +154,10 @@ class CombiningBuilder implements Builder {
       buffer.writeln('/// Backward-compatible alias for [\$targetList].');
       buffer.writeln('///');
       buffer.writeln('/// This package historically exposed discovered targets as `\$aggregateList`.');
-      buffer.writeln("@Deprecated('Use \targetList instead.')");
+      // Use a raw string literal so `$targetList` is not treated as string
+      // interpolation by the Dart compiler.
+      // Emit the `$` via `${'\$'}` so the generator does not try to interpolate.
+      buffer.writeln("@Deprecated(r'Use ${'\$'}targetList instead.')");
       buffer.writeln('final List<GeneratedAggregate> \$aggregateList = \$targetList;');
       buffer.writeln();
     }
