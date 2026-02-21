@@ -39,7 +39,7 @@ void main() {
 
   group('loadAsync', () {
     test(
-      '5.1 first call fetches from adapter, second call returns cached',
+      'First call fetches from adapter, second call returns cached',
       () async {
         // Arrange
         final session = createSession();
@@ -62,7 +62,7 @@ void main() {
     );
 
     test(
-      '5.2 throws InvalidOperationException when no adapter registered',
+      'Throws InvalidOperationException when no adapter registered',
       () async {
         // Arrange — session has no adapters registered.
         final session = createSession(adapters: {});
@@ -76,7 +76,7 @@ void main() {
       },
     );
 
-    test('5.3 rethrows StreamNotFoundException from adapter', () async {
+    test('Rethrows StreamNotFoundException from adapter', () async {
       // Arrange
       final session = createSession();
       const streamId = StreamId('missing-1');
@@ -95,7 +95,7 @@ void main() {
 
   group('applyAsync', () {
     test(
-      '5.4 creation event creates aggregate via factory without calling adapter',
+      'Creation event creates aggregate via factory without calling adapter',
       () async {
         // Arrange
         final session = createSession();
@@ -118,7 +118,7 @@ void main() {
     );
 
     test(
-      '5.5 mutation event on untracked stream calls fetchAsync first',
+      'Mutation event on untracked stream calls fetchAsync first',
       () async {
         // Arrange
         final session = createSession();
@@ -147,7 +147,7 @@ void main() {
     );
 
     test(
-      '5.6 event on already-tracked stream applies directly without adapter',
+      'Event on already-tracked stream applies directly without adapter',
       () async {
         // Arrange — load stream so it's tracked.
         final session = createSession();
@@ -180,7 +180,7 @@ void main() {
     );
 
     test(
-      '5.7 creation event on already-tracked stream throws InvalidOperationException',
+      'Creation event on already-tracked stream throws InvalidOperationException',
       () async {
         // Arrange — create a stream so it's tracked.
         final session = createSession();
@@ -204,7 +204,7 @@ void main() {
   });
 
   group('EventApplicationMode', () {
-    test('5.8 eager mode applies event immediately', () async {
+    test('Eager mode applies event immediately', () async {
       // Arrange — eager mode is the default.
       final session = createSession(
         applicationMode: EventApplicationMode.eager,
@@ -225,7 +225,7 @@ void main() {
       expect(counter.value, equals(15));
     });
 
-    test('5.9 deferred mode records event but aggregate unchanged', () async {
+    test('Deferred mode records event but aggregate unchanged', () async {
       // Arrange — deferred mode.
       final session = createSession(
         applicationMode: EventApplicationMode.deferred,
@@ -249,7 +249,7 @@ void main() {
 
   group('saveChangesAsync', () {
     test(
-      '5.10 calls persistAsync with aggregate and pending operations',
+      'Calls persistAsync with aggregate and pending operations',
       () async {
         // Arrange
         final session = createSession();
@@ -288,7 +288,7 @@ void main() {
       },
     );
 
-    test('5.11 deferred mode applies events before persistAsync', () async {
+    test('Deferred mode applies events before persistAsync', () async {
       // Arrange
       final session = createSession(
         applicationMode: EventApplicationMode.deferred,
@@ -325,7 +325,7 @@ void main() {
     });
 
     test(
-      '5.12 no pending operations completes without calling adapter',
+      'No pending operations completes without calling adapter',
       () async {
         // Arrange
         final session = createSession();
@@ -338,7 +338,7 @@ void main() {
       },
     );
 
-    test('5.13 pending operations cleared after successful save', () async {
+    test('Pending operations cleared after successful save', () async {
       // Arrange
       final session = createSession();
       const streamId = StreamId('counter-1');
@@ -361,7 +361,7 @@ void main() {
       verify(mockAdapter.persistAsync(any, any, any)).called(1);
     });
 
-    test('5.14 multiple streams each call persistAsync independently', () async {
+    test('Multiple streams each call persistAsync independently', () async {
       // Arrange — two separate streams share the same adapter.
       final session = createSession();
       const streamId1 = StreamId('counter-1');
@@ -388,9 +388,9 @@ void main() {
     });
   });
 
-  group('concurrency retry', () {
+  group('Concurrency retry', () {
     test(
-      '5.15 ConcurrencyException triggers re-fetch, re-apply, and retry',
+      'ConcurrencyException triggers re-fetch, re-apply, and retry',
       () async {
         // Arrange
         final session = createSession();
@@ -438,7 +438,7 @@ void main() {
     );
 
     test(
-      '5.16 exhausted retries rethrows ConcurrencyException',
+      'Exhausted retries rethrows ConcurrencyException',
       () async {
         // Arrange
         final session = createSession();
@@ -474,7 +474,7 @@ void main() {
       },
     );
 
-    test('5.17 maxRetries parameter controls attempt count', () async {
+    test('MaxRetries parameter controls attempt count', () async {
       // Arrange
       final session = createSession();
       const streamId = StreamId('counter-1');
@@ -511,9 +511,9 @@ void main() {
     });
   });
 
-  group('partial save', () {
+  group('Partial save', () {
     test(
-      '5.18 first stream succeeds, second fails → PartialSaveException',
+      'First stream succeeds, second fails → PartialSaveException',
       () async {
         // Arrange
         final session = createSession();
@@ -563,7 +563,7 @@ void main() {
     );
 
     test(
-      '5.19 saved streams cleared, failed streams retain pending operations',
+      'Saved streams cleared, failed streams retain pending operations',
       () async {
         // Arrange
         final session = createSession();
@@ -610,7 +610,7 @@ void main() {
     );
 
     test(
-      '5.20 single-stream failure rethrows original exception',
+      'Single-stream failure rethrows original exception',
       () async {
         // Arrange — only one stream has pending operations.
         final session = createSession();
@@ -636,7 +636,7 @@ void main() {
     );
 
     test(
-      '5.21 all-streams-fail rethrows first failure',
+      'All-streams-fail rethrows first failure',
       () async {
         // Arrange — two streams, both fail.
         final session = createSession();
@@ -668,9 +668,9 @@ void main() {
     );
   });
 
-  group('exception propagation', () {
+  group('Exception propagation', () {
     test(
-      '5.22 TransientAdapterException propagates unchanged from persistAsync',
+      'TransientAdapterException propagates unchanged from persistAsync',
       () async {
         // Arrange
         final session = createSession();
@@ -696,7 +696,7 @@ void main() {
     );
 
     test(
-      '5.23 PermanentAdapterException propagates unchanged from persistAsync',
+      'PermanentAdapterException propagates unchanged from persistAsync',
       () async {
         // Arrange
         final session = createSession();
@@ -722,7 +722,7 @@ void main() {
     );
 
     test(
-      '5.24 unknown exception propagates unchanged from persistAsync',
+      'Unknown exception propagates unchanged from persistAsync',
       () async {
         // Arrange
         final session = createSession();
@@ -748,8 +748,8 @@ void main() {
     );
   });
 
-  group('discard', () {
-    test('5.25 discardStream clears pending operations for one stream', () async {
+  group('Discard', () {
+    test('DiscardStream clears pending operations for one stream', () async {
       // Arrange
       final session = createSession();
       const streamId = StreamId('counter-1');
@@ -767,7 +767,7 @@ void main() {
       verifyNever(mockAdapter.persistAsync(any, any, any));
     });
 
-    test('5.26 discardAll clears pending operations for all streams', () async {
+    test('DiscardAll clears pending operations for all streams', () async {
       // Arrange
       final session = createSession();
       const streamId1 = StreamId('counter-1');
@@ -788,6 +788,145 @@ void main() {
       // Assert — save should have nothing to persist.
       await session.saveChangesAsync();
       verifyNever(mockAdapter.persistAsync(any, any, any));
+    });
+  });
+
+  group('DeleteAsync', () {
+    test('Deleting a loaded entity calls adapter.deleteAsync on save', () async {
+      // Arrange — load an entity, then mark it for deletion.
+      final session = createSession();
+      const streamId = StreamId('counter-1');
+      final counter = Counter(42);
+
+      when(mockAdapter.fetchAsync(streamId)).thenAnswer((_) async => counter);
+      when(mockAdapter.deleteAsync(streamId)).thenAnswer((_) async {});
+
+      await session.loadAsync<Counter>(streamId);
+
+      // Act — mark for deletion and commit.
+      session.deleteAsync(streamId);
+      await session.saveChangesAsync();
+
+      // Assert — deleteAsync was called on the adapter, persistAsync was not.
+      verify(mockAdapter.deleteAsync(streamId)).called(1);
+      verifyNever(mockAdapter.persistAsync(any, any, any));
+    });
+
+    test('Deleting a created entity calls adapter.deleteAsync on save', () async {
+      // Arrange — create an entity via applyAsync, then mark for deletion.
+      final session = createSession();
+      const streamId = StreamId('counter-1');
+
+      when(mockAdapter.deleteAsync(streamId)).thenAnswer((_) async {});
+
+      await session.applyAsync<Counter>(
+        streamId,
+        CounterCreated(eventId: const EventId('e-1'), initial: 10),
+      );
+
+      // Act — mark for deletion and commit.
+      session.deleteAsync(streamId);
+      await session.saveChangesAsync();
+
+      // Assert — deleteAsync was called; the creation was never persisted
+      // because the entity was marked for deletion before commit.
+      verify(mockAdapter.deleteAsync(streamId)).called(1);
+      verifyNever(mockAdapter.persistAsync(any, any, any));
+    });
+
+    test('Deleting removes entity from identity map after save', () async {
+      // Arrange — load, mark for deletion, save.
+      final session = createSession();
+      const streamId = StreamId('counter-1');
+      final counter = Counter(42);
+
+      when(mockAdapter.fetchAsync(streamId)).thenAnswer((_) async => counter);
+      when(mockAdapter.deleteAsync(streamId)).thenAnswer((_) async {});
+
+      await session.loadAsync<Counter>(streamId);
+      session.deleteAsync(streamId);
+      await session.saveChangesAsync();
+
+      // Act — loading the same stream again should call fetchAsync
+      // because it is no longer in the identity map.
+      final freshCounter = Counter(99);
+      when(mockAdapter.fetchAsync(streamId)).thenAnswer((_) async => freshCounter);
+
+      final reloaded = await session.loadAsync<Counter>(streamId);
+
+      // Assert — the reloaded entity is the fresh one, not the deleted one.
+      expect(reloaded.value, equals(99));
+      verify(mockAdapter.fetchAsync(streamId)).called(2);
+    });
+
+    test('DeleteAsync accepts untracked stream without throwing', () async {
+      // Arrange
+      final session = createSession();
+      const streamId = StreamId('unknown-stream');
+
+      when(mockAdapter.deleteAsync(streamId)).thenAnswer((_) async {});
+
+      // Act — deleting an untracked stream should not throw.
+      session.deleteAsync(streamId);
+      await session.saveChangesAsync();
+
+      // Assert — adapter.deleteAsync was called (idempotent no-op on
+      // the backend side).
+      verify(mockAdapter.deleteAsync(streamId)).called(1);
+    });
+
+    test('DeleteAsync failure does not remove entity from identity map', () async {
+      // Arrange — load entity, mark for deletion, but adapter throws.
+      final session = createSession();
+      const streamId = StreamId('counter-1');
+      final counter = Counter(42);
+
+      when(mockAdapter.fetchAsync(streamId)).thenAnswer((_) async => counter);
+      when(mockAdapter.deleteAsync(streamId)).thenThrow(
+        StateError('Backend unavailable'),
+      );
+
+      await session.loadAsync<Counter>(streamId);
+      session.deleteAsync(streamId);
+
+      // Act & Assert — save should throw due to adapter failure.
+      expect(
+        () => session.saveChangesAsync(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('Save with mixed persist and delete handles both', () async {
+      // Arrange — create two entities, delete one, persist the other.
+      final session = createSession();
+      const streamId1 = StreamId('counter-1');
+      const streamId2 = StreamId('counter-2');
+      final counter2 = Counter(50);
+
+      when(mockAdapter.fetchAsync(streamId2)).thenAnswer((_) async => counter2);
+      when(mockAdapter.deleteAsync(streamId1)).thenAnswer((_) async {});
+      when(mockAdapter.persistAsync(any, any, any)).thenAnswer((_) async {});
+
+      // Create counter-1 and mark for deletion.
+      await session.applyAsync<Counter>(
+        streamId1,
+        CounterCreated(eventId: const EventId('e-1'), initial: 10),
+      );
+      session.deleteAsync(streamId1);
+
+      // Load counter-2 and apply a mutation.
+      await session.loadAsync<Counter>(streamId2);
+      await session.applyAsync<Counter>(
+        streamId2,
+        CounterIncremented(eventId: const EventId('e-2'), amount: 5),
+      );
+
+      // Act — save should handle both persist and delete.
+      await session.saveChangesAsync();
+
+      // Assert — deleteAsync for counter-1, persistAsync for counter-2.
+      verify(mockAdapter.deleteAsync(streamId1)).called(1);
+      verify(mockAdapter.persistAsync(streamId2, any, any)).called(1);
     });
   });
 }

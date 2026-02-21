@@ -15,11 +15,23 @@ final class InMemoryEventStore implements AtomicEventStore, ProjectionEventStore
   /// Per-stream aggregate type metadata for type-based lookups.
   final Map<StreamId, String> _aggregateTypes = {};
 
+  /// Tombstone set — stream IDs that have been soft-deleted.
+  ///
+  /// Soft-deleted streams are excluded from [loadStreamAsync] and
+  /// [getStreamIdsByAggregateTypeAsync] but their events remain in
+  /// [_streams] for auditability.
+  final Set<StreamId> _deletedStreams = {};
+
   /// Global sequence counter for optional global ordering.
   int _globalSequence = 0;
 
   @override
   Future<List<StoredEvent>> loadStreamAsync(StreamId streamId) async {
+    // Soft-deleted streams are treated as non-existent.
+    if (_deletedStreams.contains(streamId)) {
+      return [];
+    }
+
     // Return a copy of the events to prevent external modification
     final events = _streams[streamId];
     if (events == null) {
@@ -113,8 +125,19 @@ final class InMemoryEventStore implements AtomicEventStore, ProjectionEventStore
   Future<List<StreamId>> getStreamIdsByAggregateTypeAsync(
     String aggregateType,
   ) async {
-    // Filter the aggregate type map for streams matching the given type.
-    return _aggregateTypes.entries.where((entry) => entry.value == aggregateType).map((entry) => entry.key).toList();
+    // Filter the aggregate type map for streams matching the given type,
+    // excluding soft-deleted streams.
+    return _aggregateTypes.entries
+        .where((entry) => entry.value == aggregateType && !_deletedStreams.contains(entry.key))
+        .map((entry) => entry.key)
+        .toList();
+  }
+
+  @override
+  Future<void> softDeleteStreamAsync(StreamId streamId) async {
+    // Idempotent — adding an already-deleted or non-existent stream
+    // is a no-op.
+    _deletedStreams.add(streamId);
   }
 
   /// Validates optimistic concurrency expectations.
@@ -144,6 +167,7 @@ final class InMemoryEventStore implements AtomicEventStore, ProjectionEventStore
   void clear() {
     _streams.clear();
     _aggregateTypes.clear();
+    _deletedStreams.clear();
     _globalSequence = 0;
   }
 

@@ -91,6 +91,14 @@ final class FakeBackendApi {
 
     print('    [Backend] PATCH /users/$id → 200 OK');
   }
+
+  /// Simulates `DELETE /users/:id` — removes a user from the backend.
+  Future<void> deleteUserAsync(String id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+
+    _database.remove(id);
+    print('    [Backend] DELETE /users/$id → 200 OK');
+  }
 }
 
 /// Simple record representing server-side user state.
@@ -182,6 +190,12 @@ final class UserApiAdapter implements TargetPersistenceAdapter<User> {
           );
       }
     }
+  }
+
+  @override
+  Future<void> deleteAsync(StreamId streamId) async {
+    // Delete the user from the backend.
+    await _api.deleteUserAsync(streamId.value);
   }
 }
 

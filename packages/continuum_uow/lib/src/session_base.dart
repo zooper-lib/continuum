@@ -37,6 +37,14 @@ abstract class SessionBase implements Session {
   /// in-memory entity instance for the lifetime of the session.
   final Map<StreamId, TrackedEntity> trackedEntities = {};
 
+  /// Stream IDs marked for deletion during the next commit.
+  ///
+  /// Populated by [deleteAsync], consumed and cleared by
+  /// [saveChangesAsync]. Subclass implementations must iterate
+  /// this set during save to perform the actual deletion.
+  @protected
+  final Set<StreamId> streamsMarkedForDeletion = {};
+
   /// Creates a session base with shared dependencies.
   ///
   /// Requires an [AggregateFactoryRegistry] for creation dispatch,
@@ -264,6 +272,16 @@ abstract class SessionBase implements Session {
         }
       }
     }
+  }
+
+  @override
+  void deleteAsync(StreamId streamId) {
+    // Record the stream ID for deletion during the next commit.
+    // The actual deletion is handled by the subclass in
+    // saveChangesAsync. No prior load is required — the stream ID
+    // alone is sufficient for both state-based adapters and event
+    // store tombstone writes.
+    streamsMarkedForDeletion.add(streamId);
   }
 
   @override

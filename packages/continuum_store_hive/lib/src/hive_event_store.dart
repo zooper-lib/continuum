@@ -34,6 +34,14 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
   /// enabling [getStreamIdsByAggregateTypeAsync] queries.
   final Box<String> _aggregateTypesBox;
 
+  /// The Hive box for storing soft-deletion tombstone flags.
+  ///
+  /// Maps stream ID values to `true` when the stream has been
+  /// soft-deleted via [softDeleteStreamAsync]. Streams present in
+  /// this box are excluded from [loadStreamAsync] and
+  /// [getStreamIdsByAggregateTypeAsync].
+  final Box<bool> _deletedStreamsBox;
+
   /// Global sequence counter for ordered projections.
   int _globalSequence;
 
@@ -46,11 +54,13 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
     required Box<int> streamsBox,
     required Box<String> transactionsBox,
     required Box<String> aggregateTypesBox,
+    required Box<bool> deletedStreamsBox,
     required int globalSequence,
   }) : _eventsBox = eventsBox,
        _streamsBox = streamsBox,
        _transactionsBox = transactionsBox,
        _aggregateTypesBox = aggregateTypesBox,
+       _deletedStreamsBox = deletedStreamsBox,
        _globalSequence = globalSequence,
        _exclusiveOperation = Future<void>.value();
 
@@ -63,6 +73,7 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
     final streamsBox = await Hive.openBox<int>('${boxName}_streams');
     final transactionsBox = await Hive.openBox<String>('$boxName$_transactionsBoxSuffix');
     final aggregateTypesBox = await Hive.openBox<String>('${boxName}_aggregate_types');
+    final deletedStreamsBox = await Hive.openBox<bool>('${boxName}_deleted_streams');
 
     await _recoverIncompleteTransactionsAsync(
       eventsBox: eventsBox,
@@ -78,6 +89,7 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
       streamsBox: streamsBox,
       transactionsBox: transactionsBox,
       aggregateTypesBox: aggregateTypesBox,
+      deletedStreamsBox: deletedStreamsBox,
       globalSequence: globalSequence,
     );
   }
@@ -140,6 +152,11 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
   @override
   Future<List<StoredEvent>> loadStreamAsync(StreamId streamId) async {
     return _runExclusiveAsync<List<StoredEvent>>(() async {
+      // Soft-deleted streams are treated as non-existent.
+      if (_deletedStreamsBox.containsKey(streamId.value)) {
+        return <StoredEvent>[];
+      }
+
       // Get the current version for this stream
       final int? currentVersion = _streamsBox.get(streamId.value);
       if (currentVersion == null) {
@@ -299,6 +316,7 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
       await _streamsBox.close();
       await _transactionsBox.close();
       await _aggregateTypesBox.close();
+      await _deletedStreamsBox.close();
     });
   }
 
@@ -309,12 +327,23 @@ final class HiveEventStore implements AtomicEventStore, ProjectionEventStore {
     return _runExclusiveAsync<List<StreamId>>(() async {
       final List<StreamId> result = <StreamId>[];
       for (final dynamic key in _aggregateTypesBox.keys) {
-        final String? storedType = _aggregateTypesBox.get(key);
-        if (storedType == aggregateType) {
-          result.add(StreamId(key as String));
+        final String keyString = key as String;
+        final String? storedType = _aggregateTypesBox.get(keyString);
+        // Exclude soft-deleted streams from type-based queries.
+        if (storedType == aggregateType && !_deletedStreamsBox.containsKey(keyString)) {
+          result.add(StreamId(keyString));
         }
       }
       return result;
+    });
+  }
+
+  @override
+  Future<void> softDeleteStreamAsync(StreamId streamId) async {
+    return _runExclusiveAsync<void>(() async {
+      // Idempotent — marking an already-deleted or non-existent stream
+      // is a no-op (Hive put is naturally idempotent).
+      await _deletedStreamsBox.put(streamId.value, true);
     });
   }
 

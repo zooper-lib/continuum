@@ -52,6 +52,9 @@ final class _InMemoryTestSession extends SessionBase {
     Map<StreamId, ({Object entity, Type entityType, int version})>? store,
   }) : store = store ?? {};
 
+  /// Exposes the protected deletion set for test assertions.
+  Set<StreamId> get deletionSet => streamsMarkedForDeletion;
+
   @override
   Future<TAggregate> loadAsync<TAggregate>(StreamId streamId) async {
     final entry = store[streamId];
@@ -88,6 +91,7 @@ final class _InMemoryTestSession extends SessionBase {
   @override
   Future<CommitBatch> saveChangesAsync({int maxRetries = 1}) async {
     final pendingEntries = trackedEntities.entries.where((e) => e.value.pendingOperations.isNotEmpty).toList();
+    final deletionEntries = trackedEntities.entries.where((e) => streamsMarkedForDeletion.contains(e.key)).toList();
 
     // Apply deferred operations before saving.
     applyDeferredOperations(pendingEntries);
@@ -110,6 +114,15 @@ final class _InMemoryTestSession extends SessionBase {
     // Clear pending operations after successful save.
     for (final entry in pendingEntries) {
       trackedEntities[entry.key] = entry.value.withClearedPendingOperations();
+    }
+
+    // Remove deleted entities from the identity map and clear the
+    // deletion set (handles both tracked and untracked deletions).
+    for (final entry in deletionEntries) {
+      trackedEntities.remove(entry.key);
+    }
+    for (final streamId in Set<StreamId>.of(streamsMarkedForDeletion)) {
+      streamsMarkedForDeletion.remove(streamId);
     }
 
     return CommitBatch(entries: entries);
@@ -549,6 +562,74 @@ void main() {
           ),
           throwsA(isA<UnsupportedOperationException>()),
         );
+      });
+    });
+
+    group('deleteAsync', () {
+      test('marks a tracked entity for deletion', () async {
+        // Arrange — create an entity, then mark it for deletion.
+        final (:factories, :appliers) = _buildCounterRegistries();
+        final session = _InMemoryTestSession(
+          aggregateFactories: factories,
+          eventAppliers: appliers,
+          applicationMode: EventApplicationMode.eager,
+        );
+        const streamId = StreamId('counter-1');
+
+        await session.applyAsync<_Counter>(
+          streamId,
+          const _CreateCounterOperation(10),
+        );
+
+        // Act — mark for deletion.
+        session.deleteAsync(streamId);
+
+        // Assert — the entity should be marked for deletion in the
+        // identity map.
+        expect(
+          session.deletionSet.contains(streamId),
+          isTrue,
+        );
+      });
+
+      test('Accepts untracked stream without throwing', () {
+        // Arrange — session has no entities loaded.
+        final (:factories, :appliers) = _buildCounterRegistries();
+        final session = _InMemoryTestSession(
+          aggregateFactories: factories,
+          eventAppliers: appliers,
+          applicationMode: EventApplicationMode.eager,
+        );
+        const streamId = StreamId('unknown-stream');
+
+        // Act — deleting an untracked stream should not throw.
+        session.deleteAsync(streamId);
+
+        // Assert — the stream is in the deletion set.
+        expect(session.deletionSet.contains(streamId), isTrue);
+      });
+
+      test('saveChangesAsync removes deleted entities from identity map', () async {
+        // Arrange — create, delete, save.
+        final (:factories, :appliers) = _buildCounterRegistries();
+        final session = _InMemoryTestSession(
+          aggregateFactories: factories,
+          eventAppliers: appliers,
+          applicationMode: EventApplicationMode.eager,
+        );
+        const streamId = StreamId('counter-1');
+
+        await session.applyAsync<_Counter>(
+          streamId,
+          const _CreateCounterOperation(10),
+        );
+        session.deleteAsync(streamId);
+
+        // Act — save should process the deletion.
+        await session.saveChangesAsync();
+
+        // Assert — entity should no longer be in the identity map.
+        expect(session.trackedEntities.containsKey(streamId), isFalse);
       });
     });
   });

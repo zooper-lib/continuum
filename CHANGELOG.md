@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0] - 2026-02-21
+
+### Added
+
+- Added `deleteAsync(StreamId)` to `Session` for marking aggregates for deletion within a unit of work. No prior load is required — the stream ID alone is sufficient.
+- Added `deleteAsync(StreamId)` to `TargetPersistenceAdapter` for physical entity deletion in state-based persistence.
+- Added `softDeleteStreamAsync(StreamId)` to `EventStore` for tombstone-based stream deletion in event sourcing.
+- `StateBasedSession.saveChangesAsync` now processes deletion-marked entities by calling `adapter.deleteAsync` and removing them from the identity map.
+- Event sourcing `SessionImpl.saveChangesAsync` now soft-deletes marked streams via `EventStore.softDeleteStreamAsync`, writing a tombstone flag instead of rejecting deletion.
+- `InMemoryEventStore`, `HiveEventStore`, and `SembastEventStore` implement `softDeleteStreamAsync` — soft-deleted streams are excluded from `loadStreamAsync` and `getStreamIdsByAggregateTypeAsync` but their events are retained for auditability.
+- `InMemoryPersistenceAdapter`, `HivePersistenceAdapter`, and `SembastPersistenceAdapter` now implement `deleteAsync`.
+
 
 ## [5.2.0] - 2026-02-20
 

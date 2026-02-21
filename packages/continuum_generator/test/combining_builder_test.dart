@@ -34,10 +34,10 @@ void main() {
   });
 
   group('CombiningBuilder', () {
-    test('generates lib/continuum.g.dart for aggregate roots', () async {
-      // Arrange: Provide a synthetic `$lib$` input and a single annotated
-      // aggregate. This verifies the happy path where at least one aggregate
-      // exists and a combining output should be produced.
+    test('generates lib/continuum.g.dart for operation targets', () async {
+      // Arrange: Provide a synthetic `$lib$` input and a single operation
+      // target. This verifies the happy path where at least one target exists
+      // and a combining output should be produced.
       final builder = continuumCombiningBuilder(const BuilderOptions({}));
 
       // Act + Assert: The output should exist and contain expected imports and
@@ -46,14 +46,17 @@ void main() {
         builder,
         {
           'continuum_generator|lib/user.dart': """
-import 'package:bounded/bounded.dart';
+import 'package:continuum/continuum.dart';
 
 final class UserId extends TypedIdentity<String> {
   const UserId(super.value);
 }
 
-class User extends AggregateRoot<UserId> {
-  User(super.id);
+@OperationTarget()
+class User {
+  User(this.id);
+
+  final UserId id;
 }
 """,
         },
@@ -67,7 +70,7 @@ class User extends AggregateRoot<UserId> {
               contains("import 'user.dart';"),
               contains(r'final List<GeneratedAggregate> $targetList = ['),
               contains(r'  $User,'),
-              contains(r"@Deprecated('Use $targetList instead.')"),
+              contains(r"@Deprecated(r'Use $targetList instead.')"),
               contains(r'final List<GeneratedAggregate> $aggregateList = $targetList;'),
             ),
           ),
