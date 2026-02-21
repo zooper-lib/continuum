@@ -6,7 +6,8 @@
 import 'dart:async' as _i4;
 
 import 'package:continuum/continuum.dart' as _i5;
-import 'package:continuum_state/continuum_state.dart' as _i2;
+import 'package:continuum_state/src/persistence/target_persistence_adapter.dart'
+    as _i2;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i6;
 
@@ -30,7 +31,8 @@ import '../_fixtures/counter_fixtures.dart' as _i3;
 /// A class which mocks [TargetPersistenceAdapter].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockTargetPersistenceAdapter extends _i1.Mock implements _i2.TargetPersistenceAdapter<_i3.Counter> {
+class MockTargetPersistenceAdapter extends _i1.Mock
+    implements _i2.TargetPersistenceAdapter<_i3.Counter> {
   @override
   _i4.Future<_i3.Counter> fetchAsync(_i5.StreamId? streamId) =>
       (super.noSuchMethod(
@@ -53,15 +55,24 @@ class MockTargetPersistenceAdapter extends _i1.Mock implements _i2.TargetPersist
   @override
   _i4.Future<void> persistAsync(
     _i5.StreamId? streamId,
-    _i3.Counter? aggregate,
+    _i3.Counter? target,
     List<_i5.Operation>? pendingOperations,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#persistAsync, [
               streamId,
-              aggregate,
+              target,
               pendingOperations,
             ]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> deleteAsync(_i5.StreamId? streamId) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteAsync, [streamId]),
             returnValue: _i4.Future<void>.value(),
             returnValueForMissingStub: _i4.Future<void>.value(),
           )

@@ -57,6 +57,13 @@ final class InMemoryPersistenceAdapter<TAggregate> implements TargetPersistenceA
     _storage[streamId.value] = _toJson(target);
   }
 
+  @override
+  Future<void> deleteAsync(StreamId streamId) async {
+    // Remove the target from in-memory storage. Idempotent — removing
+    // a non-existent key is a no-op.
+    _storage.remove(streamId.value);
+  }
+
   /// The number of stored targets.
   int get length => _storage.length;
 

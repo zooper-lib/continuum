@@ -135,6 +135,12 @@ final class UserLocalDbAdapter implements TargetPersistenceAdapter<User> {
       'deactivatedAt': target.deactivatedAt?.toIso8601String(),
     });
   }
+
+  @override
+  Future<void> deleteAsync(StreamId streamId) async {
+    // Remove the target from the local database.
+    await _db.delete(streamId.value);
+  }
 }
 
 // ── Example ─────────────────────────────────────────────────────────────────

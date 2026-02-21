@@ -26,6 +26,9 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
   /// Store name for per-stream aggregate type metadata.
   static const String _aggregateTypesStoreName = 'aggregate_types';
 
+  /// Store name for soft-deletion tombstone flags.
+  static const String _deletedStreamsStoreName = 'deleted_streams';
+
   /// The Sembast database instance.
   final Database _database;
 
@@ -41,6 +44,12 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
   /// each stream, enabling [getStreamIdsByAggregateTypeAsync] queries.
   final StoreRef<String, String> _aggregateTypesStore;
 
+  /// The Sembast store for soft-deletion tombstone flags, keyed by stream ID.
+  ///
+  /// Streams present in this store are treated as deleted and excluded
+  /// from [loadStreamAsync] and [getStreamIdsByAggregateTypeAsync].
+  final StoreRef<String, bool> _deletedStreamsStore;
+
   /// Global sequence counter for ordered projections.
   int _globalSequence;
 
@@ -50,6 +59,7 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
       _eventsStore = StoreRef<String, String>(_eventsStoreName),
       _streamsStore = StoreRef<String, int>(_streamsStoreName),
       _aggregateTypesStore = StoreRef<String, String>(_aggregateTypesStoreName),
+      _deletedStreamsStore = StoreRef<String, bool>(_deletedStreamsStoreName),
       _globalSequence = globalSequence;
 
   /// Opens a Sembast event store using the provided [databaseFactory] and [dbPath].
@@ -101,6 +111,12 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
 
   @override
   Future<List<StoredEvent>> loadStreamAsync(StreamId streamId) async {
+    // Soft-deleted streams are treated as non-existent.
+    final bool? isDeleted = await _deletedStreamsStore.record(streamId.value).get(_database);
+    if (isDeleted == true) {
+      return <StoredEvent>[];
+    }
+
     // Look up the current version for this stream.
     final RecordSnapshot<String, int>? streamRecord = await _streamsStore.record(streamId.value).getSnapshot(_database);
 
@@ -291,7 +307,18 @@ final class SembastEventStore implements AtomicEventStore, ProjectionEventStore 
     // Scan the aggregate types store for streams matching the given type.
     final List<RecordSnapshot<String, String>> records = await _aggregateTypesStore.find(_database);
 
-    return records.where((record) => record.value == aggregateType).map((record) => StreamId(record.key)).toList();
+    // Load the set of soft-deleted stream IDs so they can be excluded.
+    final List<RecordSnapshot<String, bool>> deletedRecords = await _deletedStreamsStore.find(_database);
+    final Set<String> deletedStreamIds = deletedRecords.map((record) => record.key).toSet();
+
+    return records.where((record) => record.value == aggregateType && !deletedStreamIds.contains(record.key)).map((record) => StreamId(record.key)).toList();
+  }
+
+  @override
+  Future<void> softDeleteStreamAsync(StreamId streamId) async {
+    // Idempotent — marking an already-deleted or non-existent stream
+    // is a no-op (Sembast put is naturally idempotent).
+    await _deletedStreamsStore.record(streamId.value).put(_database, true);
   }
 
   // ---------------------------------------------------------------------------

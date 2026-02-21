@@ -154,7 +154,7 @@ class CombiningBuilder implements Builder {
       buffer.writeln('/// Backward-compatible alias for [\$targetList].');
       buffer.writeln('///');
       buffer.writeln('/// This package historically exposed discovered targets as `\$aggregateList`.');
-      buffer.writeln("@Deprecated('Use \$targetList instead.')");
+      buffer.writeln("@Deprecated('Use \targetList instead.')");
       buffer.writeln('final List<GeneratedAggregate> \$aggregateList = \$targetList;');
       buffer.writeln();
     }

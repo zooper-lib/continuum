@@ -71,6 +71,13 @@ final class SembastPersistenceAdapter<TAggregate> implements TargetPersistenceAd
     await _store.record(streamId.value).put(_database, json);
   }
 
+  @override
+  Future<void> deleteAsync(StreamId streamId) async {
+    // Remove the target from the Sembast store. Idempotent — deleting
+    // a non-existent record is a no-op in Sembast.
+    await _store.record(streamId.value).delete(_database);
+  }
+
   /// Returns the number of stored targets.
   Future<int> countAsync() async {
     return _store.count(_database);
