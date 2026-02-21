@@ -78,4 +78,13 @@ class MockEventStore extends _i1.Mock implements _i2.EventStore {
             ),
           )
           as _i3.Future<List<_i5.StreamId>>);
+
+  @override
+  _i3.Future<void> softDeleteStreamAsync(_i5.StreamId? streamId) =>
+      (super.noSuchMethod(
+            Invocation.method(#softDeleteStreamAsync, [streamId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
 }

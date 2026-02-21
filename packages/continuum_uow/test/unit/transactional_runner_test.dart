@@ -43,6 +43,9 @@ final class _StubSession implements Session {
   void discardStream(StreamId streamId) {}
 
   @override
+  void deleteAsync(StreamId streamId) {}
+
+  @override
   void discardAll() {}
 }
 

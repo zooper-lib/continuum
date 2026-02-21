@@ -9,15 +9,21 @@ import 'abstract_interface_targets.dart';
 import 'domain/projections/user_profile_projection.dart';
 import 'domain/user.dart';
 
-/// All discovered aggregates in this package.
+/// All discovered operation targets in this package.
 ///
 /// Pass this list to [EventSourcingStore] for automatic
 /// registration of all serializers, factories, and appliers.
-final List<GeneratedAggregate> $aggregateList = [
+final List<GeneratedAggregate> $targetList = [
   $AbstractUserBase,
   $User,
   $UserContract,
 ];
+
+/// Backward-compatible alias for [$targetList].
+///
+/// This package historically exposed discovered targets as `$aggregateList`.
+@Deprecated(r'Use $targetList instead.')
+final List<GeneratedAggregate> $aggregateList = $targetList;
 
 /// All discovered projections in this package.
 ///

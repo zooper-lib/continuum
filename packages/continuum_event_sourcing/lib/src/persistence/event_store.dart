@@ -42,8 +42,20 @@ abstract interface class EventStore {
   /// passed to [appendEventsAsync] or [AtomicEventStore.appendEventsToStreamsAsync]
   /// when events were first persisted for a stream.
   ///
-  /// Returns an empty list if no streams match.
+  /// Returns an empty list if no streams match. Streams that have been
+  /// soft-deleted via [softDeleteStreamAsync] are excluded.
   Future<List<StreamId>> getStreamIdsByAggregateTypeAsync(
     String aggregateType,
   );
+
+  /// Marks a stream as deleted using a tombstone flag in stream
+  /// metadata.
+  ///
+  /// The events remain in the store but the stream is treated as
+  /// non-existent: [loadStreamAsync] returns an empty list and
+  /// [getStreamIdsByAggregateTypeAsync] excludes it.
+  ///
+  /// Must be idempotent — soft-deleting a non-existent or already
+  /// deleted stream is a no-op.
+  Future<void> softDeleteStreamAsync(StreamId streamId);
 }

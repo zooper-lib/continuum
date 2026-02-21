@@ -78,6 +78,13 @@ final class HivePersistenceAdapter<TAggregate> implements TargetPersistenceAdapt
     await _box.put(streamId.value, json);
   }
 
+  @override
+  Future<void> deleteAsync(StreamId streamId) async {
+    // Remove the target from the Hive box. Idempotent — deleting a
+    // non-existent key is a no-op in Hive.
+    await _box.delete(streamId.value);
+  }
+
   /// Closes the underlying Hive box.
   ///
   /// Call this when the adapter is no longer needed to release resources.

@@ -90,15 +90,19 @@ final class StateBasedSession extends SessionBase {
 
   @override
   Future<CommitBatch> saveChangesAsync({int maxRetries = 1}) async {
-    // Collect all entities with pending operations.
+    // Collect entities with pending operations, excluding those marked
+    // for deletion (deletions are handled separately below).
     final pendingEntries = <MapEntry<StreamId, TrackedEntity>>[];
     for (final entry in trackedEntities.entries) {
-      if (entry.value.pendingOperations.isNotEmpty) {
+      if (!streamsMarkedForDeletion.contains(entry.key) &&
+          entry.value.pendingOperations.isNotEmpty) {
         pendingEntries.add(entry);
       }
     }
 
-    if (pendingEntries.isEmpty) return CommitBatch.empty;
+    if (pendingEntries.isEmpty && streamsMarkedForDeletion.isEmpty) {
+      return CommitBatch.empty;
+    }
 
     // In deferred mode, apply all pending operations to entities before
     // persisting so the adapter receives the post-operation state.
@@ -140,13 +144,31 @@ final class StateBasedSession extends SessionBase {
       }
     }
 
+    // Delete each stream that was marked for deletion via its adapter.
+    final deletionStreamIds = Set<StreamId>.of(streamsMarkedForDeletion);
+    for (final streamId in deletionStreamIds) {
+      try {
+        final adapter = _resolveAdapterForDeletion(streamId);
+        await adapter.deleteAsync(streamId);
+        savedStreams.add(streamId);
+
+        // Remove the entity from the identity map and the deletion
+        // set after successful deletion.
+        trackedEntities.remove(streamId);
+        streamsMarkedForDeletion.remove(streamId);
+      } on Exception catch (exception) {
+        failedStreams.add(streamId);
+        firstFailure ??= exception;
+      }
+    }
+
     // Determine what to throw (if anything).
     if (failedStreams.isNotEmpty) {
       _handleSaveFailure(
         savedStreams: savedStreams,
         failedStreams: failedStreams,
         firstFailure: firstFailure!,
-        totalStreams: pendingEntries.length,
+        totalStreams: pendingEntries.length + deletionStreamIds.length,
       );
     }
 
@@ -239,5 +261,39 @@ final class StateBasedSession extends SessionBase {
       );
     }
     return adapter;
+  }
+
+  /// Resolves the adapter to use for deleting a stream.
+  ///
+  /// If the entity is tracked, uses the tracked entity type for an
+  /// exact adapter lookup. Otherwise falls back to the first
+  /// registered adapter — deletion is idempotent, so calling it on
+  /// an adapter whose backend has no matching key is a safe no-op.
+  ///
+  /// Throws [InvalidOperationException] when no adapters are
+  /// registered at all.
+  TargetPersistenceAdapter<Object> _resolveAdapterForDeletion(
+    StreamId streamId,
+  ) {
+    // Prefer the tracked entity type for precise resolution.
+    final state = trackedEntities[streamId];
+    if (state != null) {
+      final adapter = _adapters[state.entityType];
+      if (adapter != null) return adapter;
+    }
+
+    // Untracked stream — use the single registered adapter.
+    // Multi-adapter sessions that delete untracked streams are a
+    // rare edge case; for those, the caller should load first to
+    // disambiguate.
+    if (_adapters.isEmpty) {
+      throw const InvalidOperationException(
+        message:
+            'Cannot delete stream: no TargetPersistenceAdapter is '
+            'registered in this session.',
+      );
+    }
+
+    return _adapters.values.first;
   }
 }

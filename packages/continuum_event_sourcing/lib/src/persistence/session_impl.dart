@@ -267,6 +267,12 @@ final class SessionImpl extends SessionBase {
     for (var attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         final batch = await _persistPendingEventsAsync();
+
+        // Soft-delete streams marked for deletion via tombstone metadata.
+        // This happens after successful event persistence so pending
+        // operations on the same stream are not lost.
+        await _softDeleteMarkedStreamsAsync();
+
         return batch;
       } on ConcurrencyException {
         final isLastAttempt = attempt == maxRetries;
@@ -279,6 +285,20 @@ final class SessionImpl extends SessionBase {
     }
 
     return CommitBatch.empty;
+  }
+
+  /// Soft-deletes all streams in [streamsMarkedForDeletion] via
+  /// [EventStore.softDeleteStreamAsync] and removes them from the
+  /// identity map.
+  Future<void> _softDeleteMarkedStreamsAsync() async {
+    // Copy to avoid concurrent modification during iteration.
+    final streamIds = Set<StreamId>.of(streamsMarkedForDeletion);
+
+    for (final streamId in streamIds) {
+      await _eventStore.softDeleteStreamAsync(streamId);
+      trackedEntities.remove(streamId);
+      streamsMarkedForDeletion.remove(streamId);
+    }
   }
 
   /// Core persistence logic extracted so [saveChangesAsync] can retry it.

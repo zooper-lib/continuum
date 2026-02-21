@@ -207,6 +207,58 @@ void main() {
         expect(fetched.age, isNull);
       });
     });
+
+    group('deleteAsync', () {
+      test('removes a stored aggregate', () async {
+        // Arrange — store a profile, then delete it.
+        const streamId = StreamId('profile-del');
+        final profile = _Profile(id: 'profile-del', name: 'Deleted', age: 1);
+        await adapter.persistAsync(streamId, profile, []);
+
+        // Act — delete the stored aggregate.
+        await adapter.deleteAsync(streamId);
+
+        // Assert — fetch should throw because the entity is gone.
+        await expectLater(
+          adapter.fetchAsync(streamId),
+          throwsA(isA<StateError>()),
+        );
+        expect(adapter.length, equals(0));
+      });
+
+      test('is idempotent for non-existent stream', () async {
+        // Arrange — empty store.
+        const streamId = StreamId('nonexistent');
+
+        // Act & Assert — deleting a missing key should not throw.
+        await adapter.deleteAsync(streamId);
+        expect(adapter.length, equals(0));
+      });
+
+      test('only removes the targeted stream', () async {
+        // Arrange — store two profiles.
+        const streamId1 = StreamId('keep');
+        const streamId2 = StreamId('remove');
+        await adapter.persistAsync(
+          streamId1,
+          _Profile(id: 'keep', name: 'Keep', age: 1),
+          [],
+        );
+        await adapter.persistAsync(
+          streamId2,
+          _Profile(id: 'remove', name: 'Remove', age: 2),
+          [],
+        );
+
+        // Act — delete only the second profile.
+        await adapter.deleteAsync(streamId2);
+
+        // Assert — first profile is still there, second is gone.
+        final fetched = await adapter.fetchAsync(streamId1);
+        expect(fetched.name, equals('Keep'));
+        expect(adapter.length, equals(1));
+      });
+    });
   });
 }
 

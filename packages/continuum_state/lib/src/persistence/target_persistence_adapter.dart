@@ -30,4 +30,14 @@ abstract interface class TargetPersistenceAdapter<TTarget> {
     TTarget target,
     List<Operation> pendingOperations,
   );
+
+  /// Deletes a target from the backend.
+  ///
+  /// Removes the entity identified by [streamId] from the underlying
+  /// store. Called during commit when a session marks a stream for
+  /// deletion via [Session.deleteAsync].
+  ///
+  /// Must be idempotent: deleting a non-existent target should not
+  /// throw. Throws on transient failures (network errors, etc.).
+  Future<void> deleteAsync(StreamId streamId);
 }

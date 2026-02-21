@@ -77,6 +77,15 @@ class FakeUserApiAdapter implements TargetPersistenceAdapter<User> {
       '(${pendingOperations.length} event(s)) → 200 OK',
     );
   }
+
+  @override
+  Future<void> deleteAsync(StreamId streamId) async {
+    // Simulate network latency.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    _backendDb.remove(streamId.value);
+    print('    [Backend] DELETE /users/${streamId.value} → 200 OK');
+  }
 }
 
 /// Simple record representing server-side user state.
